@@ -20,7 +20,7 @@ if not st.session_state.authenticated:
     password = st.text_input("Entrez le mot de passe", type="password")
     if password == PASSWORD:
         st.session_state.authenticated = True
-        st.experimental_rerun()
+        st.rerun()
     elif password:
         st.error("Mot de passe incorrect")
     st.stop()
