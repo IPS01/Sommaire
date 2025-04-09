@@ -89,7 +89,7 @@ if st.button("📄 Exporter en PDF"):
 
 # === TABLEAU ÉDITABLE ===
 st.subheader("🔧 Modifier les réserves existantes")
-edited_df = st.experimental_data_editor(df_filtered, num_rows="dynamic")
+edited_df = st.data_editor(df_filtered, num_rows="dynamic")
 
 # === AJOUTER UNE NOUVELLE RÉSERVE ===
 st.subheader("➕ Ajouter une nouvelle réserve")
