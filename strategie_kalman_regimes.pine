@@ -1,0 +1,212 @@
+//@version=6
+// ============================================================================
+// RÉGIMES ADAPTATIFS — Filtre de Kalman + Ratio de Variance
+// ----------------------------------------------------------------------------
+// Compatible TradingView (Pine Script v6)
+//
+// Ce n'est PAS un assemblage d'indicateurs classiques (EMA/RSI/MACD).
+// C'est une machine statistique qui change elle-même de comportement :
+//
+//   1) FILTRE DE KALMAN : estime récursivement le "vrai" prix caché sous le
+//      bruit du marché (technique d'estimation optimale issue de
+//      l'aérospatiale, utilisée par les fonds quantitatifs). On en tire :
+//        - kf      : le prix filtré (débruité)
+//        - slopeT  : la vitesse du prix filtré, normalisée (t-statistique)
+//        - z       : l'écart du prix réel au prix filtré, en écarts-types
+//
+//   2) RATIO DE VARIANCE (test de Lo & MacKinlay, 1988) : mesure si les
+//      rendements ont de la "mémoire" :
+//        - VR > 1 : les mouvements ont tendance à se poursuivre  → TENDANCE
+//        - VR < 1 : les mouvements ont tendance à se corriger    → RETOUR
+//                   À LA MOYENNE
+//        - VR ≈ 1 : marche aléatoire, aucun avantage statistique → ON NE
+//                   TRADE PAS (c'est le point le plus important)
+//
+//   3) COMPORTEMENT ADAPTATIF :
+//        - Régime TENDANCE : suit la vitesse du Kalman (momentum),
+//          sortie quand la vitesse s'inverse
+//        - Régime RETOUR À LA MOYENNE : achète les excès bas (z très
+//          négatif qui se retourne), vend à la normalisation (z ≈ 0)
+//        - Régime NEUTRE : reste à plat. Ne rien faire quand le marché
+//          est imprévisible EST la décision statistiquement correcte.
+//
+// HONNÊTETÉ OBLIGATOIRE : cette stratégie ne prédit pas l'avenir — rien ni
+// personne ne le peut sur les marchés. Elle estime des probabilités et
+// s'abstient quand elles sont neutres. Backtestez sur votre actif et votre
+// unité de temps, puis validez en paper trading avant tout argent réel.
+// ============================================================================
+
+strategy("Régimes Adaptatifs [Kalman + Ratio de Variance]",
+     shorttitle   = "Kalman Régimes",
+     overlay      = true,
+     initial_capital        = 10000,
+     currency               = currency.EUR,
+     commission_type        = strategy.commission.percent,
+     commission_value       = 0.05,
+     slippage               = 2,
+     calc_on_every_tick     = false,
+     process_orders_on_close = true,
+     pyramiding             = 0)
+
+// ----------------------------------------------------------------------------
+// PARAMÈTRES
+// ----------------------------------------------------------------------------
+grpDir = "Direction"
+enableLongs  = input.bool(true,  "Autoriser les achats (long)",  group = grpDir)
+enableShorts = input.bool(false, "Autoriser les ventes (short)", group = grpDir)
+
+grpKf = "Filtre de Kalman"
+kfQ = input.float(0.05, "Bruit de processus Q (réactivité)", minval = 0.0001, step = 0.01, group = grpKf,
+     tooltip = "Plus Q est grand, plus le filtre réagit vite au prix. Plus il est petit, plus il lisse.")
+kfR = input.float(1.0, "Bruit de mesure R (lissage)", minval = 0.01, step = 0.1, group = grpKf)
+
+grpVr = "Détection de régime (ratio de variance)"
+vrK    = input.int(5,   "Horizon k (barres agrégées)", minval = 2, maxval = 30, group = grpVr)
+vrN    = input.int(100, "Fenêtre d'estimation", minval = 30, group = grpVr)
+vrHigh = input.float(1.15, "Seuil régime TENDANCE (VR >)", minval = 1.0, step = 0.05, group = grpVr)
+vrLow  = input.float(0.85, "Seuil régime RETOUR MOYENNE (VR <)", maxval = 1.0, step = 0.05, group = grpVr)
+
+grpSig = "Signaux"
+statLen     = input.int(50, "Fenêtre de normalisation (z, vitesse)", minval = 10, group = grpSig)
+slopeThresh = input.float(1.0, "Vitesse minimale (t-stat) — mode tendance", minval = 0.1, step = 0.1, group = grpSig)
+zEntry      = input.float(2.0, "Excès d'entrée (z) — mode retour moyenne", minval = 0.5, step = 0.1, group = grpSig)
+zOverext    = input.float(2.5, "Surextension interdite (|z|) — mode tendance", minval = 1.0, step = 0.1, group = grpSig)
+
+grpRisk = "Gestion du risque"
+riskPct = input.float(1.0, "Risque par trade (% du capital)", minval = 0.1, maxval = 10, step = 0.1, group = grpRisk)
+atrLen  = input.int(14, "Période ATR (stop)", minval = 1, group = grpRisk)
+atrMult = input.float(2.5, "Multiplicateur ATR du stop", minval = 0.5, step = 0.1, group = grpRisk)
+
+grpDate = "Période de backtest"
+startDate = input.time(timestamp("1 Jan 2018 00:00 +0000"), "Début", group = grpDate)
+endDate   = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin",   group = grpDate)
+
+// ----------------------------------------------------------------------------
+// 1) FILTRE DE KALMAN (scalaire, récursif)
+// ----------------------------------------------------------------------------
+var float kf  = na
+var float kfP = 1.0
+if na(kf)
+    kf := close
+kfP := kfP + kfQ
+kGain = kfP / (kfP + kfR)
+kf   := kf + kGain * (close - kf)
+kfP  := (1 - kGain) * kfP
+
+kfSlope = kf - nz(kf[1], kf)
+
+// Vitesse normalisée (t-statistique) et écart normalisé (z-score)
+slopeSd = ta.stdev(kfSlope, statLen)
+slopeT  = slopeSd > 0 ? kfSlope / slopeSd : 0.0
+
+resid   = close - kf
+residSd = ta.stdev(resid, statLen)
+z       = residSd > 0 ? resid / residSd : 0.0
+
+// ----------------------------------------------------------------------------
+// 2) RATIO DE VARIANCE (Lo & MacKinlay) — le marché a-t-il de la mémoire ?
+// ----------------------------------------------------------------------------
+r1 = math.log(close / close[1])
+rk = math.log(close / close[vrK])
+vrDenom = vrK * ta.variance(r1, vrN)
+vr = vrDenom > 0 ? ta.variance(rk, vrN) / vrDenom : 1.0
+
+trendRegime = vr > vrHigh     // les mouvements persistent
+mrRegime    = vr < vrLow      // les mouvements se corrigent
+// entre les deux : marche aléatoire → aucun trade
+
+inDate = time >= startDate and time <= endDate
+
+// ----------------------------------------------------------------------------
+// 3) SIGNAUX SELON LE RÉGIME
+// ----------------------------------------------------------------------------
+// Régime TENDANCE : suivre la vitesse du prix filtré, sans acheter un excès
+longTrend  = enableLongs  and inDate and trendRegime and slopeT >  slopeThresh and z <  zOverext
+shortTrend = enableShorts and inDate and trendRegime and slopeT < -slopeThresh and z > -zOverext
+
+// Régime RETOUR À LA MOYENNE : acheter l'excès bas qui SE RETOURNE
+// (croisement de -zEntry vers le haut = on n'attrape pas le couteau qui tombe)
+longMR  = enableLongs  and inDate and mrRegime and ta.crossover(z, -zEntry)
+shortMR = enableShorts and inDate and mrRegime and ta.crossunder(z, zEntry)
+
+// ----------------------------------------------------------------------------
+// TAILLE DE POSITION (risque fixe en % du capital)
+// ----------------------------------------------------------------------------
+atrVal   = ta.atr(atrLen)
+stopDist = atrMult * atrVal
+riskCash = strategy.equity * riskPct / 100
+posSize  = stopDist > 0 ? riskCash / stopDist : 0.0
+
+// ----------------------------------------------------------------------------
+// ENTRÉES / SORTIES
+// ----------------------------------------------------------------------------
+var string tradeMode = ""   // "tendance" ou "moyenne" — pilote la sortie
+
+if strategy.position_size == 0 and posSize > 0
+    if longTrend or longMR
+        tradeMode := longTrend ? "tendance" : "moyenne"
+        strategy.entry("Long", strategy.long, qty = posSize, comment = tradeMode,
+             alert_message = "KalmanRegimes ACHAT (" + tradeMode + ") " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
+        strategy.exit("Long SL", "Long", stop = close - stopDist,
+             alert_message = "KalmanRegimes STOP LONG " + syminfo.ticker)
+    else if shortTrend or shortMR
+        tradeMode := shortTrend ? "tendance" : "moyenne"
+        strategy.entry("Short", strategy.short, qty = posSize, comment = tradeMode,
+             alert_message = "KalmanRegimes VENTE (" + tradeMode + ") " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
+        strategy.exit("Short SL", "Short", stop = close + stopDist,
+             alert_message = "KalmanRegimes STOP SHORT " + syminfo.ticker)
+
+// Sorties adaptées au mode d'entrée
+if strategy.position_size > 0
+    exitTrendLong = tradeMode == "tendance" and slopeT < 0            // la vitesse s'inverse
+    exitMrLong    = tradeMode == "moyenne"  and z >= 0                // retour à la normale
+    if exitTrendLong or exitMrLong
+        strategy.close("Long", comment = exitTrendLong ? "vitesse inversée" : "normalisé",
+             alert_message = "KalmanRegimes SORTIE LONG " + syminfo.ticker)
+
+if strategy.position_size < 0
+    exitTrendShort = tradeMode == "tendance" and slopeT > 0
+    exitMrShort    = tradeMode == "moyenne"  and z <= 0
+    if exitTrendShort or exitMrShort
+        strategy.close("Short", comment = exitTrendShort ? "vitesse inversée" : "normalisé",
+             alert_message = "KalmanRegimes SORTIE SHORT " + syminfo.ticker)
+
+// ----------------------------------------------------------------------------
+// AFFICHAGE
+// ----------------------------------------------------------------------------
+plot(kf, "Prix filtré (Kalman)",
+     color = kfSlope > 0 ? color.new(color.teal, 0) : color.new(color.red, 0), linewidth = 2)
+plot(kf + zEntry * residSd, "Bande haute", color = color.new(color.gray, 60))
+plot(kf - zEntry * residSd, "Bande basse", color = color.new(color.gray, 60))
+
+// Fond : teal = tendance, violet = retour à la moyenne, rien = neutre (à plat)
+bgcolor(trendRegime ? color.new(color.teal, 92) : mrRegime ? color.new(color.purple, 92) : na)
+
+plotshape(longTrend or longMR,   "Signal achat", shape.triangleup,   location.belowbar, color.new(color.teal, 0), size = size.small)
+plotshape(shortTrend or shortMR, "Signal vente", shape.triangledown, location.abovebar, color.new(color.red, 0),  size = size.small)
+
+// ----------------------------------------------------------------------------
+// TABLEAU : ÉTAT STATISTIQUE + PERFORMANCE
+// ----------------------------------------------------------------------------
+var table info = table.new(position.top_right, 2, 8, border_width = 1)
+if barstate.islast
+    regimeTxt = trendRegime ? "TENDANCE" : mrRegime ? "RETOUR MOYENNE" : "NEUTRE (à plat)"
+    regimeCol = trendRegime ? color.new(color.teal, 70) : mrRegime ? color.new(color.purple, 70) : color.new(color.gray, 70)
+    winRate = strategy.closedtrades > 0 ? 100 * strategy.wintrades / strategy.closedtrades : 0
+    pf      = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
+    table.cell(info, 0, 0, "Régime détecté", text_size = size.small, bgcolor = regimeCol)
+    table.cell(info, 1, 0, regimeTxt,        text_size = size.small, bgcolor = regimeCol)
+    table.cell(info, 0, 1, "Ratio de variance", text_size = size.small, bgcolor = color.new(color.gray, 85))
+    table.cell(info, 1, 1, str.tostring(vr, "#.##"), text_size = size.small)
+    table.cell(info, 0, 2, "Écart z", text_size = size.small, bgcolor = color.new(color.gray, 85))
+    table.cell(info, 1, 2, str.tostring(z, "#.##"), text_size = size.small)
+    table.cell(info, 0, 3, "Vitesse (t-stat)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+    table.cell(info, 1, 3, str.tostring(slopeT, "#.##"), text_size = size.small)
+    table.cell(info, 0, 4, "Trades clôturés", text_size = size.small, bgcolor = color.new(color.gray, 85))
+    table.cell(info, 1, 4, str.tostring(strategy.closedtrades), text_size = size.small)
+    table.cell(info, 0, 5, "Taux de réussite", text_size = size.small, bgcolor = color.new(color.gray, 85))
+    table.cell(info, 1, 5, str.tostring(winRate, "#.#") + " %", text_size = size.small)
+    table.cell(info, 0, 6, "Profit factor", text_size = size.small, bgcolor = color.new(color.gray, 85))
+    table.cell(info, 1, 6, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
+    table.cell(info, 0, 7, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
+    table.cell(info, 1, 7, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
