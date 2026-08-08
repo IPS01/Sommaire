@@ -1,26 +1,16 @@
 //@version=6
 // ============================================================================
-// CONFLUENCE TOTALE — LA stratégie unique : 3 moteurs, 1 décision
-// ----------------------------------------------------------------------------
-// Compatible TradingView (Pine Script v6)
-// Version "collage mobile" : aucune imbrication profonde, logique en
-// expressions d'une seule ligne — insensible aux problèmes d'indentation.
-//
-// Trois moteurs indépendants VOTENT (+1 achat, -1 vente, 0 neutre) :
+// CONFLUENCE TOTALE — 3 moteurs, 1 décision (Pine Script v6)
 //   MOTEUR 1 — TENDANCE CLASSIQUE : EMA 200 + Supertrend + RSI + filtre ADX
-//   MOTEUR 2 — STATISTIQUE : filtre de Kalman (vitesse, écart z) + ratio de
-//              variance de Lo & MacKinlay (régime tendance / retour à la
-//              moyenne / marche aléatoire = abstention)
-//   MOTEUR 3 — APPRENTISSAGE : mémorise en direct les motifs de 4 bougies
-//              de CET actif (mémoire à oubli exponentiel) et ne vote que si
-//              le biais observé est statistiquement significatif
-// Un trade ne s'ouvre que si le total des votes atteint le seuil (2 par
-// défaut). Stop ATR, take-profit en multiple du risque, sortie si les votes
-// s'inversent, taille de position en % du capital risqué.
-//
-// HONNÊTETÉ : aucune stratégie ne prédit l'avenir. Celle-ci mesure des
-// probabilités par trois méthodes indépendantes et ne s'engage que quand
-// elles convergent. Backtestez puis validez en paper trading.
+//   MOTEUR 2 — STATISTIQUE : filtre de Kalman + ratio de variance (régimes)
+//   MOTEUR 3 — APPRENTISSAGE : motifs de 4 bougies appris sur CET actif
+// Trade uniquement si le total des votes atteint le seuil (2 par défaut).
+// Stop ATR gelé à l'entrée, take-profit en multiple du risque, stop remonté
+// au prix si les votes s'inversent, position en % du capital risqué.
+// Version sans blocs : seules les 2 dernières lignes du fichier sont
+// indentées (obligatoire pour les ordres d'entrée).
+// HONNÊTETÉ : aucune stratégie ne prédit l'avenir. Backtestez puis validez
+// en paper trading avant tout argent réel.
 // ============================================================================
 
 strategy("Confluence Totale [3 moteurs : Tendance + Kalman + Apprentissage]", shorttitle = "Confluence Totale", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 0)
@@ -97,15 +87,12 @@ score2 = not useM2 ? 0 : trendRegime ? (slopeT > slopeThresh ? 1 : slopeT < -slo
 // --------------------- MOTEUR 3 : APPRENTISSAGE DE MOTIFS (4 bougies = 16 motifs)
 var array<float> obsCount = array.new_float(16, 0.0)
 var array<float> upCount  = array.new_float(16, 0.0)
-// Identifiant du motif qui précédait la bougie actuelle, et son issue révélée
 prevId = (close[1] > close[2] ? 1 : 0) + (close[2] > close[3] ? 2 : 0) + (close[3] > close[4] ? 4 : 0) + (close[4] > close[5] ? 8 : 0)
 outcome = close > close[1] ? 1.0 : 0.0
-// Mise à jour de la mémoire uniquement à la clôture confirmée (upd = 1 sinon 0)
 upd = bar_index > 6 and barstate.isconfirmed ? 1.0 : 0.0
 decayF = upd > 0 ? memLambda : 1.0
 array.set(obsCount, prevId, array.get(obsCount, prevId) * decayF + upd)
 array.set(upCount, prevId, array.get(upCount, prevId) * decayF + upd * outcome)
-// Lecture du motif actuel : biais appris sur CET actif et sa significativité
 curId = (close > close[1] ? 1 : 0) + (close[1] > close[2] ? 2 : 0) + (close[2] > close[3] ? 4 : 0) + (close[3] > close[4] ? 8 : 0)
 nObs = array.get(obsCount, curId)
 pUp = nObs > 0 ? array.get(upCount, curId) / nObs : 0.5
@@ -123,27 +110,22 @@ atrVal = ta.atr(atrLen)
 stopDist = atrMult * atrVal
 riskCash = strategy.equity * riskPct / 100
 posSize = stopDist > 0 ? riskCash / stopDist : 0.0
-float tpLong  = useTp ? close + stopDist * rrRatio : na
-float tpShort = useTp ? close - stopDist * rrRatio : na
-
-// ---------------------------------------------------------- ENTRÉES / SORTIES
 longEntry = longSignal and strategy.position_size == 0 and posSize > 0
 shortEntry = shortSignal and strategy.position_size == 0 and posSize > 0
-exitLong = strategy.position_size > 0 and totalScore <= -1
-exitShort = strategy.position_size < 0 and totalScore >= 1
 
-if longEntry
-    strategy.entry("Long", strategy.long, qty = posSize, comment = "votes " + str.tostring(totalScore) + "/3", alert_message = "ConfluenceTotale ACHAT " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
-if longEntry
-    strategy.exit("Long TP/SL", "Long", stop = close - stopDist, limit = tpLong, alert_message = "ConfluenceTotale SORTIE LONG " + syminfo.ticker)
-if shortEntry
-    strategy.entry("Short", strategy.short, qty = posSize, comment = "votes " + str.tostring(-totalScore) + "/3", alert_message = "ConfluenceTotale VENTE " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
-if shortEntry
-    strategy.exit("Short TP/SL", "Short", stop = close + stopDist, limit = tpShort, alert_message = "ConfluenceTotale SORTIE SHORT " + syminfo.ticker)
-if exitLong
-    strategy.close("Long", comment = "votes inversés", alert_message = "ConfluenceTotale SORTIE LONG (votes inversés) " + syminfo.ticker)
-if exitShort
-    strategy.close("Short", comment = "votes inversés", alert_message = "ConfluenceTotale SORTIE SHORT (votes inversés) " + syminfo.ticker)
+// ------------------- SORTIES (inconditionnelles : niveaux gelés à l'entrée)
+// Le stop est fixé à l'entrée ; si les votes s'inversent, il est remonté au
+// prix courant, ce qui ferme la position au prochain contact.
+var float slL = na
+var float tpL = na
+var float slS = na
+var float tpS = na
+slL := longEntry ? close - stopDist : strategy.position_size > 0 and totalScore <= -1 ? close : nz(slL, close)
+tpL := longEntry ? (useTp ? close + stopDist * rrRatio : na) : tpL
+slS := shortEntry ? close + stopDist : strategy.position_size < 0 and totalScore >= 1 ? close : nz(slS, close)
+tpS := shortEntry ? (useTp ? close - stopDist * rrRatio : na) : tpS
+strategy.exit("Long TP/SL", "Long", stop = slL, limit = tpL, alert_message = "ConfluenceTotale SORTIE LONG " + syminfo.ticker)
+strategy.exit("Short TP/SL", "Short", stop = slS, limit = tpS, alert_message = "ConfluenceTotale SORTIE SHORT " + syminfo.ticker)
 
 // ------------------------------------------------------------------ AFFICHAGE
 plot(emaTrend, "EMA tendance", color = color.new(color.orange, 30), linewidth = 1)
@@ -183,3 +165,9 @@ table.cell(info, 0, 7, "Profit factor", text_size = size.small, bgcolor = color.
 table.cell(info, 1, 7, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
 table.cell(info, 0, 8, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 8, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
+
+// --------------------- ENTRÉES (les 2 seules lignes indentées, en fin de fichier)
+if longEntry
+    strategy.entry("Long", strategy.long, qty = posSize, comment = "votes " + str.tostring(totalScore) + "/3", alert_message = "ConfluenceTotale ACHAT " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
+if shortEntry
+    strategy.entry("Short", strategy.short, qty = posSize, comment = "votes " + str.tostring(-totalScore) + "/3", alert_message = "ConfluenceTotale VENTE " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
