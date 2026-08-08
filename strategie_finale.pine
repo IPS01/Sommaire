@@ -153,8 +153,12 @@ plotshape(longEntry, "Signal achat", shape.triangleup, location.belowbar, color.
 plotshape(shortEntry, "Signal vente", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.small)
 
 // ------------------------------------------- TABLEAU : VOTES + PERFORMANCE
-voteTxt(int s) => s > 0 ? "▲ achat" : s < 0 ? "▼ vente" : "— neutre"
-voteCol(int s) => s > 0 ? color.new(color.teal, 70) : s < 0 ? color.new(color.red, 70) : color.new(color.gray, 85)
+txt1 = not useM1 ? "désactivé" : score1 > 0 ? "▲ achat" : score1 < 0 ? "▼ vente" : "— neutre"
+txt2 = not useM2 ? "désactivé" : score2 > 0 ? "▲ achat" : score2 < 0 ? "▼ vente" : "— neutre"
+txt3 = not useM3 ? "désactivé" : not learned ? "en apprentissage" : score3 > 0 ? "▲ achat" : score3 < 0 ? "▼ vente" : "— neutre"
+col1 = not useM1 or score1 == 0 ? color.new(color.gray, 85) : score1 > 0 ? color.new(color.teal, 70) : color.new(color.red, 70)
+col2 = not useM2 or score2 == 0 ? color.new(color.gray, 85) : score2 > 0 ? color.new(color.teal, 70) : color.new(color.red, 70)
+col3 = not useM3 or score3 == 0 ? color.new(color.gray, 85) : score3 > 0 ? color.new(color.teal, 70) : color.new(color.red, 70)
 patTxt = (close[3] > close[4] ? "▲" : "▼") + (close[2] > close[3] ? "▲" : "▼") + (close[1] > close[2] ? "▲" : "▼") + (close > close[1] ? "▲" : "▼")
 regimeTxt = trendRegime ? "tendance" : mrRegime ? "retour moyenne" : "neutre"
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
@@ -163,11 +167,11 @@ pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 var table info = table.new(position.top_right, 2, 9, border_width = 1)
 if barstate.islast
     table.cell(info, 0, 0, "M1 Tendance classique", text_size = size.small, bgcolor = color.new(color.gray, 85))
-    table.cell(info, 1, 0, useM1 ? voteTxt(score1) : "désactivé", text_size = size.small, bgcolor = voteCol(useM1 ? score1 : 0))
+    table.cell(info, 1, 0, txt1, text_size = size.small, bgcolor = col1)
     table.cell(info, 0, 1, "M2 Statistique (" + regimeTxt + ")", text_size = size.small, bgcolor = color.new(color.gray, 85))
-    table.cell(info, 1, 1, useM2 ? voteTxt(score2) : "désactivé", text_size = size.small, bgcolor = voteCol(useM2 ? score2 : 0))
+    table.cell(info, 1, 1, txt2, text_size = size.small, bgcolor = col2)
     table.cell(info, 0, 2, "M3 Motifs appris", text_size = size.small, bgcolor = color.new(color.gray, 85))
-    table.cell(info, 1, 2, useM3 ? (learned ? voteTxt(score3) : "en apprentissage") : "désactivé", text_size = size.small, bgcolor = voteCol(useM3 ? score3 : 0))
+    table.cell(info, 1, 2, txt3, text_size = size.small, bgcolor = col3)
     table.cell(info, 0, 3, "TOTAL (seuil " + str.tostring(voteMin) + ")", text_size = size.small, bgcolor = color.new(color.blue, 80))
     table.cell(info, 1, 3, str.tostring(totalScore), text_size = size.small, bgcolor = color.new(color.blue, 80))
     table.cell(info, 0, 4, "Motif " + patTxt + " : P(hausse)", text_size = size.small, bgcolor = color.new(color.gray, 85))
