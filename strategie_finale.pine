@@ -3,38 +3,29 @@
 // CONFLUENCE TOTALE — LA stratégie unique : 3 moteurs, 1 décision
 // ----------------------------------------------------------------------------
 // Compatible TradingView (Pine Script v6)
+// Version "collage mobile" : aucune imbrication profonde, logique en
+// expressions d'une seule ligne — insensible aux problèmes d'indentation.
 //
-// Trois moteurs indépendants analysent le marché et VOTENT (+1 achat,
-// -1 vente, 0 neutre). Un trade n'est ouvert que si le total des votes
-// atteint le seuil requis (2 par défaut) :
-//
-//   MOTEUR 1 — TENDANCE CLASSIQUE : EMA 200 + Supertrend + RSI,
-//              filtré par l'ADX (pas de vote en marché sans tendance).
-//
-//   MOTEUR 2 — STATISTIQUE : filtre de Kalman (prix débruité, vitesse,
-//              écart z) + ratio de variance de Lo & MacKinlay qui détecte
-//              le régime : tendance (suivre la vitesse), retour à la
-//              moyenne (acheter les excès), marche aléatoire (vote nul).
-//
-//   MOTEUR 3 — APPRENTISSAGE : mémorise en direct les motifs de bougies
-//              de CET actif (mémoire à oubli exponentiel) et ne vote que
-//              si le biais observé est statistiquement significatif.
-//
-// Gestion du risque : taille de position en % du capital risqué, stop ATR,
-// take-profit en multiple du risque, sortie anticipée si les votes
-// s'inversent. Frais et slippage inclus dans le backtest.
+// Trois moteurs indépendants VOTENT (+1 achat, -1 vente, 0 neutre) :
+//   MOTEUR 1 — TENDANCE CLASSIQUE : EMA 200 + Supertrend + RSI + filtre ADX
+//   MOTEUR 2 — STATISTIQUE : filtre de Kalman (vitesse, écart z) + ratio de
+//              variance de Lo & MacKinlay (régime tendance / retour à la
+//              moyenne / marche aléatoire = abstention)
+//   MOTEUR 3 — APPRENTISSAGE : mémorise en direct les motifs de 4 bougies
+//              de CET actif (mémoire à oubli exponentiel) et ne vote que si
+//              le biais observé est statistiquement significatif
+// Un trade ne s'ouvre que si le total des votes atteint le seuil (2 par
+// défaut). Stop ATR, take-profit en multiple du risque, sortie si les votes
+// s'inversent, taille de position en % du capital risqué.
 //
 // HONNÊTETÉ : aucune stratégie ne prédit l'avenir. Celle-ci mesure des
-// probabilités par trois méthodes indépendantes et ne s'engage que
-// lorsqu'elles convergent — sinon elle reste à plat. Backtestez sur votre
-// actif/unité de temps puis validez en paper trading avant l'argent réel.
+// probabilités par trois méthodes indépendantes et ne s'engage que quand
+// elles convergent. Backtestez puis validez en paper trading.
 // ============================================================================
 
 strategy("Confluence Totale [3 moteurs : Tendance + Kalman + Apprentissage]", shorttitle = "Confluence Totale", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 0)
 
-// ----------------------------------------------------------------------------
-// PARAMÈTRES
-// ----------------------------------------------------------------------------
+// ---------------------------------------------------------------- PARAMÈTRES
 enableLongs  = input.bool(true,  "Autoriser les achats (long)",  group = "Direction et décision")
 enableShorts = input.bool(false, "Autoriser les ventes (short)", group = "Direction et décision")
 voteMin      = input.int(2, "Votes requis pour trader (sur 3)", minval = 1, maxval = 3, group = "Direction et décision", tooltip = "2 = au moins deux moteurs d'accord. 3 = unanimité (très sélectif). 1 = agressif.")
@@ -58,11 +49,10 @@ statLen     = input.int(50, "Fenêtre de normalisation (z, vitesse)", minval = 1
 slopeThresh = input.float(1.0, "Vitesse minimale (t-stat)", minval = 0.1, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
 zEntry      = input.float(2.0, "Excès d'entrée (z) en retour moyenne", minval = 0.5, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
 
-useM3     = input.bool(true, "Activer le moteur 3", group = "Moteur 3 — Apprentissage de motifs")
-patLen    = input.int(4, "Longueur du motif (bougies)", minval = 2, maxval = 8, group = "Moteur 3 — Apprentissage de motifs")
-memLambda = input.float(0.99, "Facteur de mémoire (oubli)", minval = 0.90, maxval = 0.999, step = 0.001, group = "Moteur 3 — Apprentissage de motifs")
-minObs    = input.float(30, "Observations minimales par motif", minval = 5, group = "Moteur 3 — Apprentissage de motifs")
-zPat      = input.float(1.6, "Significativité requise (z)", minval = 0.5, step = 0.1, group = "Moteur 3 — Apprentissage de motifs")
+useM3     = input.bool(true, "Activer le moteur 3", group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
+memLambda = input.float(0.99, "Facteur de mémoire (oubli)", minval = 0.90, maxval = 0.999, step = 0.001, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
+minObs    = input.float(30, "Observations minimales par motif", minval = 5, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
+zPat      = input.float(1.6, "Significativité requise (z)", minval = 0.5, step = 0.1, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
 
 riskPct = input.float(1.0, "Risque par trade (% du capital)", minval = 0.1, maxval = 10, step = 0.1, group = "Gestion du risque")
 atrLen  = input.int(14, "Période ATR (stop)", minval = 1, group = "Gestion du risque")
@@ -75,154 +65,103 @@ endDate   = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin",   group = "P�
 
 inDate = time >= startDate and time <= endDate
 
-// ============================================================================
-// MOTEUR 1 — TENDANCE CLASSIQUE
-// ============================================================================
+// ------------------------------------------------ MOTEUR 1 : TENDANCE CLASSIQUE
 emaTrend = ta.ema(close, emaLen)
-[stLine, stDir] = ta.supertrend(stFactor, stAtrLen)   // stDir < 0 : haussier
+[stLine, stDir] = ta.supertrend(stFactor, stAtrLen)
 rsiVal = ta.rsi(close, rsiLen)
 [diPlus, diMinus, adxVal] = ta.dmi(adxLen, adxLen)
 adxOk = adxMin <= 0 or adxVal >= adxMin
+score1 = useM1 and adxOk ? (close > emaTrend and stDir < 0 and rsiVal > 50 ? 1 : close < emaTrend and stDir > 0 and rsiVal < 50 ? -1 : 0) : 0
 
-score1 = 0
-if useM1 and adxOk
-    if close > emaTrend and stDir < 0 and rsiVal > 50
-        score1 := 1
-    else if close < emaTrend and stDir > 0 and rsiVal < 50
-        score1 := -1
-
-// ============================================================================
-// MOTEUR 2 — STATISTIQUE (Kalman + ratio de variance)
-// ============================================================================
-// Filtre de Kalman scalaire récursif
+// ------------------------------------- MOTEUR 2 : STATISTIQUE (Kalman + VR)
 var float kf  = na
 var float kfP = 1.0
-if na(kf)
-    kf := close
 kfP := kfP + kfQ
 kGain = kfP / (kfP + kfR)
-kf   := kf + kGain * (close - kf)
-kfP  := (1 - kGain) * kfP
-
+kf := na(kf) ? close : kf + kGain * (close - kf)
+kfP := (1 - kGain) * kfP
 kfSlope = kf - nz(kf[1], kf)
 slopeSd = ta.stdev(kfSlope, statLen)
-slopeT  = slopeSd > 0 ? kfSlope / slopeSd : 0.0
-resid   = close - kf
+slopeT = slopeSd > 0 ? kfSlope / slopeSd : 0.0
+resid = close - kf
 residSd = ta.stdev(resid, statLen)
-z       = residSd > 0 ? resid / residSd : 0.0
-
-// Ratio de variance (Lo & MacKinlay) : le marché a-t-il de la mémoire ?
+z = residSd > 0 ? resid / residSd : 0.0
 r1 = math.log(close / close[1])
 rk = math.log(close / close[vrK])
 vrDenom = vrK * ta.variance(r1, vrN)
 vr = vrDenom > 0 ? ta.variance(rk, vrN) / vrDenom : 1.0
 trendRegime = vr > vrHigh
-mrRegime    = vr < vrLow
+mrRegime = vr < vrLow
+score2 = not useM2 ? 0 : trendRegime ? (slopeT > slopeThresh ? 1 : slopeT < -slopeThresh ? -1 : 0) : mrRegime ? (z < -zEntry ? 1 : z > zEntry ? -1 : 0) : 0
 
-score2 = 0
-if useM2
-    if trendRegime
-        // régime tendance : suivre la vitesse du prix filtré
-        score2 := slopeT > slopeThresh ? 1 : slopeT < -slopeThresh ? -1 : 0
-    else if mrRegime
-        // régime retour à la moyenne : jouer les excès statistiques
-        score2 := z < -zEntry ? 1 : z > zEntry ? -1 : 0
-    // régime neutre (marche aléatoire) : vote nul
-
-// ============================================================================
-// MOTEUR 3 — APPRENTISSAGE DE MOTIFS (probabilités conditionnelles)
-// ============================================================================
-nPatterns = int(math.pow(2, patLen))
-var array<float> obsCount = array.new_float(nPatterns, 0.0)
-var array<float> upCount  = array.new_float(nPatterns, 0.0)
-
-// Encode la suite hausse/baisse des `patLen` bougies finissant à l'offset `off`
-patternId(int off) =>
-    id = 0
-    mult = 1
-    for i = 0 to patLen - 1
-        if close[off + i] > close[off + i + 1]
-            id += mult
-        mult *= 2
-    id
-
-// Apprentissage à la clôture : le motif précédent vient de révéler son issue
-if bar_index > patLen + 1 and barstate.isconfirmed
-    prevId = patternId(1)
-    outcome = close > close[1] ? 1.0 : 0.0
-    array.set(obsCount, prevId, array.get(obsCount, prevId) * memLambda + 1.0)
-    array.set(upCount,  prevId, array.get(upCount,  prevId) * memLambda + outcome)
-
-// Lecture du motif actuel : biais appris sur CET actif, et sa significativité
-curId = bar_index > patLen ? patternId(0) : 0
-nObs  = array.get(obsCount, curId)
-pUp   = nObs > 0 ? array.get(upCount, curId) / nObs : 0.5
+// --------------------- MOTEUR 3 : APPRENTISSAGE DE MOTIFS (4 bougies = 16 motifs)
+var array<float> obsCount = array.new_float(16, 0.0)
+var array<float> upCount  = array.new_float(16, 0.0)
+// Identifiant du motif qui précédait la bougie actuelle, et son issue révélée
+prevId = (close[1] > close[2] ? 1 : 0) + (close[2] > close[3] ? 2 : 0) + (close[3] > close[4] ? 4 : 0) + (close[4] > close[5] ? 8 : 0)
+outcome = close > close[1] ? 1.0 : 0.0
+// Mise à jour de la mémoire uniquement à la clôture confirmée (upd = 1 sinon 0)
+upd = bar_index > 6 and barstate.isconfirmed ? 1.0 : 0.0
+decayF = upd > 0 ? memLambda : 1.0
+array.set(obsCount, prevId, array.get(obsCount, prevId) * decayF + upd)
+array.set(upCount, prevId, array.get(upCount, prevId) * decayF + upd * outcome)
+// Lecture du motif actuel : biais appris sur CET actif et sa significativité
+curId = (close > close[1] ? 1 : 0) + (close[1] > close[2] ? 2 : 0) + (close[2] > close[3] ? 4 : 0) + (close[3] > close[4] ? 8 : 0)
+nObs = array.get(obsCount, curId)
+pUp = nObs > 0 ? array.get(upCount, curId) / nObs : 0.5
 zStat = nObs > 0 ? (pUp - 0.5) / math.sqrt(0.25 / nObs) : 0.0
 learned = nObs >= minObs
+score3 = useM3 and learned ? (zStat > zPat ? 1 : zStat < -zPat ? -1 : 0) : 0
 
-score3 = 0
-if useM3 and learned
-    score3 := zStat > zPat ? 1 : zStat < -zPat ? -1 : 0
-
-// ============================================================================
-// DÉCISION : LE VOTE
-// ============================================================================
+// ------------------------------------------------------- DÉCISION : LE VOTE
 totalScore = score1 + score2 + score3
 longSignal  = enableLongs  and inDate and totalScore >= voteMin
 shortSignal = enableShorts and inDate and totalScore <= -voteMin
 
-// ----------------------------------------------------------------------------
-// TAILLE DE POSITION (risque fixe en % du capital)
-// ----------------------------------------------------------------------------
-atrVal   = ta.atr(atrLen)
+// ------------------------------------------- TAILLE DE POSITION (risque fixe)
+atrVal = ta.atr(atrLen)
 stopDist = atrMult * atrVal
 riskCash = strategy.equity * riskPct / 100
-posSize  = stopDist > 0 ? riskCash / stopDist : 0.0
+posSize = stopDist > 0 ? riskCash / stopDist : 0.0
+float tpLong  = useTp ? close + stopDist * rrRatio : na
+float tpShort = useTp ? close - stopDist * rrRatio : na
 
-// ----------------------------------------------------------------------------
-// ENTRÉES / SORTIES
-// ----------------------------------------------------------------------------
-if strategy.position_size == 0 and posSize > 0
-    if longSignal
-        float tpLong = useTp ? close + stopDist * rrRatio : na
-        strategy.entry("Long", strategy.long, qty = posSize, comment = "votes " + str.tostring(totalScore) + "/3", alert_message = "ConfluenceTotale ACHAT " + syminfo.ticker + " (votes " + str.tostring(totalScore) + "/3) @ " + str.tostring(close, format.mintick))
-        strategy.exit("Long TP/SL", "Long", stop = close - stopDist, limit = tpLong, alert_message = "ConfluenceTotale SORTIE LONG " + syminfo.ticker)
-    else if shortSignal
-        float tpShort = useTp ? close - stopDist * rrRatio : na
-        strategy.entry("Short", strategy.short, qty = posSize, comment = "votes " + str.tostring(-totalScore) + "/3", alert_message = "ConfluenceTotale VENTE " + syminfo.ticker + " (votes " + str.tostring(-totalScore) + "/3) @ " + str.tostring(close, format.mintick))
-        strategy.exit("Short TP/SL", "Short", stop = close + stopDist, limit = tpShort, alert_message = "ConfluenceTotale SORTIE SHORT " + syminfo.ticker)
+// ---------------------------------------------------------- ENTRÉES / SORTIES
+longEntry = longSignal and strategy.position_size == 0 and posSize > 0
+shortEntry = shortSignal and strategy.position_size == 0 and posSize > 0
+exitLong = strategy.position_size > 0 and totalScore <= -1
+exitShort = strategy.position_size < 0 and totalScore >= 1
 
-// Sortie anticipée : la majorité des votes s'est inversée contre la position
-if strategy.position_size > 0 and totalScore <= -1
+if longEntry
+    strategy.entry("Long", strategy.long, qty = posSize, comment = "votes " + str.tostring(totalScore) + "/3", alert_message = "ConfluenceTotale ACHAT " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
+if longEntry
+    strategy.exit("Long TP/SL", "Long", stop = close - stopDist, limit = tpLong, alert_message = "ConfluenceTotale SORTIE LONG " + syminfo.ticker)
+if shortEntry
+    strategy.entry("Short", strategy.short, qty = posSize, comment = "votes " + str.tostring(-totalScore) + "/3", alert_message = "ConfluenceTotale VENTE " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
+if shortEntry
+    strategy.exit("Short TP/SL", "Short", stop = close + stopDist, limit = tpShort, alert_message = "ConfluenceTotale SORTIE SHORT " + syminfo.ticker)
+if exitLong
     strategy.close("Long", comment = "votes inversés", alert_message = "ConfluenceTotale SORTIE LONG (votes inversés) " + syminfo.ticker)
-if strategy.position_size < 0 and totalScore >= 1
+if exitShort
     strategy.close("Short", comment = "votes inversés", alert_message = "ConfluenceTotale SORTIE SHORT (votes inversés) " + syminfo.ticker)
 
-// ----------------------------------------------------------------------------
-// AFFICHAGE
-// ----------------------------------------------------------------------------
+// ------------------------------------------------------------------ AFFICHAGE
 plot(emaTrend, "EMA tendance", color = color.new(color.orange, 30), linewidth = 1)
 plot(kf, "Prix filtré (Kalman)", color = kfSlope > 0 ? color.new(color.teal, 0) : color.new(color.red, 0), linewidth = 2)
-
-// Fond : régime statistique détecté (teal = tendance, violet = retour moyenne)
 bgcolor(trendRegime ? color.new(color.teal, 92) : mrRegime ? color.new(color.purple, 92) : na)
+plotshape(longEntry, "Signal achat", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.small)
+plotshape(shortEntry, "Signal vente", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.small)
 
-plotshape(longSignal and strategy.position_size == 0,  "Signal achat", shape.triangleup,   location.belowbar, color.new(color.teal, 0), size = size.small)
-plotshape(shortSignal and strategy.position_size == 0, "Signal vente", shape.triangledown, location.abovebar, color.new(color.red, 0),  size = size.small)
-
-// ----------------------------------------------------------------------------
-// TABLEAU : VOTES EN DIRECT + PERFORMANCE
-// ----------------------------------------------------------------------------
-voteTxt(int s) =>
-    s > 0 ? "▲ achat" : s < 0 ? "▼ vente" : "— neutre"
-voteCol(int s) =>
-    s > 0 ? color.new(color.teal, 70) : s < 0 ? color.new(color.red, 70) : color.new(color.gray, 85)
+// ------------------------------------------- TABLEAU : VOTES + PERFORMANCE
+voteTxt(int s) => s > 0 ? "▲ achat" : s < 0 ? "▼ vente" : "— neutre"
+voteCol(int s) => s > 0 ? color.new(color.teal, 70) : s < 0 ? color.new(color.red, 70) : color.new(color.gray, 85)
+patTxt = (close[3] > close[4] ? "▲" : "▼") + (close[2] > close[3] ? "▲" : "▼") + (close[1] > close[2] ? "▲" : "▼") + (close > close[1] ? "▲" : "▼")
+regimeTxt = trendRegime ? "tendance" : mrRegime ? "retour moyenne" : "neutre"
+winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
+pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 
 var table info = table.new(position.top_right, 2, 9, border_width = 1)
 if barstate.islast
-    winRate = strategy.closedtrades > 0 ? 100 * strategy.wintrades / strategy.closedtrades : 0
-    pf      = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
-    regimeTxt = trendRegime ? "tendance" : mrRegime ? "retour moyenne" : "neutre"
     table.cell(info, 0, 0, "M1 Tendance classique", text_size = size.small, bgcolor = color.new(color.gray, 85))
     table.cell(info, 1, 0, useM1 ? voteTxt(score1) : "désactivé", text_size = size.small, bgcolor = voteCol(useM1 ? score1 : 0))
     table.cell(info, 0, 1, "M2 Statistique (" + regimeTxt + ")", text_size = size.small, bgcolor = color.new(color.gray, 85))
@@ -231,7 +170,7 @@ if barstate.islast
     table.cell(info, 1, 2, useM3 ? (learned ? voteTxt(score3) : "en apprentissage") : "désactivé", text_size = size.small, bgcolor = voteCol(useM3 ? score3 : 0))
     table.cell(info, 0, 3, "TOTAL (seuil " + str.tostring(voteMin) + ")", text_size = size.small, bgcolor = color.new(color.blue, 80))
     table.cell(info, 1, 3, str.tostring(totalScore), text_size = size.small, bgcolor = color.new(color.blue, 80))
-    table.cell(info, 0, 4, "P(hausse) motif actuel", text_size = size.small, bgcolor = color.new(color.gray, 85))
+    table.cell(info, 0, 4, "Motif " + patTxt + " : P(hausse)", text_size = size.small, bgcolor = color.new(color.gray, 85))
     table.cell(info, 1, 4, str.tostring(100 * pUp, "#.#") + " % (n=" + str.tostring(nObs, "#") + ")", text_size = size.small)
     table.cell(info, 0, 5, "Trades clôturés", text_size = size.small, bgcolor = color.new(color.gray, 85))
     table.cell(info, 1, 5, str.tostring(strategy.closedtrades), text_size = size.small)
