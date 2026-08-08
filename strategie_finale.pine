@@ -30,65 +30,48 @@
 // actif/unité de temps puis validez en paper trading avant l'argent réel.
 // ============================================================================
 
-strategy("Confluence Totale [3 moteurs : Tendance + Kalman + Apprentissage]",
-     shorttitle   = "Confluence Totale",
-     overlay      = true,
-     initial_capital        = 10000,
-     currency               = currency.EUR,
-     commission_type        = strategy.commission.percent,
-     commission_value       = 0.05,
-     slippage               = 2,
-     calc_on_every_tick     = false,
-     process_orders_on_close = true,
-     pyramiding             = 0)
+strategy("Confluence Totale [3 moteurs : Tendance + Kalman + Apprentissage]", shorttitle = "Confluence Totale", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 0)
 
 // ----------------------------------------------------------------------------
 // PARAMÈTRES
 // ----------------------------------------------------------------------------
-grpDir = "Direction et décision"
-enableLongs  = input.bool(true,  "Autoriser les achats (long)",  group = grpDir)
-enableShorts = input.bool(false, "Autoriser les ventes (short)", group = grpDir)
-voteMin      = input.int(2, "Votes requis pour trader (sur 3)", minval = 1, maxval = 3, group = grpDir,
-     tooltip = "2 = au moins deux moteurs d'accord. 3 = unanimité (très sélectif). 1 = agressif.")
+enableLongs  = input.bool(true,  "Autoriser les achats (long)",  group = "Direction et décision")
+enableShorts = input.bool(false, "Autoriser les ventes (short)", group = "Direction et décision")
+voteMin      = input.int(2, "Votes requis pour trader (sur 3)", minval = 1, maxval = 3, group = "Direction et décision", tooltip = "2 = au moins deux moteurs d'accord. 3 = unanimité (très sélectif). 1 = agressif.")
 
-grpM1 = "Moteur 1 — Tendance classique"
-useM1    = input.bool(true, "Activer le moteur 1", group = grpM1)
-emaLen   = input.int(200, "Période EMA de tendance", minval = 10, group = grpM1)
-stFactor = input.float(3.0, "Facteur Supertrend", minval = 0.5, step = 0.1, group = grpM1)
-stAtrLen = input.int(10, "Période ATR du Supertrend", minval = 1, group = grpM1)
-rsiLen   = input.int(14, "Période RSI", minval = 2, group = grpM1)
-adxLen   = input.int(14, "Période ADX", minval = 1, group = grpM1)
-adxMin   = input.float(20, "ADX minimum (0 = désactivé)", minval = 0, maxval = 50, group = grpM1)
+useM1    = input.bool(true, "Activer le moteur 1", group = "Moteur 1 — Tendance classique")
+emaLen   = input.int(200, "Période EMA de tendance", minval = 10, group = "Moteur 1 — Tendance classique")
+stFactor = input.float(3.0, "Facteur Supertrend", minval = 0.5, step = 0.1, group = "Moteur 1 — Tendance classique")
+stAtrLen = input.int(10, "Période ATR du Supertrend", minval = 1, group = "Moteur 1 — Tendance classique")
+rsiLen   = input.int(14, "Période RSI", minval = 2, group = "Moteur 1 — Tendance classique")
+adxLen   = input.int(14, "Période ADX", minval = 1, group = "Moteur 1 — Tendance classique")
+adxMin   = input.float(20, "ADX minimum (0 = désactivé)", minval = 0, maxval = 50, group = "Moteur 1 — Tendance classique")
 
-grpM2 = "Moteur 2 — Statistique (Kalman + ratio de variance)"
-useM2       = input.bool(true, "Activer le moteur 2", group = grpM2)
-kfQ         = input.float(0.05, "Kalman : bruit de processus Q", minval = 0.0001, step = 0.01, group = grpM2)
-kfR         = input.float(1.0, "Kalman : bruit de mesure R", minval = 0.01, step = 0.1, group = grpM2)
-vrK         = input.int(5, "Ratio de variance : horizon k", minval = 2, maxval = 30, group = grpM2)
-vrN         = input.int(100, "Ratio de variance : fenêtre", minval = 30, group = grpM2)
-vrHigh      = input.float(1.15, "Seuil régime tendance (VR >)", minval = 1.0, step = 0.05, group = grpM2)
-vrLow       = input.float(0.85, "Seuil régime retour moyenne (VR <)", maxval = 1.0, step = 0.05, group = grpM2)
-statLen     = input.int(50, "Fenêtre de normalisation (z, vitesse)", minval = 10, group = grpM2)
-slopeThresh = input.float(1.0, "Vitesse minimale (t-stat)", minval = 0.1, step = 0.1, group = grpM2)
-zEntry      = input.float(2.0, "Excès d'entrée (z) en retour moyenne", minval = 0.5, step = 0.1, group = grpM2)
+useM2       = input.bool(true, "Activer le moteur 2", group = "Moteur 2 — Statistique (Kalman + VR)")
+kfQ         = input.float(0.05, "Kalman : bruit de processus Q", minval = 0.0001, step = 0.01, group = "Moteur 2 — Statistique (Kalman + VR)")
+kfR         = input.float(1.0, "Kalman : bruit de mesure R", minval = 0.01, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
+vrK         = input.int(5, "Ratio de variance : horizon k", minval = 2, maxval = 30, group = "Moteur 2 — Statistique (Kalman + VR)")
+vrN         = input.int(100, "Ratio de variance : fenêtre", minval = 30, group = "Moteur 2 — Statistique (Kalman + VR)")
+vrHigh      = input.float(1.15, "Seuil régime tendance (VR >)", minval = 1.0, step = 0.05, group = "Moteur 2 — Statistique (Kalman + VR)")
+vrLow       = input.float(0.85, "Seuil régime retour moyenne (VR <)", maxval = 1.0, step = 0.05, group = "Moteur 2 — Statistique (Kalman + VR)")
+statLen     = input.int(50, "Fenêtre de normalisation (z, vitesse)", minval = 10, group = "Moteur 2 — Statistique (Kalman + VR)")
+slopeThresh = input.float(1.0, "Vitesse minimale (t-stat)", minval = 0.1, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
+zEntry      = input.float(2.0, "Excès d'entrée (z) en retour moyenne", minval = 0.5, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
 
-grpM3 = "Moteur 3 — Apprentissage de motifs"
-useM3     = input.bool(true, "Activer le moteur 3", group = grpM3)
-patLen    = input.int(4, "Longueur du motif (bougies)", minval = 2, maxval = 8, group = grpM3)
-memLambda = input.float(0.99, "Facteur de mémoire (oubli)", minval = 0.90, maxval = 0.999, step = 0.001, group = grpM3)
-minObs    = input.float(30, "Observations minimales par motif", minval = 5, group = grpM3)
-zPat      = input.float(1.6, "Significativité requise (z)", minval = 0.5, step = 0.1, group = grpM3)
+useM3     = input.bool(true, "Activer le moteur 3", group = "Moteur 3 — Apprentissage de motifs")
+patLen    = input.int(4, "Longueur du motif (bougies)", minval = 2, maxval = 8, group = "Moteur 3 — Apprentissage de motifs")
+memLambda = input.float(0.99, "Facteur de mémoire (oubli)", minval = 0.90, maxval = 0.999, step = 0.001, group = "Moteur 3 — Apprentissage de motifs")
+minObs    = input.float(30, "Observations minimales par motif", minval = 5, group = "Moteur 3 — Apprentissage de motifs")
+zPat      = input.float(1.6, "Significativité requise (z)", minval = 0.5, step = 0.1, group = "Moteur 3 — Apprentissage de motifs")
 
-grpRisk = "Gestion du risque"
-riskPct = input.float(1.0, "Risque par trade (% du capital)", minval = 0.1, maxval = 10, step = 0.1, group = grpRisk)
-atrLen  = input.int(14, "Période ATR (stop)", minval = 1, group = grpRisk)
-atrMult = input.float(2.0, "Multiplicateur ATR du stop", minval = 0.5, step = 0.1, group = grpRisk)
-useTp   = input.bool(true, "Take-profit en multiple du risque", group = grpRisk)
-rrRatio = input.float(2.0, "Ratio gain/risque du take-profit", minval = 0.5, step = 0.1, group = grpRisk)
+riskPct = input.float(1.0, "Risque par trade (% du capital)", minval = 0.1, maxval = 10, step = 0.1, group = "Gestion du risque")
+atrLen  = input.int(14, "Période ATR (stop)", minval = 1, group = "Gestion du risque")
+atrMult = input.float(2.0, "Multiplicateur ATR du stop", minval = 0.5, step = 0.1, group = "Gestion du risque")
+useTp   = input.bool(true, "Take-profit en multiple du risque", group = "Gestion du risque")
+rrRatio = input.float(2.0, "Ratio gain/risque du take-profit", minval = 0.5, step = 0.1, group = "Gestion du risque")
 
-grpDate = "Période de backtest"
-startDate = input.time(timestamp("1 Jan 2018 00:00 +0000"), "Début", group = grpDate)
-endDate   = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin",   group = grpDate)
+startDate = input.time(timestamp("1 Jan 2018 00:00 +0000"), "Début", group = "Période de backtest")
+endDate   = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin",   group = "Période de backtest")
 
 inDate = time >= startDate and time <= endDate
 
@@ -202,33 +185,24 @@ posSize  = stopDist > 0 ? riskCash / stopDist : 0.0
 if strategy.position_size == 0 and posSize > 0
     if longSignal
         float tpLong = useTp ? close + stopDist * rrRatio : na
-        strategy.entry("Long", strategy.long, qty = posSize,
-             comment = "votes " + str.tostring(totalScore) + "/3",
-             alert_message = "ConfluenceTotale ACHAT " + syminfo.ticker + " (votes " + str.tostring(totalScore) + "/3) @ " + str.tostring(close, format.mintick))
-        strategy.exit("Long TP/SL", "Long", stop = close - stopDist, limit = tpLong,
-             alert_message = "ConfluenceTotale SORTIE LONG " + syminfo.ticker)
+        strategy.entry("Long", strategy.long, qty = posSize, comment = "votes " + str.tostring(totalScore) + "/3", alert_message = "ConfluenceTotale ACHAT " + syminfo.ticker + " (votes " + str.tostring(totalScore) + "/3) @ " + str.tostring(close, format.mintick))
+        strategy.exit("Long TP/SL", "Long", stop = close - stopDist, limit = tpLong, alert_message = "ConfluenceTotale SORTIE LONG " + syminfo.ticker)
     else if shortSignal
         float tpShort = useTp ? close - stopDist * rrRatio : na
-        strategy.entry("Short", strategy.short, qty = posSize,
-             comment = "votes " + str.tostring(-totalScore) + "/3",
-             alert_message = "ConfluenceTotale VENTE " + syminfo.ticker + " (votes " + str.tostring(-totalScore) + "/3) @ " + str.tostring(close, format.mintick))
-        strategy.exit("Short TP/SL", "Short", stop = close + stopDist, limit = tpShort,
-             alert_message = "ConfluenceTotale SORTIE SHORT " + syminfo.ticker)
+        strategy.entry("Short", strategy.short, qty = posSize, comment = "votes " + str.tostring(-totalScore) + "/3", alert_message = "ConfluenceTotale VENTE " + syminfo.ticker + " (votes " + str.tostring(-totalScore) + "/3) @ " + str.tostring(close, format.mintick))
+        strategy.exit("Short TP/SL", "Short", stop = close + stopDist, limit = tpShort, alert_message = "ConfluenceTotale SORTIE SHORT " + syminfo.ticker)
 
 // Sortie anticipée : la majorité des votes s'est inversée contre la position
 if strategy.position_size > 0 and totalScore <= -1
-    strategy.close("Long", comment = "votes inversés",
-         alert_message = "ConfluenceTotale SORTIE LONG (votes inversés) " + syminfo.ticker)
+    strategy.close("Long", comment = "votes inversés", alert_message = "ConfluenceTotale SORTIE LONG (votes inversés) " + syminfo.ticker)
 if strategy.position_size < 0 and totalScore >= 1
-    strategy.close("Short", comment = "votes inversés",
-         alert_message = "ConfluenceTotale SORTIE SHORT (votes inversés) " + syminfo.ticker)
+    strategy.close("Short", comment = "votes inversés", alert_message = "ConfluenceTotale SORTIE SHORT (votes inversés) " + syminfo.ticker)
 
 // ----------------------------------------------------------------------------
 // AFFICHAGE
 // ----------------------------------------------------------------------------
 plot(emaTrend, "EMA tendance", color = color.new(color.orange, 30), linewidth = 1)
-plot(kf, "Prix filtré (Kalman)",
-     color = kfSlope > 0 ? color.new(color.teal, 0) : color.new(color.red, 0), linewidth = 2)
+plot(kf, "Prix filtré (Kalman)", color = kfSlope > 0 ? color.new(color.teal, 0) : color.new(color.red, 0), linewidth = 2)
 
 // Fond : régime statistique détecté (teal = tendance, violet = retour moyenne)
 bgcolor(trendRegime ? color.new(color.teal, 92) : mrRegime ? color.new(color.purple, 92) : na)
