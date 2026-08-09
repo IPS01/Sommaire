@@ -17,7 +17,7 @@ strategy("Confluence Totale [3 moteurs : Tendance + Kalman + Apprentissage]", sh
 
 // ---------------------------------------------------------------- PARAMÈTRES
 enableLongs  = input.bool(true,  "Autoriser les achats (long)",  group = "Direction et décision")
-enableShorts = input.bool(false, "Autoriser les ventes (short)", group = "Direction et décision")
+enableShorts = input.bool(true, "Autoriser les ventes (short)", group = "Direction et décision")
 voteMin      = input.int(2, "Votes requis pour trader (sur 3)", minval = 1, maxval = 3, group = "Direction et décision", tooltip = "2 = au moins deux moteurs d'accord. 3 = unanimité (très sélectif). 1 = agressif.")
 
 useM1    = input.bool(true, "Activer le moteur 1", group = "Moteur 1 — Tendance classique")
@@ -26,23 +26,23 @@ stFactor = input.float(3.0, "Facteur Supertrend", minval = 0.5, step = 0.1, grou
 stAtrLen = input.int(10, "Période ATR du Supertrend", minval = 1, group = "Moteur 1 — Tendance classique")
 rsiLen   = input.int(14, "Période RSI", minval = 2, group = "Moteur 1 — Tendance classique")
 adxLen   = input.int(14, "Période ADX", minval = 1, group = "Moteur 1 — Tendance classique")
-adxMin   = input.float(20, "ADX minimum (0 = désactivé)", minval = 0, maxval = 50, group = "Moteur 1 — Tendance classique")
+adxMin   = input.float(15, "ADX minimum (0 = désactivé)", minval = 0, maxval = 50, group = "Moteur 1 — Tendance classique")
 
 useM2       = input.bool(true, "Activer le moteur 2", group = "Moteur 2 — Statistique (Kalman + VR)")
 kfQ         = input.float(0.05, "Kalman : bruit de processus Q", minval = 0.0001, step = 0.01, group = "Moteur 2 — Statistique (Kalman + VR)")
 kfR         = input.float(1.0, "Kalman : bruit de mesure R", minval = 0.01, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
 vrK         = input.int(5, "Ratio de variance : horizon k", minval = 2, maxval = 30, group = "Moteur 2 — Statistique (Kalman + VR)")
 vrN         = input.int(100, "Ratio de variance : fenêtre", minval = 30, group = "Moteur 2 — Statistique (Kalman + VR)")
-vrHigh      = input.float(1.15, "Seuil régime tendance (VR >)", minval = 1.0, step = 0.05, group = "Moteur 2 — Statistique (Kalman + VR)")
-vrLow       = input.float(0.85, "Seuil régime retour moyenne (VR <)", maxval = 1.0, step = 0.05, group = "Moteur 2 — Statistique (Kalman + VR)")
+vrHigh      = input.float(1.05, "Seuil régime tendance (VR >)", minval = 1.0, step = 0.05, group = "Moteur 2 — Statistique (Kalman + VR)")
+vrLow       = input.float(0.95, "Seuil régime retour moyenne (VR <)", maxval = 1.0, step = 0.05, group = "Moteur 2 — Statistique (Kalman + VR)")
 statLen     = input.int(50, "Fenêtre de normalisation (z, vitesse)", minval = 10, group = "Moteur 2 — Statistique (Kalman + VR)")
-slopeThresh = input.float(1.0, "Vitesse minimale (t-stat)", minval = 0.1, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
-zEntry      = input.float(2.0, "Excès d'entrée (z) en retour moyenne", minval = 0.5, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
+slopeThresh = input.float(0.5, "Vitesse minimale (t-stat)", minval = 0.1, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
+zEntry      = input.float(1.5, "Excès d'entrée (z) en retour moyenne", minval = 0.5, step = 0.1, group = "Moteur 2 — Statistique (Kalman + VR)")
 
 useM3     = input.bool(true, "Activer le moteur 3", group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
-memLambda = input.float(0.99, "Facteur de mémoire (oubli)", minval = 0.90, maxval = 0.999, step = 0.001, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
-minObs    = input.float(30, "Observations minimales par motif", minval = 5, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
-zPat      = input.float(1.6, "Significativité requise (z)", minval = 0.5, step = 0.1, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
+memLambda = input.float(0.995, "Facteur de mémoire (oubli)", minval = 0.90, maxval = 0.999, step = 0.001, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
+minObs    = input.float(20, "Observations minimales par motif", minval = 5, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
+zPat      = input.float(1.0, "Significativité requise (z)", minval = 0.5, step = 0.1, group = "Moteur 3 — Apprentissage de motifs (4 bougies)")
 
 riskPct = input.float(1.0, "Risque par trade (% du capital)", minval = 0.1, maxval = 10, step = 0.1, group = "Gestion du risque")
 atrLen  = input.int(14, "Période ATR (stop)", minval = 1, group = "Gestion du risque")
