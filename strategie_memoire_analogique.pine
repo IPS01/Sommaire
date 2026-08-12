@@ -1,0 +1,206 @@
+//@version=6
+// ============================================================================
+// MÉMOIRE ANALOGIQUE — Takens + Shannon + Kelly
+// Trois principes mathématiques fondamentaux, aucun indicateur classique.
+//
+// 1) THÉORÈME DE TAKENS (théorie du chaos, 1981) — MÉTHODE DES ANALOGUES
+//    L'état actuel du marché est décrit par la géométrie de ses 6 derniers
+//    mouvements normalisés (plongement de phase). Le robot parcourt toute
+//    l'histoire, mesure la distance géométrique entre l'état actuel et
+//    chaque état passé, et pèse chaque analogue par un noyau exponentiel
+//    (régression de Nadaraya-Watson). La prévision = ce qui a suivi les
+//    états les plus semblables, pondéré par la ressemblance. C'est la
+//    méthode des analogues de Lorenz, née en météorologie.
+//
+// 2) ENTROPIE DE SHANNON (théorie de l'information, 1948)
+//    L'entropie de la séquence des hausses/baisses mesure si le marché est
+//    actuellement structuré (ordre exploitable) ou aléatoire (bruit pur).
+//    Sous le seuil d'ordre requis, le robot ne trade pas : on ne prédit
+//    pas du bruit, et Shannon permet de savoir quand c'en est.
+//
+// 3) CRITÈRE DE KELLY (1956) — MISE MATHÉMATIQUEMENT OPTIMALE
+//    La probabilité de gain et le ratio gain/perte sont mesurés sur les
+//    analogues eux-mêmes ; la fraction de capital engagée est la fraction
+//    de Kelly (réduite de moitié par prudence, plafonnée). La mise n'est
+//    pas un chiffre arbitraire : elle est calculée à chaque trade.
+//
+// DÉCISION : trade uniquement si (a) le marché est structuré (Shannon),
+// (b) les analogues sont assez nombreux et d'accord (t-stat), (c) le
+// mouvement prévu vaut le risque, (d) Kelly est positif.
+//
+// Seuls le corps de la boucle d'analogues et les 2 entrées finales sont
+// indentés (une seule tabulation de profondeur, robuste au copier-coller).
+// HONNÊTETÉ : ce sont de vraies mathématiques, pas une promesse de gain.
+// Le robot mesure quand il a le droit de parler — et se tait sinon.
+// ============================================================================
+
+strategy("Mémoire Analogique [Takens + Shannon + Kelly]", shorttitle = "Mémoire Analogique", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 0, max_bars_back = 2200)
+
+// ---------------------------------------------------------------- PARAMÈTRES
+enableLongs  = input.bool(true, "Autoriser les achats (long)",  group = "Direction et décision")
+enableShorts = input.bool(true, "Autoriser les ventes (short)", group = "Direction et décision")
+tMin   = input.float(1.6, "Accord minimal des analogues (t-stat)", minval = 0.5, step = 0.1, group = "Direction et décision", tooltip = "La prévision moyenne des analogues doit dépasser t fois son erreur-type. Plus haut = plus sélectif.")
+essMin = input.float(20, "Nombre effectif minimal d'analogues", minval = 5, step = 1, group = "Direction et décision", tooltip = "Taille d'échantillon effective (pondérée). En dessous, pas assez de situations semblables dans l'histoire : on ne trade pas.")
+rrMin  = input.float(0.3, "Mouvement prévu minimal (fraction du stop)", minval = 0.0, maxval = 2.0, step = 0.1, group = "Direction et décision", tooltip = "Le gain anticipé doit valoir au moins cette fraction de la distance de stop.")
+
+lookback = input.int(750, "Profondeur de mémoire (bougies parcourues)", minval = 100, maxval = 2000, group = "Mémoire analogique (Takens)")
+h        = input.int(5, "Horizon de prévision (bougies)", minval = 1, maxval = 30, group = "Mémoire analogique (Takens)")
+bw       = input.float(4.0, "Sélectivité du noyau (bande passante)", minval = 0.5, step = 0.5, group = "Mémoire analogique (Takens)", tooltip = "Petite = seuls les analogues quasi identiques comptent. Grande = moyenne plus large. Le motif comparé fait 6 mouvements normalisés.")
+nVol     = input.int(50, "Fenêtre de normalisation de volatilité", minval = 10, group = "Mémoire analogique (Takens)")
+
+wEnt   = input.int(96, "Fenêtre d'entropie (bougies)", minval = 40, maxval = 300, group = "Ordre du marché (Shannon)")
+entMax = input.float(0.97, "Entropie maximale tolérée (1 = bruit pur)", minval = 0.80, maxval = 1.0, step = 0.005, group = "Ordre du marché (Shannon)", tooltip = "Entropie normalisée des motifs de 3 mouvements. 1.0 = marché parfaitement aléatoire. Plus bas = on exige plus d'ordre avant de trader.")
+
+kellyFrac = input.float(0.5, "Fraction de Kelly utilisée (0.5 = demi-Kelly)", minval = 0.1, maxval = 1.0, step = 0.1, group = "Mise optimale (Kelly)")
+riskCap   = input.float(2.0, "Plafond de risque par trade (% du capital)", minval = 0.2, maxval = 10, step = 0.1, group = "Mise optimale (Kelly)")
+stopMult  = input.float(2.0, "Stop en multiples de la volatilité sur l'horizon", minval = 0.5, step = 0.1, group = "Mise optimale (Kelly)")
+
+startDate = input.time(timestamp("1 Jan 2018 00:00 +0000"), "Début", group = "Période de backtest")
+endDate   = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin",   group = "Période de backtest")
+
+inDate = time >= startDate and time <= endDate
+
+// ------------------- PLONGEMENT DE PHASE : MOUVEMENTS NORMALISÉS (TAKENS)
+// Chaque bougie devient un mouvement en unités de volatilité locale : le
+// motif est ainsi comparable entre 2019 et aujourd'hui, entre calme et krach.
+r   = math.log(close / nz(close[1], close))
+sdS = ta.stdev(r, nVol)
+rnS = sdS > 0 ? r / sdS : 0.0
+max_bars_back(rnS, 2100)
+max_bars_back(sdS, 2100)
+ready = bar_index > lookback + nVol + h + 10
+
+// ----------------- MÉMOIRE : PARCOURS DE L'HISTOIRE ET PESÉE DES ANALOGUES
+// Pour chaque instant passé j : distance géométrique entre le motif actuel
+// (6 mouvements) et le motif d'alors, poids w = exp(-distance/bande), et
+// « ce qui a suivi » = rendement des h bougies suivantes, normalisé.
+float sumW    = 0.0
+float sumWO   = 0.0
+float sumWO2  = 0.0
+float sumW2   = 0.0
+float sumPosW = 0.0
+float sumPosO = 0.0
+float sumNegW = 0.0
+float sumNegO = 0.0
+for j = h + 6 to lookback
+    d = (rnS - rnS[j]) * (rnS - rnS[j]) + (rnS[1] - rnS[j + 1]) * (rnS[1] - rnS[j + 1]) + (rnS[2] - rnS[j + 2]) * (rnS[2] - rnS[j + 2]) + (rnS[3] - rnS[j + 3]) * (rnS[3] - rnS[j + 3]) + (rnS[4] - rnS[j + 4]) * (rnS[4] - rnS[j + 4]) + (rnS[5] - rnS[j + 5]) * (rnS[5] - rnS[j + 5])
+    o = nz(sdS[j], 0.0) > 0 ? math.log(close[j - h] / close[j]) / (sdS[j] * math.sqrt(h)) : 0.0
+    w = ready and not na(d) ? math.exp(-d / bw) : 0.0
+    sumW    := sumW + w
+    sumWO   := sumWO + w * o
+    sumWO2  := sumWO2 + w * o * o
+    sumW2   := sumW2 + w * w
+    sumPosW := sumPosW + (o > 0 ? w : 0.0)
+    sumPosO := sumPosO + (o > 0 ? w * o : 0.0)
+    sumNegW := sumNegW + (o < 0 ? w : 0.0)
+    sumNegO := sumNegO + (o < 0 ? w * o : 0.0)
+
+// --------- PRÉVISION DES ANALOGUES : MOYENNE, ACCORD (t-STAT), PROBABILITÉ
+ess   = sumW2 > 0 ? sumW * sumW / sumW2 : 0.0
+m1    = sumW > 0 ? sumWO / sumW : 0.0
+vOut  = sumW > 0 ? math.max(sumWO2 / sumW - m1 * m1, 0.0) : 0.0
+seOut = ess > 1 and vOut > 0 ? math.sqrt(vOut / ess) : na
+score = na(seOut) ? 0.0 : m1 / seOut
+pWin  = sumW > 0 ? sumPosW / sumW : 0.5
+avgWin  = sumPosW > 0 ? sumPosO / sumPosW : 0.0
+avgLoss = sumNegW > 0 ? -sumNegO / sumNegW : 0.0
+predLog = m1 * sdS * math.sqrt(h)
+cible = close * math.exp(predLog)
+
+// -------------------------- ORDRE DU MARCHÉ : ENTROPIE DE SHANNON (3 BITS)
+up = close > close[1]
+patId = (up ? 1 : 0) + (up[1] ? 2 : 0) + (up[2] ? 4 : 0)
+c0 = math.sum(patId == 0 ? 1.0 : 0.0, wEnt)
+c1 = math.sum(patId == 1 ? 1.0 : 0.0, wEnt)
+c2 = math.sum(patId == 2 ? 1.0 : 0.0, wEnt)
+c3 = math.sum(patId == 3 ? 1.0 : 0.0, wEnt)
+c4 = math.sum(patId == 4 ? 1.0 : 0.0, wEnt)
+c5 = math.sum(patId == 5 ? 1.0 : 0.0, wEnt)
+c6 = math.sum(patId == 6 ? 1.0 : 0.0, wEnt)
+c7 = math.sum(patId == 7 ? 1.0 : 0.0, wEnt)
+tot = c0 + c1 + c2 + c3 + c4 + c5 + c6 + c7
+t0 = c0 > 0 ? (c0 / tot) * math.log(c0 / tot) : 0.0
+t1 = c1 > 0 ? (c1 / tot) * math.log(c1 / tot) : 0.0
+t2 = c2 > 0 ? (c2 / tot) * math.log(c2 / tot) : 0.0
+t3 = c3 > 0 ? (c3 / tot) * math.log(c3 / tot) : 0.0
+t4 = c4 > 0 ? (c4 / tot) * math.log(c4 / tot) : 0.0
+t5 = c5 > 0 ? (c5 / tot) * math.log(c5 / tot) : 0.0
+t6 = c6 > 0 ? (c6 / tot) * math.log(c6 / tot) : 0.0
+t7 = c7 > 0 ? (c7 / tot) * math.log(c7 / tot) : 0.0
+entropie = tot > 0 ? -(t0 + t1 + t2 + t3 + t4 + t5 + t6 + t7) / math.log(2.0) / 3.0 : 1.0
+structure = ready and entropie <= entMax
+
+// ------------------------------ MISE OPTIMALE : CRITÈRE DE KELLY (PAR SENS)
+bLong  = avgLoss > 0 ? avgWin / avgLoss : 0.0
+bShort = avgWin > 0 ? avgLoss / avgWin : 0.0
+kellyLong  = bLong > 0 ? pWin - (1 - pWin) / bLong : 0.0
+kellyShort = bShort > 0 ? (1 - pWin) - pWin / bShort : 0.0
+fLong  = math.max(0.0, math.min(riskCap / 100, kellyFrac * kellyLong))
+fShort = math.max(0.0, math.min(riskCap / 100, kellyFrac * kellyShort))
+
+// ------------------------------------------------------- DÉCISION ET TAILLE
+stopDist = stopMult * sdS * math.sqrt(h) * close
+rrOk = stopMult > 0 ? math.abs(m1) >= rrMin * stopMult : true
+qtyLong  = stopDist > 0 ? strategy.equity * fLong / stopDist : 0.0
+qtyShort = stopDist > 0 ? strategy.equity * fShort / stopDist : 0.0
+longEntry  = enableLongs  and inDate and ready and structure and strategy.position_size == 0 and score >= tMin  and ess >= essMin and rrOk and qtyLong > 0
+shortEntry = enableShorts and inDate and ready and structure and strategy.position_size == 0 and score <= -tMin and ess >= essMin and rrOk and qtyShort > 0
+
+// ------------------- SORTIES : STOP GELÉ, OBJECTIF = PRIX PRÉVU PAR LA MÉMOIRE
+// Si les analogues changent d'avis pendant le trade, le stop est remonté au
+// prix courant, ce qui ferme la position au prochain contact.
+var float slL = na
+var float tpL = na
+var float slS = na
+var float tpS = na
+slL := longEntry ? close - stopDist : strategy.position_size > 0 and score < 0 ? close : nz(slL, close)
+tpL := longEntry ? math.max(cible, close + stopDist * 0.5) : tpL
+slS := shortEntry ? close + stopDist : strategy.position_size < 0 and score > 0 ? close : nz(slS, close)
+tpS := shortEntry ? math.min(cible, close - stopDist * 0.5) : tpS
+strategy.exit("Long TP/SL", "Long", stop = slL, limit = tpL, alert_message = "MemoireAnalogique SORTIE LONG " + syminfo.ticker)
+strategy.exit("Short TP/SL", "Short", stop = slS, limit = tpS, alert_message = "MemoireAnalogique SORTIE SHORT " + syminfo.ticker)
+
+// ------------------------------------------------------------------ AFFICHAGE
+plot(ready ? cible : na, "Prix prévu par la mémoire (décalé de +h)", color = color.new(color.purple, 0), linewidth = 1, style = plot.style_circles, offset = h)
+bgcolor(structure ? color.new(color.teal, 94) : na)
+plotshape(longEntry, "Signal achat", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.small)
+plotshape(shortEntry, "Signal vente", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.small)
+
+// ------------------------------------------- TABLEAU : ANALYSE + ANTICIPATION
+delta = cible - close
+predTxt = str.tostring(cible, format.mintick) + " (" + (delta >= 0 ? "+" : "") + str.tostring(100 * delta / close, "#.##") + " %)"
+entTxt = str.tostring(100 * entropie, "#.#") + " %" + (structure ? " ✓ structuré" : " ✗ aléatoire")
+entCol = structure ? color.new(color.teal, 70) : color.new(color.red, 70)
+scoreTxt = str.tostring(score, "#.##") + (score >= tMin ? " ▲" : score <= -tMin ? " ▼" : " —")
+scoreCol = score >= tMin ? color.new(color.teal, 70) : score <= -tMin ? color.new(color.red, 70) : color.new(color.gray, 85)
+kellyTxt = str.tostring(100 * fLong, "#.##") + " % / " + str.tostring(100 * fShort, "#.##") + " %"
+winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
+pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
+
+var table info = table.new(position.top_right, 2, 10, border_width = 1)
+table.cell(info, 0, 0, "Entropie de Shannon (seuil " + str.tostring(100 * entMax, "#.#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 0, entTxt, text_size = size.small, bgcolor = entCol)
+table.cell(info, 0, 1, "Analogues effectifs (min " + str.tostring(essMin, "#") + ")", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 1, str.tostring(ess, "#.#"), text_size = size.small)
+table.cell(info, 0, 2, "Accord des analogues (t, seuil " + str.tostring(tMin, "#.#") + ")", text_size = size.small, bgcolor = color.new(color.blue, 80))
+table.cell(info, 1, 2, scoreTxt, text_size = size.small, bgcolor = scoreCol)
+table.cell(info, 0, 3, "P(hausse) selon la mémoire", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 3, str.tostring(100 * pWin, "#.#") + " %", text_size = size.small)
+table.cell(info, 0, 4, "Prévision à +" + str.tostring(h) + " bougies", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 4, predTxt, text_size = size.small)
+table.cell(info, 0, 5, "Mise de Kelly (long / short)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 5, kellyTxt, text_size = size.small)
+table.cell(info, 0, 6, "Gain moyen / perte moyenne (analogues)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 6, str.tostring(avgWin, "#.##") + " / " + str.tostring(avgLoss, "#.##"), text_size = size.small)
+table.cell(info, 0, 7, "Trades / réussite", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 7, str.tostring(strategy.closedtrades) + " / " + str.tostring(winRate, "#.#") + " %", text_size = size.small)
+table.cell(info, 0, 8, "Profit factor", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 8, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
+table.cell(info, 0, 9, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 9, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
+
+// --------------------- ENTRÉES (les 2 dernières lignes indentées du fichier)
+if longEntry
+    strategy.entry("Long", strategy.long, qty = qtyLong, comment = "t " + str.tostring(score, "#.#") + " kelly " + str.tostring(100 * fLong, "#.#") + "%", alert_message = "MemoireAnalogique ACHAT " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
+if shortEntry
+    strategy.entry("Short", strategy.short, qty = qtyShort, comment = "t " + str.tostring(-score, "#.#") + " kelly " + str.tostring(100 * fShort, "#.#") + "%", alert_message = "MemoireAnalogique VENTE " + syminfo.ticker + " @ " + str.tostring(close, format.mintick))
