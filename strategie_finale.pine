@@ -13,7 +13,7 @@
 // en paper trading avant tout argent réel.
 // ============================================================================
 
-strategy("Confluence Totale [3 moteurs : Tendance + Kalman + Apprentissage]", shorttitle = "Confluence Totale", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 0)
+strategy("Confluence Totale [3 moteurs : Tendance + Kalman + Apprentissage]", shorttitle = "Confluence Totale", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 0, margin_long = 5, margin_short = 5)
 
 // ---------------------------------------------------------------- PARAMÈTRES
 enableLongs  = input.bool(true,  "Autoriser les achats (long)",  group = "Direction et décision")
@@ -109,7 +109,7 @@ shortSignal = enableShorts and inDate and totalScore <= -voteMin
 atrVal = ta.atr(atrLen)
 stopDist = atrMult * atrVal
 riskCash = strategy.equity * riskPct / 100
-posSize = stopDist > 0 ? riskCash / stopDist : 0.0
+posSize = stopDist > 0 ? math.min(riskCash / stopDist, strategy.equity * 10 / close) : 0.0
 longEntry = longSignal and strategy.position_size == 0 and posSize > 0
 shortEntry = shortSignal and strategy.position_size == 0 and posSize > 0
 

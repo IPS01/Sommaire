@@ -31,7 +31,7 @@
 // Backtestez puis validez en paper trading avant tout argent réel.
 // ============================================================================
 
-strategy("Prévision Trigo-Statistique [tendance + cycle + bruit]", shorttitle = "Prévision TS", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 0)
+strategy("Prévision Trigo-Statistique [tendance + cycle + bruit]", shorttitle = "Prévision TS", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 0, margin_long = 5, margin_short = 5)
 
 // ---------------------------------------------------------------- PARAMÈTRES
 enableLongs  = input.bool(true, "Autoriser les achats (long)",  group = "Direction et décision")
@@ -145,7 +145,7 @@ icOk = not useSelfCheck or (not na(ic) and ic >= icMin)
 ready = bar_index > N + 10
 stopDist = stopMult * noiseSd * math.sqrt(h)
 riskCash = strategy.equity * riskPct / 100
-posSize = stopDist > 0 ? riskCash / stopDist : 0.0
+posSize = stopDist > 0 ? math.min(riskCash / stopDist, strategy.equity * 10 / close) : 0.0
 longEntry  = enableLongs  and inDate and ready and icOk and strategy.position_size == 0 and posSize > 0 and quality >= qMin and zPred >= zMin
 shortEntry = enableShorts and inDate and ready and icOk and strategy.position_size == 0 and posSize > 0 and quality >= qMin and zPred <= -zMin
 
