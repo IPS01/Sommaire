@@ -1,28 +1,34 @@
 //@version=6
 // ============================================================================
-// ÉCOSYSTÈME DARWINIEN ÉVOLUTIF — sélection, mutation, guérison
+// ÉCOSYSTÈME DARWINIEN COMPLET — la théorie de la vie appliquée au capital
 //
 // PRINCIPE : on ne teste pas, on n'optimise pas — on fait vivre des
-// variantes et LE RÉEL TUE LES FAIBLES. Et depuis cette version, les
-// morts ne restent pas morts : ils sont remplacés par des ENFANTS MUTÉS
-// du champion. Le génome évolue à vie.
+// variantes et LE RÉEL TUE LES FAIBLES. L'organisme possède désormais
+// tous les mécanismes fondamentaux du vivant :
 //
-// LES 8 ESPÈCES (5 suiveuses de tendance, 3 contrariennes) :
-//   INSTINCT GRADUÉ : conviction = mouvement / bruit, bornée à ±100 %.
-//   Un signal net engage fort, un signal mou engage peu.
-//   CHASSE VIRTUELLE : chaque espèce trade en continu, frais déduits.
-//   FORME : moyenne exponentielle de ses gains (la vigueur, qui s'estompe).
-//   NOURRITURE : le capital est réparti proportionnellement à la forme.
-//   FAMINE puis MORT : une espèce en forme négative trop longtemps meurt ;
-//   naît alors un enfant du champion, au rythme muté (héritage × facteur),
-//   génération +1. L'évolution ne s'arrête jamais.
-//
-// HOMÉOSTASIE : exposition par ciblage de volatilité, annualisée d'après
-// la durée réelle des bougies (valable du 1 min au mensuel).
-// RÉGULATION THERMIQUE : la perte depuis le sommet est une température —
-// torpeur progressive, hibernation à la borne, GUÉRISON (la mémoire de la
-// blessure s'estompe de 0,1 % par bougie, l'organisme se réveille).
-// EXTINCTION TOTALE : tout le monde à l'abri (exposition nulle).
+//   VARIATION — 8 espèces aux rythmes différents (5 suiveuses de
+//     tendance, 3 contrariennes), instinct gradué : conviction =
+//     mouvement / bruit, bornée à ±100 %.
+//   SÉLECTION — chaque espèce chasse virtuellement en continu, frais
+//     déduits ; sa forme (moyenne exponentielle des gains) décide de sa
+//     part de nourriture (le capital). Qui perd maigrit, qui gagne mange.
+//   NICHES ÉCOLOGIQUES — bonus de nourriture aux espèces décorrélées de
+//     la meute : chasser ailleurs vaut plus (diversification interne).
+//   REPRODUCTION SEXUÉE — une espèce affamée trop longtemps meurt ; son
+//     enfant naît du CROISEMENT des rythmes des DEUX meilleures espèces
+//     (moyenne géométrique) puis muté (facteur déterministe).
+//   SOIN PARENTAL — le nouveau-né hérite de 25 % de la vigueur du
+//     champion : il n'entre pas dans le monde affamé.
+//   SYSTÈME IMMUNITAIRE — un choc > 4 écarts-types (krach, annonce)
+//     déclenche un bouclier : exposition réduite de moitié 10 bougies.
+//   HOMÉOSTASIE — ciblage de volatilité, annualisé d'après la durée
+//     réelle des bougies (valable du 1 min au mensuel).
+//   RÉGULATION THERMIQUE — la perte depuis le sommet est une température:
+//     torpeur progressive, hibernation à la borne, puis GUÉRISON (la
+//     mémoire de la blessure s'estompe de 0,1 % par bougie).
+//   EXTINCTION — si toutes les espèces meurent, tout le monde à l'abri.
+//   ÉTAT CIVIL — âge, génération, naissances totales, doyenne ; chaque
+//     naissance est marquée d'un losange violet sur le graphique.
 //
 // STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur —
 // les 2 seules lignes indentées sont les 2 dernières du fichier.
@@ -30,19 +36,23 @@
 // de gain — même la nature a ses extinctions. Terrain conseillé : 1D.
 // ============================================================================
 
-strategy("Écosystème Darwinien Évolutif [sélection + mutation + guérison]", shorttitle = "Darwin Évolutif", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 99, margin_long = 5, margin_short = 5, max_bars_back = 500)
+strategy("Écosystème Darwinien Complet [vie, mort, croisement, immunité]", shorttitle = "Darwin Complet", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 99, margin_long = 5, margin_short = 5, max_bars_back = 500)
 
 // ---------------------------------------------------------------- PARAMÈTRES
 enableLongs = input.bool(true, "Autoriser les achats (long)", group = "Direction")
 enableShorts = input.bool(true, "Autoriser les ventes (short)", group = "Direction")
 fitMem = input.int(63, "Mémoire de la forme (demi-vie, bougies)", minval = 10, maxval = 500, group = "Sélection naturelle", tooltip = "La forme d'une espèce est la moyenne exponentielle de ses gains. Court = sélection nerveuse, long = sélection patiente.")
 frais = input.float(0.1, "Frais par unité d'exposition retournée (%)", minval = 0.0, maxval = 1.0, step = 0.01, group = "Sélection naturelle", tooltip = "Chaque espèce paie ses frais virtuels sur ses changements de position : la sélection intègre le coût du réel.")
-starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution (mutation)", tooltip = "Au-delà, l'espèce meurt et un enfant muté du champion prend sa place : rythme hérité × facteur de mutation, génération +1.")
+divBonus = input.float(0.5, "Bonus de niche (récompense de la différence)", minval = 0.0, maxval = 1.0, step = 0.1, group = "Sélection naturelle", tooltip = "Les espèces décorrélées de la meute reçoivent jusqu'à ce bonus de nourriture en plus : chasser ailleurs protège la colonie.")
+starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution (croisement + mutation)", tooltip = "Au-delà, l'espèce meurt. Son enfant naît du croisement des deux meilleures (moyenne géométrique des rythmes), muté, avec 25 % de la vigueur du champion en héritage.")
+soinParent = input.float(25.0, "Soin parental (% de la vigueur du champion héritée)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Évolution (croisement + mutation)")
 targetVol = input.float(15.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 40, step = 1, group = "Homéostasie")
 volWin = input.int(63, "Fenêtre de mesure de volatilité (bougies)", minval = 20, group = "Homéostasie")
 expoMax = input.float(3.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 10, step = 0.5, group = "Homéostasie")
 rebalPct = input.float(20.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
-ddMax = input.float(20.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)", tooltip = "Approche de la borne = torpeur ; borne atteinte = hibernation ; puis guérison graduelle (la mémoire du sommet s'estompe).")
+ddMax = input.float(20.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)")
+chocSeuil = input.float(4.0, "Choc immunitaire (mouvement en écarts-types)", minval = 2.0, maxval = 8.0, step = 0.5, group = "Système immunitaire", tooltip = "Un mouvement d'une bougie au-delà de ce seuil déclenche le bouclier : exposition réduite de moitié pendant la convalescence.")
+chocDuree = input.int(10, "Convalescence après choc (bougies)", minval = 1, maxval = 100, group = "Système immunitaire")
 
 startDate = input.time(timestamp("1 Jan 2010 00:00 +0000"), "Début", group = "Période de backtest")
 endDate = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin", group = "Période de backtest")
@@ -73,6 +83,14 @@ var int g5 = 1
 var int g6 = 1
 var int g7 = 1
 var int g8 = 1
+var int age1 = 0
+var int age2 = 0
+var int age3 = 0
+var int age4 = 0
+var int age5 = 0
+var int age6 = 0
+var int age7 = 0
+var int age8 = 0
 var float stv1 = 0.0
 var float stv2 = 0.0
 var float stv3 = 0.0
@@ -109,6 +127,7 @@ p5 = nz(sig5[1], 0.0) * v - math.abs(sig5 - nz(sig5[1], sig5)) * 0.5 * fr
 p6 = nz(sig6[1], 0.0) * v - math.abs(sig6 - nz(sig6[1], sig6)) * 0.5 * fr
 p7 = nz(sig7[1], 0.0) * v - math.abs(sig7 - nz(sig7[1], sig7)) * 0.5 * fr
 p8 = nz(sig8[1], 0.0) * v - math.abs(sig8 - nz(sig8[1], sig8)) * 0.5 * fr
+pEco = (p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8) / 8
 
 // ---------------- LA FORME : VIGUEUR DE CHAQUE ESPÈCE (mémoire exponentielle)
 var float fit1 = 0.0
@@ -128,24 +147,47 @@ fit6 := barstate.isconfirmed ? lamF * fit6 + (1 - lamF) * p6 : fit6
 fit7 := barstate.isconfirmed ? lamF * fit7 + (1 - lamF) * p7 : fit7
 fit8 := barstate.isconfirmed ? lamF * fit8 + (1 - lamF) * p8 : fit8
 
-// ---------------- DARWIN : LE CAPITAL EST LA NOURRITURE (poids ∝ forme)
-w1 = math.max(0.0, fit1)
-w2 = math.max(0.0, fit2)
-w3 = math.max(0.0, fit3)
-w4 = math.max(0.0, fit4)
-w5 = math.max(0.0, fit5)
-w6 = math.max(0.0, fit6)
-w7 = math.max(0.0, fit7)
-w8 = math.max(0.0, fit8)
+// ---------------- NICHES : LA DIFFÉRENCE EST RÉCOMPENSÉE (décorrélation)
+q1 = nz(ta.correlation(p1, pEco, 100), 1.0)
+q2 = nz(ta.correlation(p2, pEco, 100), 1.0)
+q3 = nz(ta.correlation(p3, pEco, 100), 1.0)
+q4 = nz(ta.correlation(p4, pEco, 100), 1.0)
+q5 = nz(ta.correlation(p5, pEco, 100), 1.0)
+q6 = nz(ta.correlation(p6, pEco, 100), 1.0)
+q7 = nz(ta.correlation(p7, pEco, 100), 1.0)
+q8 = nz(ta.correlation(p8, pEco, 100), 1.0)
+
+// ---------------- DARWIN : LE CAPITAL EST LA NOURRITURE (poids ∝ forme × niche)
+w1 = math.max(0.0, fit1) * (1.0 + divBonus * (1.0 - q1))
+w2 = math.max(0.0, fit2) * (1.0 + divBonus * (1.0 - q2))
+w3 = math.max(0.0, fit3) * (1.0 + divBonus * (1.0 - q3))
+w4 = math.max(0.0, fit4) * (1.0 + divBonus * (1.0 - q4))
+w5 = math.max(0.0, fit5) * (1.0 + divBonus * (1.0 - q5))
+w6 = math.max(0.0, fit6) * (1.0 + divBonus * (1.0 - q6))
+w7 = math.max(0.0, fit7) * (1.0 + divBonus * (1.0 - q7))
+w8 = math.max(0.0, fit8) * (1.0 + divBonus * (1.0 - q8))
 wTot = w1 + w2 + w3 + w4 + w5 + w6 + w7 + w8
 dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6 * sig6 + w7 * sig7 + w8 * sig8) / wTot : 0.0
 vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0)
 
-// ---------------- ÉVOLUTION : FAMINE, MORT, NAISSANCE D'UN ENFANT MUTÉ
-// Le champion transmet son rythme, multiplié par un facteur de mutation
-// (déterministe, dérivé de la bougie de naissance). Génération +1.
+// ------- ÉVOLUTION : FAMINE, MORT, CROISEMENT DES 2 MEILLEURES, MUTATION
+// L'enfant hérite de la moyenne géométrique des rythmes des deux parents
+// champions, multipliée par un facteur de mutation déterministe, et de
+// 25 % de la vigueur du champion (soin parental). Génération +1.
 bestFit = math.max(fit1, math.max(fit2, math.max(fit3, math.max(fit4, math.max(fit5, math.max(fit6, math.max(fit7, fit8)))))))
 bestL = bestFit == fit1 ? L1 : bestFit == fit2 ? L2 : bestFit == fit3 ? L3 : bestFit == fit4 ? L4 : bestFit == fit5 ? L5 : bestFit == fit6 ? L6 : bestFit == fit7 ? L7 : L8
+m2f1 = bestFit == fit1 ? -1e9 : fit1
+m2f2 = bestFit == fit2 ? -1e9 : fit2
+m2f3 = bestFit == fit3 ? -1e9 : fit3
+m2f4 = bestFit == fit4 ? -1e9 : fit4
+m2f5 = bestFit == fit5 ? -1e9 : fit5
+m2f6 = bestFit == fit6 ? -1e9 : fit6
+m2f7 = bestFit == fit7 ? -1e9 : fit7
+m2f8 = bestFit == fit8 ? -1e9 : fit8
+scndFit = math.max(m2f1, math.max(m2f2, math.max(m2f3, math.max(m2f4, math.max(m2f5, math.max(m2f6, math.max(m2f7, m2f8)))))))
+scndL = scndFit == m2f1 ? L1 : scndFit == m2f2 ? L2 : scndFit == m2f3 ? L3 : scndFit == m2f4 ? L4 : scndFit == m2f5 ? L5 : scndFit == m2f6 ? L6 : scndFit == m2f7 ? L7 : L8
+croise = math.sqrt(math.max(2, bestL) * math.max(2, scndL))
+heritage = math.max(bestFit, 0.0) * soinParent / 100
 stv1 := barstate.isconfirmed ? (fit1 <= 0 ? stv1 + 1 : 0.0) : stv1
 stv2 := barstate.isconfirmed ? (fit2 <= 0 ? stv2 + 1 : 0.0) : stv2
 stv3 := barstate.isconfirmed ? (fit3 <= 0 ? stv3 + 1 : 0.0) : stv3
@@ -163,22 +205,22 @@ mut6 = barstate.isconfirmed and stv6 > starveMax
 mut7 = barstate.isconfirmed and stv7 > starveMax
 mut8 = barstate.isconfirmed and stv8 > starveMax
 fmut = 0.5 + math.abs(math.sin(bar_index * 12.9898)) * 1.0
-L1 := mut1 ? math.max(5, math.min(400, math.round(bestL * fmut))) : L1
-L2 := mut2 ? math.max(5, math.min(400, math.round(bestL * fmut * 1.13))) : L2
-L3 := mut3 ? math.max(5, math.min(400, math.round(bestL * fmut * 0.87))) : L3
-L4 := mut4 ? math.max(5, math.min(400, math.round(bestL * fmut * 1.29))) : L4
-L5 := mut5 ? math.max(5, math.min(400, math.round(bestL * fmut * 0.71))) : L5
-L6 := mut6 ? math.max(2, math.min(30, math.round(math.max(2, bestL) * fmut * 0.2))) : L6
-L7 := mut7 ? math.max(2, math.min(30, math.round(math.max(2, bestL) * fmut * 0.3))) : L7
-L8 := mut8 ? math.max(2, math.min(30, math.round(math.max(2, bestL) * fmut * 0.4))) : L8
-fit1 := mut1 ? 0.0 : fit1
-fit2 := mut2 ? 0.0 : fit2
-fit3 := mut3 ? 0.0 : fit3
-fit4 := mut4 ? 0.0 : fit4
-fit5 := mut5 ? 0.0 : fit5
-fit6 := mut6 ? 0.0 : fit6
-fit7 := mut7 ? 0.0 : fit7
-fit8 := mut8 ? 0.0 : fit8
+L1 := mut1 ? math.max(5, math.min(400, math.round(croise * fmut))) : L1
+L2 := mut2 ? math.max(5, math.min(400, math.round(croise * fmut * 1.13))) : L2
+L3 := mut3 ? math.max(5, math.min(400, math.round(croise * fmut * 0.87))) : L3
+L4 := mut4 ? math.max(5, math.min(400, math.round(croise * fmut * 1.29))) : L4
+L5 := mut5 ? math.max(5, math.min(400, math.round(croise * fmut * 0.71))) : L5
+L6 := mut6 ? math.max(2, math.min(30, math.round(croise * fmut * 0.2))) : L6
+L7 := mut7 ? math.max(2, math.min(30, math.round(croise * fmut * 0.3))) : L7
+L8 := mut8 ? math.max(2, math.min(30, math.round(croise * fmut * 0.4))) : L8
+fit1 := mut1 ? heritage : fit1
+fit2 := mut2 ? heritage : fit2
+fit3 := mut3 ? heritage : fit3
+fit4 := mut4 ? heritage : fit4
+fit5 := mut5 ? heritage : fit5
+fit6 := mut6 ? heritage : fit6
+fit7 := mut7 ? heritage : fit7
+fit8 := mut8 ? heritage : fit8
 stv1 := mut1 ? 0.0 : stv1
 stv2 := mut2 ? 0.0 : stv2
 stv3 := mut3 ? 0.0 : stv3
@@ -195,6 +237,23 @@ g5 := mut5 ? g5 + 1 : g5
 g6 := mut6 ? g6 + 1 : g6
 g7 := mut7 ? g7 + 1 : g7
 g8 := mut8 ? g8 + 1 : g8
+age1 := mut1 ? 0 : barstate.isconfirmed ? age1 + 1 : age1
+age2 := mut2 ? 0 : barstate.isconfirmed ? age2 + 1 : age2
+age3 := mut3 ? 0 : barstate.isconfirmed ? age3 + 1 : age3
+age4 := mut4 ? 0 : barstate.isconfirmed ? age4 + 1 : age4
+age5 := mut5 ? 0 : barstate.isconfirmed ? age5 + 1 : age5
+age6 := mut6 ? 0 : barstate.isconfirmed ? age6 + 1 : age6
+age7 := mut7 ? 0 : barstate.isconfirmed ? age7 + 1 : age7
+age8 := mut8 ? 0 : barstate.isconfirmed ? age8 + 1 : age8
+naissance = mut1 or mut2 or mut3 or mut4 or mut5 or mut6 or mut7 or mut8
+naissances = g1 + g2 + g3 + g4 + g5 + g6 + g7 + g8 - 8
+doyenne = math.max(age1, math.max(age2, math.max(age3, math.max(age4, math.max(age5, math.max(age6, math.max(age7, age8)))))))
+
+// ---------------- SYSTÈME IMMUNITAIRE : BOUCLIER APRÈS CHOC ANORMAL
+var float immun = 0.0
+choc = ready and math.abs(v) > chocSeuil * nz(sdBar[1], 1e9)
+immun := choc and barstate.isconfirmed ? chocDuree : math.max(0.0, immun - (barstate.isconfirmed ? 1.0 : 0.0))
+bouclier = immun > 0 ? 0.5 : 1.0
 
 // ---------------- HOMÉOSTASIE : CIBLAGE DE VOLATILITÉ (toute unité de temps)
 sigA = ta.stdev(v, volWin) * math.sqrt(31536000.0 / timeframe.in_seconds())
@@ -206,7 +265,7 @@ eqPeak := math.max(nz(eqPeak, strategy.equity) * 0.999, strategy.equity)
 dd = eqPeak > 0 ? 1.0 - strategy.equity / eqPeak : 0.0
 torpeur = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMax / 100)))
 
-fCible = ready and inDate ? dir * levVol * torpeur : 0.0
+fCible = ready and inDate ? dir * levVol * torpeur * bouclier : 0.0
 fCible := enableLongs or fCible < 0 ? fCible : 0.0
 fCible := enableShorts or fCible > 0 ? fCible : 0.0
 
@@ -221,6 +280,8 @@ doMoins = barstate.isconfirmed and -diffQty > seuilQty
 bgcolor(not ready ? na : vivantes == 0 ? color.new(color.red, 90) : dir > 0.2 ? color.new(color.teal, 94) : dir < -0.2 ? color.new(color.red, 94) : na)
 plotshape(doPlus, "Poussée haussière", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.tiny)
 plotshape(doMoins, "Poussée baissière", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.tiny)
+plotshape(naissance, "Naissance d'une espèce", shape.diamond, location.bottom, color.new(color.purple, 0), size = size.tiny)
+plotshape(choc, "Choc immunitaire", shape.xcross, location.top, color.new(color.red, 0), size = size.tiny)
 
 // ------------------------------------------- TABLEAU : L'ÉCOSYSTÈME EN DIRECT
 expoActu = strategy.position_size * close / strategy.equity
@@ -228,8 +289,10 @@ pousseTxt = (fCible >= 0 ? "+" : "") + str.tostring(100 * fCible, "#.#") + " % /
 pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.new(color.red, 70) : color.new(color.gray, 85)
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
-diagTxt = not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 espèces vivantes, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagTxt = not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 vivantes · " + str.tostring(naissances) + " naissances · cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = ready and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
+immTxt = immun > 0 ? "BOUCLIER : convalescence " + str.tostring(immun, "#") + " bougies" : "au repos, seuil " + str.tostring(chocSeuil, "#.#") + " écarts-types"
+immCol = immun > 0 ? color.new(color.red, 70) : color.new(color.gray, 85)
 e1 = "Guépard " + str.tostring(L1) + "b g" + str.tostring(g1) + " " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
 e2 = "Loup " + str.tostring(L2) + "b g" + str.tostring(g2) + " " + (sig2 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit2, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w2 / wTot : 0, "#") + " %"
 e3 = "Ours " + str.tostring(L3) + "b g" + str.tostring(g3) + " " + (sig3 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit3, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w3 / wTot : 0, "#") + " %"
@@ -249,7 +312,7 @@ c8c = fit8 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 tempTxt = str.tostring(100 * dd, "#.#") + " % de perte depuis le sommet · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION (guérison en cours)")
 tempCol = torpeur >= 0.99 ? color.new(color.teal, 80) : torpeur > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
 
-var table info = table.new(position.top_right, 2, 16, border_width = 1)
+var table info = table.new(position.top_right, 2, 18, border_width = 1)
 table.cell(info, 0, 0, "État de l'écosystème", text_size = size.small, bgcolor = color.new(color.orange, 80))
 table.cell(info, 1, 0, diagTxt, text_size = size.small, bgcolor = diagCol)
 table.cell(info, 0, 1, "Exposition cible / réelle", text_size = size.small, bgcolor = color.new(color.blue, 80))
@@ -272,16 +335,20 @@ table.cell(info, 0, 9, "Contraire", text_size = size.small, bgcolor = c7c)
 table.cell(info, 1, 9, e7, text_size = size.small, bgcolor = c7c)
 table.cell(info, 0, 10, "Contraire", text_size = size.small, bgcolor = c8c)
 table.cell(info, 1, 10, e8, text_size = size.small, bgcolor = c8c)
-table.cell(info, 0, 11, "Volatilité réalisée → levier", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 11, str.tostring(100 * sigA, "#.#") + " % → ×" + str.tostring(levVol, "#.##"), text_size = size.small)
-table.cell(info, 0, 12, "Trades / réussite", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 12, str.tostring(strategy.closedtrades) + " / " + str.tostring(winRate, "#.#") + " %", text_size = size.small)
-table.cell(info, 0, 13, "Profit factor", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 13, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
-table.cell(info, 0, 14, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 14, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
-table.cell(info, 0, 15, "Température (perte / borne " + str.tostring(ddMax, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 15, tempTxt, text_size = size.small, bgcolor = tempCol)
+table.cell(info, 0, 11, "Système immunitaire", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 11, immTxt, text_size = size.small, bgcolor = immCol)
+table.cell(info, 0, 12, "État civil (naissances / doyenne)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 12, str.tostring(naissances) + " naissances · doyenne " + str.tostring(doyenne) + " bougies", text_size = size.small)
+table.cell(info, 0, 13, "Volatilité réalisée → levier", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 13, str.tostring(100 * sigA, "#.#") + " % → ×" + str.tostring(levVol, "#.##"), text_size = size.small)
+table.cell(info, 0, 14, "Trades / réussite", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 14, str.tostring(strategy.closedtrades) + " / " + str.tostring(winRate, "#.#") + " %", text_size = size.small)
+table.cell(info, 0, 15, "Profit factor", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 15, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
+table.cell(info, 0, 16, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 16, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
+table.cell(info, 0, 17, "Température (perte / borne " + str.tostring(ddMax, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 17, tempTxt, text_size = size.small, bgcolor = tempCol)
 
 // ------- CORRECTIONS DE POUSSÉE (les 2 seules lignes indentées, fin du fichier)
 if doPlus
