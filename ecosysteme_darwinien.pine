@@ -205,14 +205,14 @@ mut6 = barstate.isconfirmed and stv6 > starveMax
 mut7 = barstate.isconfirmed and stv7 > starveMax
 mut8 = barstate.isconfirmed and stv8 > starveMax
 fmut = 0.5 + math.abs(math.sin(bar_index * 12.9898)) * 1.0
-L1 := mut1 ? math.max(5, math.min(400, math.round(croise * fmut))) : L1
-L2 := mut2 ? math.max(5, math.min(400, math.round(croise * fmut * 1.13))) : L2
-L3 := mut3 ? math.max(5, math.min(400, math.round(croise * fmut * 0.87))) : L3
-L4 := mut4 ? math.max(5, math.min(400, math.round(croise * fmut * 1.29))) : L4
-L5 := mut5 ? math.max(5, math.min(400, math.round(croise * fmut * 0.71))) : L5
-L6 := mut6 ? math.max(2, math.min(30, math.round(croise * fmut * 0.2))) : L6
-L7 := mut7 ? math.max(2, math.min(30, math.round(croise * fmut * 0.3))) : L7
-L8 := mut8 ? math.max(2, math.min(30, math.round(croise * fmut * 0.4))) : L8
+L1 := mut1 ? math.max(5, math.min(20, math.round(croise * fmut))) : L1
+L2 := mut2 ? math.max(15, math.min(40, math.round(croise * fmut * 1.13))) : L2
+L3 := mut3 ? math.max(40, math.min(100, math.round(croise * fmut * 0.87))) : L3
+L4 := mut4 ? math.max(90, math.min(200, math.round(croise * fmut * 1.29))) : L4
+L5 := mut5 ? math.max(180, math.min(400, math.round(croise * fmut * 0.71))) : L5
+L6 := mut6 ? math.max(2, math.min(6, math.round(croise * fmut * 0.2))) : L6
+L7 := mut7 ? math.max(4, math.min(12, math.round(croise * fmut * 0.3))) : L7
+L8 := mut8 ? math.max(8, math.min(30, math.round(croise * fmut * 0.4))) : L8
 fit1 := mut1 ? heritage : fit1
 fit2 := mut2 ? heritage : fit2
 fit3 := mut3 ? heritage : fit3
@@ -245,7 +245,38 @@ age5 := mut5 ? 0 : barstate.isconfirmed ? age5 + 1 : age5
 age6 := mut6 ? 0 : barstate.isconfirmed ? age6 + 1 : age6
 age7 := mut7 ? 0 : barstate.isconfirmed ? age7 + 1 : age7
 age8 := mut8 ? 0 : barstate.isconfirmed ? age8 + 1 : age8
-naissance = mut1 or mut2 or mut3 or mut4 or mut5 or mut6 or mut7 or mut8
+// -------- RÉ-ENSEMENCEMENT : APRÈS 100 BOUGIES D'EXTINCTION TOTALE, LA VIE
+// REPART DES SPORES PRIMORDIALES (les 8 rythmes d'origine, dettes effacées)
+var float extN = 0.0
+extN := barstate.isconfirmed ? (ready and wTot == 0 ? extN + 1 : 0.0) : extN
+resem = barstate.isconfirmed and extN > 100
+L1 := resem ? 10 : L1
+L2 := resem ? 21 : L2
+L3 := resem ? 63 : L3
+L4 := resem ? 126 : L4
+L5 := resem ? 252 : L5
+L6 := resem ? 2 : L6
+L7 := resem ? 5 : L7
+L8 := resem ? 8 : L8
+fit1 := resem ? 0.0 : fit1
+fit2 := resem ? 0.0 : fit2
+fit3 := resem ? 0.0 : fit3
+fit4 := resem ? 0.0 : fit4
+fit5 := resem ? 0.0 : fit5
+fit6 := resem ? 0.0 : fit6
+fit7 := resem ? 0.0 : fit7
+fit8 := resem ? 0.0 : fit8
+stv1 := resem ? 0.0 : stv1
+stv2 := resem ? 0.0 : stv2
+stv3 := resem ? 0.0 : stv3
+stv4 := resem ? 0.0 : stv4
+stv5 := resem ? 0.0 : stv5
+stv6 := resem ? 0.0 : stv6
+stv7 := resem ? 0.0 : stv7
+stv8 := resem ? 0.0 : stv8
+extN := resem ? 0.0 : extN
+
+naissance = mut1 or mut2 or mut3 or mut4 or mut5 or mut6 or mut7 or mut8 or resem
 naissances = g1 + g2 + g3 + g4 + g5 + g6 + g7 + g8 - 8
 doyenne = math.max(age1, math.max(age2, math.max(age3, math.max(age4, math.max(age5, math.max(age6, math.max(age7, age8)))))))
 
@@ -261,7 +292,8 @@ levVol = sigA > 0 ? math.min(expoMax, (targetVol / 100) / sigA) : 0.0
 
 // ---------------- RÉGULATION THERMIQUE : TORPEUR, HIBERNATION, GUÉRISON
 var float eqPeak = na
-eqPeak := math.max(nz(eqPeak, strategy.equity) * 0.999, strategy.equity)
+guerison = math.pow(0.5, timeframe.in_seconds() / (60.0 * 86400.0))
+eqPeak := math.max(nz(eqPeak, strategy.equity) * guerison, strategy.equity)
 dd = eqPeak > 0 ? 1.0 - strategy.equity / eqPeak : 0.0
 torpeur = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMax / 100)))
 
@@ -289,7 +321,8 @@ pousseTxt = (fCible >= 0 ? "+" : "") + str.tostring(100 * fCible, "#.#") + " % /
 pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.new(color.red, 70) : color.new(color.gray, 85)
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
-diagTxt = not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 vivantes · " + str.tostring(naissances) + " naissances · cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+desert = timeframe.in_seconds() < 14400
+diagTxt = not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 vivantes · " + str.tostring(naissances) + " naissances · cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = ready and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
 immTxt = immun > 0 ? "BOUCLIER : convalescence " + str.tostring(immun, "#") + " bougies" : "au repos, seuil " + str.tostring(chocSeuil, "#.#") + " écarts-types"
 immCol = immun > 0 ? color.new(color.red, 70) : color.new(color.gray, 85)
