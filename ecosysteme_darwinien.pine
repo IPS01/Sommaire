@@ -49,7 +49,8 @@ soinParent = input.float(25.0, "Soin parental (% de la vigueur du champion héri
 targetVol = input.float(15.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 40, step = 1, group = "Homéostasie")
 volWin = input.int(63, "Fenêtre de mesure de volatilité (bougies)", minval = 20, group = "Homéostasie")
 expoMax = input.float(3.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 10, step = 0.5, group = "Homéostasie")
-rebalPct = input.float(20.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
+rebalPct = input.float(25.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
+respire = input.int(5, "Respiration : rééquilibrage toutes les X bougies", minval = 1, maxval = 21, group = "Homéostasie", tooltip = "L'organisme ne corrige sa position qu'à ce rythme (5 = hebdomadaire en journalier). Entre deux respirations, il tient sa position : les frais ne paient que les vraies décisions, pas les frémissements.")
 ddMax = input.float(20.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)")
 chocSeuil = input.float(4.0, "Choc immunitaire (mouvement en écarts-types)", minval = 2.0, maxval = 8.0, step = 0.5, group = "Système immunitaire", tooltip = "Un mouvement d'une bougie au-delà de ce seuil déclenche le bouclier : exposition réduite de moitié pendant la convalescence.")
 chocDuree = input.int(10, "Convalescence après choc (bougies)", minval = 1, maxval = 100, group = "Système immunitaire")
@@ -297,7 +298,8 @@ eqPeak := math.max(nz(eqPeak, strategy.equity) * guerison, strategy.equity)
 dd = eqPeak > 0 ? 1.0 - strategy.equity / eqPeak : 0.0
 torpeur = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMax / 100)))
 
-fCible = ready and inDate ? dir * levVol * torpeur * bouclier : 0.0
+dirS = ta.sma(dir, respire)
+fCible = ready and inDate ? dirS * levVol * torpeur * bouclier : 0.0
 fCible := enableLongs or fCible < 0 ? fCible : 0.0
 fCible := enableShorts or fCible > 0 ? fCible : 0.0
 
@@ -305,8 +307,9 @@ fCible := enableShorts or fCible > 0 ? fCible : 0.0
 qtyCible = fCible * strategy.equity / close
 diffQty = qtyCible - strategy.position_size
 seuilQty = math.max(rebalPct / 100 * math.abs(qtyCible), 0.02 * strategy.equity / close)
-doPlus = barstate.isconfirmed and diffQty > seuilQty
-doMoins = barstate.isconfirmed and -diffQty > seuilQty
+souffle = bar_index % respire == 0
+doPlus = barstate.isconfirmed and souffle and diffQty > seuilQty
+doMoins = barstate.isconfirmed and souffle and -diffQty > seuilQty
 
 // ------------------------------------------------------------------ AFFICHAGE
 bgcolor(not ready ? na : vivantes == 0 ? color.new(color.red, 90) : dir > 0.2 ? color.new(color.teal, 94) : dir < -0.2 ? color.new(color.red, 94) : na)
