@@ -104,14 +104,14 @@ dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6
 vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0)
 
 // ---------------- HOMÉOSTASIE : TAILLE PAR CIBLAGE DE VOLATILITÉ
-sigA = ta.stdev(v, volWin) * math.sqrt(252)
+sigA = ta.stdev(v, volWin) * math.sqrt(31536000.0 / timeframe.in_seconds())
 levVol = sigA > 0 ? math.min(expoMax, (targetVol / 100) / sigA) : 0.0
 
 // ---------------- RÉGULATION THERMIQUE : TORPEUR PRÈS DE LA BORNE MORTELLE
 // Perte depuis le sommet du capital = température. Poussée réduite en
 // proportion ; hibernation complète à la borne, réveil graduel au-dessus.
 var float eqPeak = na
-eqPeak := math.max(nz(eqPeak, strategy.equity), strategy.equity)
+eqPeak := math.max(nz(eqPeak, strategy.equity) * 0.999, strategy.equity)
 dd = eqPeak > 0 ? 1.0 - strategy.equity / eqPeak : 0.0
 torpeur = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMax / 100)))
 
