@@ -44,6 +44,8 @@ enableShorts = input.bool(true, "Autoriser les ventes (short)", group = "Directi
 fitMem = input.int(63, "Mémoire de la forme (demi-vie, bougies)", minval = 10, maxval = 500, group = "Sélection naturelle", tooltip = "La forme d'une espèce est la moyenne exponentielle de ses gains. Court = sélection nerveuse, long = sélection patiente.")
 frais = input.float(0.1, "Frais par unité d'exposition retournée (%)", minval = 0.0, maxval = 1.0, step = 0.01, group = "Sélection naturelle", tooltip = "Chaque espèce paie ses frais virtuels sur ses changements de position : la sélection intègre le coût du réel.")
 divBonus = input.float(0.5, "Bonus de niche (récompense de la différence)", minval = 0.0, maxval = 1.0, step = 0.1, group = "Sélection naturelle", tooltip = "Les espèces décorrélées de la meute reçoivent jusqu'à ce bonus de nourriture en plus : chasser ailleurs protège la colonie.")
+contMax = input.float(50.0, "Part maximale des contrariennes (%)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Sélection naturelle", tooltip = "Les contrariennes ne peuvent jamais détenir plus que cette part du capital. Sans ce plafond, elles finissent par vendre à découvert une hausse historique — la colonie meurt en chassant l'éléphant à mains nues. Si toutes les espèces de tendance sont affamées, la colonie se met au repos.")
+respectFond = input.bool(true, "Ne jamais chasser contre la tendance de fond (252 bougies)", group = "Sélection naturelle", tooltip = "Interdit toute exposition opposée à la tendance longue de l'actif. Les actions ont une dérive haussière structurelle : la combattre est mortel.")
 starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution (croisement + mutation)", tooltip = "Au-delà, l'espèce meurt. Son enfant naît du croisement des deux meilleures (moyenne géométrique des rythmes), muté, avec 25 % de la vigueur du champion en héritage.")
 soinParent = input.float(25.0, "Soin parental (% de la vigueur du champion héritée)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Évolution (croisement + mutation)")
 targetVol = input.float(15.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 40, step = 1, group = "Homéostasie")
@@ -52,6 +54,8 @@ expoMax = input.float(3.0, "Exposition maximale (× capital)", minval = 0.5, max
 rebalPct = input.float(25.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
 respire = input.int(5, "Respiration : rééquilibrage toutes les X bougies", minval = 1, maxval = 21, group = "Homéostasie", tooltip = "L'organisme ne corrige sa position qu'à ce rythme (5 = hebdomadaire en journalier). Entre deux respirations, il tient sa position : les frais ne paient que les vraies décisions, pas les frémissements.")
 ddMax = input.float(20.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)")
+guerJours = input.int(500, "Guérison : demi-vie de la mémoire du sommet (jours)", minval = 30, maxval = 3000, group = "Régulation thermique (survie)", tooltip = "La blessure s'estompe lentement. ATTENTION : une valeur trop courte débranche la protection — la perte n'est jamais enregistrée et la torpeur ne se déclenche jamais.")
+plancher = input.float(60.0, "Plancher de survie : extinction définitive sous (% du capital initial)", minval = 10.0, maxval = 95.0, step = 5.0, group = "Régulation thermique (survie)", tooltip = "Sous ce niveau, l'espèce est déclarée éteinte : plus aucune exposition, définitivement. En biologie comme en bourse, il existe un point de non-retour.")
 chocSeuil = input.float(4.0, "Choc immunitaire (mouvement en écarts-types)", minval = 2.0, maxval = 8.0, step = 0.5, group = "Système immunitaire", tooltip = "Un mouvement d'une bougie au-delà de ce seuil déclenche le bouclier : exposition réduite de moitié pendant la convalescence.")
 chocDuree = input.int(10, "Convalescence après choc (bougies)", minval = 1, maxval = 100, group = "Système immunitaire")
 
@@ -164,10 +168,21 @@ w2 = math.max(0.0, fit2) * (1.0 + divBonus * (1.0 - q2))
 w3 = math.max(0.0, fit3) * (1.0 + divBonus * (1.0 - q3))
 w4 = math.max(0.0, fit4) * (1.0 + divBonus * (1.0 - q4))
 w5 = math.max(0.0, fit5) * (1.0 + divBonus * (1.0 - q5))
-w6 = math.max(0.0, fit6) * (1.0 + divBonus * (1.0 - q6))
-w7 = math.max(0.0, fit7) * (1.0 + divBonus * (1.0 - q7))
-w8 = math.max(0.0, fit8) * (1.0 + divBonus * (1.0 - q8))
-wTot = w1 + w2 + w3 + w4 + w5 + w6 + w7 + w8
+w6r = math.max(0.0, fit6) * (1.0 + divBonus * (1.0 - q6))
+w7r = math.max(0.0, fit7) * (1.0 + divBonus * (1.0 - q7))
+w8r = math.max(0.0, fit8) * (1.0 + divBonus * (1.0 - q8))
+
+// PLAFOND DES CONTRARIENNES : elles ne peuvent pas rafler tout le capital.
+// Sans ce garde-fou, quand toutes les espèces de tendance sont affamées, les
+// contrariennes vendent à découvert une hausse historique et la colonie meurt.
+wT = w1 + w2 + w3 + w4 + w5
+wCr = w6r + w7r + w8r
+cC = contMax / 100
+scaleC = wCr > 0 and cC < 1 ? math.min(1.0, cC * wT / math.max(1e-12, (1 - cC) * wCr)) : 1.0
+w6 = w6r * scaleC
+w7 = w7r * scaleC
+w8 = w8r * scaleC
+wTot = wT + w6 + w7 + w8
 dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6 * sig6 + w7 * sig7 + w8 * sig8) / wTot : 0.0
 vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0)
 
@@ -293,15 +308,23 @@ levVol = sigA > 0 ? math.min(expoMax, (targetVol / 100) / sigA) : 0.0
 
 // ---------------- RÉGULATION THERMIQUE : TORPEUR, HIBERNATION, GUÉRISON
 var float eqPeak = na
-guerison = math.pow(0.5, timeframe.in_seconds() / (60.0 * 86400.0))
+guerison = math.pow(0.5, timeframe.in_seconds() / (guerJours * 86400.0))
 eqPeak := math.max(nz(eqPeak, strategy.equity) * guerison, strategy.equity)
 dd = eqPeak > 0 ? 1.0 - strategy.equity / eqPeak : 0.0
 torpeur = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMax / 100)))
 
+// PLANCHER DE SURVIE : point de non-retour, extinction définitive
+var bool eteint = false
+eteint := eteint or (ready and strategy.equity < plancher / 100 * strategy.initial_capital)
+
+// TENDANCE DE FOND : on ne chasse jamais contre la dérive longue de l'actif
+fond = close > nz(close[252], close) ? 1 : -1
+
 dirS = ta.sma(dir, respire)
-fCible = ready and inDate ? dirS * levVol * torpeur * bouclier : 0.0
+fCible = ready and inDate and not eteint ? dirS * levVol * torpeur * bouclier : 0.0
 fCible := enableLongs or fCible < 0 ? fCible : 0.0
 fCible := enableShorts or fCible > 0 ? fCible : 0.0
+fCible := respectFond and fCible * fond < 0 ? 0.0 : fCible
 
 // ---------------- CORRECTION : RÉÉQUILIBRAGE AVEC ZONE MORTE
 qtyCible = fCible * strategy.equity / close
@@ -325,8 +348,9 @@ pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.n
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
-diagTxt = not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 vivantes · " + str.tostring(naissances) + " naissances · cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
-diagCol = ready and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 vivantes · " + str.tostring(naissances) + " naissances · cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagCol = eteint ? color.new(color.red, 60) : ready and not desert and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
+fondTxt = (fond > 0 ? "haussière ▲" : "baissière ▼") + (respectFond ? " · shorts " + (fond > 0 ? "interdits" : "autorisés") : " · filtre désactivé") + " · contrariennes " + str.tostring(wTot > 0 ? 100 * (w6 + w7 + w8) / wTot : 0, "#") + " % (max " + str.tostring(contMax, "#") + " %)"
 immTxt = immun > 0 ? "BOUCLIER : convalescence " + str.tostring(immun, "#") + " bougies" : "au repos, seuil " + str.tostring(chocSeuil, "#.#") + " écarts-types"
 immCol = immun > 0 ? color.new(color.red, 70) : color.new(color.gray, 85)
 e1 = "Guépard " + str.tostring(L1) + "b g" + str.tostring(g1) + " " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
@@ -348,7 +372,9 @@ c8c = fit8 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 tempTxt = str.tostring(100 * dd, "#.#") + " % de perte depuis le sommet · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION (guérison en cours)")
 tempCol = torpeur >= 0.99 ? color.new(color.teal, 80) : torpeur > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
 
-var table info = table.new(position.top_right, 2, 18, border_width = 1)
+var table info = table.new(position.top_right, 2, 19, border_width = 1)
+table.cell(info, 0, 18, "Tendance de fond (252 bougies)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 18, fondTxt, text_size = size.small, bgcolor = color.new(color.blue, 85))
 table.cell(info, 0, 0, "État de l'écosystème", text_size = size.small, bgcolor = color.new(color.orange, 80))
 table.cell(info, 1, 0, diagTxt, text_size = size.small, bgcolor = diagCol)
 table.cell(info, 0, 1, "Exposition cible / réelle", text_size = size.small, bgcolor = color.new(color.blue, 80))
