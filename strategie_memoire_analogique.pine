@@ -34,9 +34,9 @@ strategy("Mémoire Analogique [Takens + Shannon + Kelly]", shorttitle = "Mémoir
 // ---------------------------------------------------------------- PARAMÈTRES
 enableLongs = input.bool(true, "Autoriser les achats (long)", group = "Direction et décision")
 enableShorts = input.bool(true, "Autoriser les ventes (short)", group = "Direction et décision")
-tMin = input.float(1.6, "Significativité minimale (t-stat)", minval = 0.5, step = 0.1, group = "Direction et décision", tooltip = "L'issue moyenne apprise pour l'état actuel doit dépasser t fois son erreur-type. Plus haut = plus sélectif.")
+tMin = input.float(2.2, "Significativité minimale (t-stat)", minval = 0.5, step = 0.1, group = "Direction et décision", tooltip = "L'issue moyenne apprise pour l'état actuel doit dépasser t fois son erreur-type. Plus haut = plus sélectif.")
 essMin = input.float(20, "Observations minimales de l'état actuel", minval = 5, step = 1, group = "Direction et décision", tooltip = "Effectif (pondéré par l'oubli) de l'état de marché actuel. En dessous, pas assez d'expérience : on ne trade pas.")
-rrMin = input.float(0.1, "Mouvement prévu minimal (fraction du stop)", minval = 0.0, maxval = 2.0, step = 0.05, group = "Direction et décision", tooltip = "Le gain anticipé doit valoir au moins cette fraction de la distance de stop. 0 = désactivé.")
+rrMin = input.float(0.8, "Mouvement prévu minimal (fraction du stop)", minval = 0.0, maxval = 2.0, step = 0.05, group = "Direction et décision", tooltip = "Le gain anticipé doit valoir au moins cette fraction de la distance de stop, pour que chaque trade vise plus gros que les frais et que le risque. 0 = désactivé.")
 
 h = input.int(5, "Horizon de prévision (bougies)", minval = 1, maxval = 30, group = "Mémoire par états (Takens)")
 memLambda = input.float(0.999, "Facteur de mémoire (oubli)", minval = 0.95, maxval = 0.9999, step = 0.0005, group = "Mémoire par états (Takens)", tooltip = "0.999 = mémoire longue (~1000 observations par état). Plus bas = adaptation plus rapide, usure oubliée plus vite.")
@@ -48,7 +48,7 @@ entMax = input.float(0.985, "Entropie maximale tolérée (1 = bruit pur)", minva
 lev = input.float(10, "Levier maximal (× capital)", minval = 1, maxval = 20, step = 1, group = "Mise optimale (Kelly)", tooltip = "Plafonne la valeur de la position à ce multiple du capital. Le compte simulé autorise ×20 (marge 5 %).")
 kellyFrac = input.float(0.5, "Fraction de Kelly utilisée (0.5 = demi-Kelly)", minval = 0.1, maxval = 1.0, step = 0.1, group = "Mise optimale (Kelly)")
 riskCap = input.float(2.0, "Plafond de risque par trade (% du capital)", minval = 0.2, maxval = 10, step = 0.1, group = "Mise optimale (Kelly)")
-stopMult = input.float(2.0, "Stop en multiples de la volatilité sur l'horizon", minval = 0.5, step = 0.1, group = "Mise optimale (Kelly)")
+stopMult = input.float(1.2, "Stop en multiples de la volatilité sur l'horizon", minval = 0.5, step = 0.1, group = "Mise optimale (Kelly)")
 
 startDate = input.time(timestamp("1 Jan 2018 00:00 +0000"), "Début", group = "Période de backtest")
 endDate = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin", group = "Période de backtest")
