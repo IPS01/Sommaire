@@ -811,3 +811,202 @@ if doMoins
 // votre vie. La savane ne pardonne pas l'orgueil ; elle récompense la
 // patience armée. Bonne chasse.
 // ============================================================================
+//
+// ============================================================================
+// GRAND GUIDE DES RÉGLAGES — CHAQUE PARAMÈTRE, UN PAR UN
+// ----------------------------------------------------------------------------
+//
+// DIRECTION
+//   Autoriser les achats / les ventes — les deux sens de chasse. Sur un
+//     actif à dérive haussière structurelle (actions, indices), vous
+//     pouvez couper les ventes ; le filtre de tendance de fond le fait
+//     déjà de lui-même quand « respect de la dérive » est actif.
+//
+// SÉLECTION NATURELLE
+//   Mémoire de la forme (63) — la demi-vie de la vigueur d'une espèce.
+//     À 63 bougies (un trimestre en journalier), un exploit d'il y a
+//     trois mois compte moitié moins qu'un exploit d'hier. Descendre à
+//     20 rend la sélection nerveuse (rotation rapide du pouvoir dans la
+//     meute) ; monter à 150 la rend patiente et stable.
+//   Frais par retournement (0,1 %) — le coût du réel que chaque espèce
+//     paie dans sa chasse virtuelle. Mettez-y les frais RÉELS de votre
+//     courtier : c'est ce qui rend la sélection honnête.
+//   Bonus de niche (0,5) — la récompense de la différence. À 0, seule la
+//     forme compte ; à 1, une espèce totalement décorrélée de la meute
+//     reçoit le double de sa part. La diversité est une assurance.
+//   Part maximale des contrariennes (50 %) — le garde-fou anti-coup
+//     d'État. Leçon payée 9 997 euros sur NVIDIA : sans plafond, les
+//     trois contrariennes avaient pris 100 % du capital et vendaient à
+//     découvert une hausse historique.
+//   Respect de la tendance de fond (oui) — l'interdit sacré : ne jamais
+//     chasser contre la dérive de 252 bougies du territoire.
+//
+// LA MEUTE (LE LION)
+//   Part du lion (2) — l'exposant de hiérarchie. 1 : chaque espèce mange
+//     proportionnellement à sa forme (démocratie). 2 : les parts sont
+//     élevées au carré, l'alpha domine (meute). 4 : l'alpha règne presque
+//     seul (tyrannie — plus tranchant, plus fragile).
+//   Proie minimale (0,2) — le seuil de charge. La conviction collective
+//     (de -1 à +1) doit dépasser ce seuil pour engager le capital.
+//     En dessous : affût, zéro exposition, zéro frais. C'est l'organe
+//     anti-grignotage : le lion ne se lève pas pour une souris.
+//
+// LA SAVANE (LE TERRITOIRE)
+//   Savane propice à partir de (0,8) — le score minimal du territoire :
+//     |tendance de fond| divisée par le bruit annualisé. En dessous de
+//     0,8, ce qu'il y a à manger ne vaut pas le bruit à traverser.
+//     Baisser à 0,4 pour un roi tolérant, monter à 1,2 pour un roi qui
+//     n'accepte que les savanes grasses.
+//   Fenêtre d'entropie (96) — la longueur de séquence examinée par la
+//     jauge de Shannon.
+//   Entropie maximale (0,995) — au-dessus, la séquence des hausses et
+//     baisses est statistiquement indiscernable du hasard : le roi ne
+//     chasse pas dans le brouillard. Repère : une pièce de monnaie
+//     parfaite mesure environ 0,982 sur 96 bougies.
+//
+// LES DIX SAVANES (MIGRATION)
+//   Les dix symboles surveillés. Remplacez-les par vos terrains : le roi
+//     les notera tous à chaque bougie et désignera le plus gras. La
+//     stratégie ne peut passer d'ordres que sur le graphique affiché —
+//     la migration se fait en ouvrant le graphique du territoire désigné.
+//
+// ÉVOLUTION (CROISEMENT + MUTATION)
+//   Famine mortelle (150) — le nombre de bougies en forme négative avant
+//     la mort d'une espèce. Court (50) : rotation génétique rapide ;
+//     long (400) : les espèces ont le temps de traverser un hiver.
+//   Soin parental (25 %) — la vigueur héritée du champion par chaque
+//     nouveau-né. À 0, les enfants naissent affamés et doivent tout
+//     prouver ; à 100, ils naissent aussi gras que l'alpha (dangereux :
+//     un nouveau-né n'a encore rien démontré).
+//
+// HOMÉOSTASIE
+//   Volatilité cible (15 %) — la température de risque du portefeuille.
+//     15 % = prudent, 20 % = affirmé, 25 % = conquérant. C'est LE levier
+//     principal du profil de risque.
+//   Fenêtre de volatilité (63) — la période de mesure du bruit réalisé.
+//   Exposition maximale (×3) — le plafond absolu de levier, quelle que
+//     soit la douceur apparente du marché.
+//   Zone morte (25 %) — l'écart minimal entre position et cible pour
+//     déclencher une correction. Anti-frais.
+//   Respiration (5) — le rythme des corrections : hebdomadaire en
+//     journalier. Leçon payée sur EURUSD : corriger à chaque bougie
+//     coûtait 2 206 trades par période et tuait la colonie en frais.
+//
+// RÉGULATION THERMIQUE (SURVIE)
+//   Borne mortelle (20 %) — la perte depuis le sommet qui déclenche
+//     l'hibernation complète. La torpeur est progressive avant elle.
+//   Guérison (500 jours) — la demi-vie de la mémoire du sommet. Leçon
+//     payée sur NVIDIA : une guérison trop rapide efface la blessure
+//     avant qu'elle ne soit soignée, et le garde-fou ne se déclenche
+//     jamais. Ne descendez pas sous 200 jours.
+//   Plancher de survie (60 %) — le point de non-retour. Sous 60 % du
+//     capital initial : extinction définitive, plus aucune exposition.
+//     À -50 %, il faut +100 % pour revenir à zéro ; le plancher coupe
+//     avant que l'arithmétique ne devienne impossible.
+//
+// SYSTÈME IMMUNITAIRE
+//   Choc immunitaire (4 écarts-types) — la taille de bougie qui
+//     déclenche le bouclier. Un mouvement de 4 sigmas arrive par hasard
+//     moins d'une fois sur quinze mille : quand il arrive, ce n'est pas
+//     du hasard, c'est un événement — le bouclier se lève.
+//   Convalescence (10) — la durée du bouclier à mi-exposition.
+//
+// ============================================================================
+// PATHOLOGIES CONNUES — SYMPTÔMES ET REMÈDES (payées en tests réels)
+// ----------------------------------------------------------------------------
+//
+// LA CONSANGUINITÉ — Symptôme : toutes les espèces affichent le même
+//   rythme, les générations défilent (g50+), la colonie meurt en boucle.
+//   Cause : le croisement concentrait tous les génomes sur le champion.
+//   Remède intégré : les habitats — chaque case a des bornes de rythme
+//   infranchissables. Observé : 570 générations de clones sur le 1 min.
+//
+// L'HYPERACTIVITÉ — Symptôme : des milliers de trades, profit factor
+//   sous 1 malgré des espèces vivantes. Cause : correction de position à
+//   chaque bougie, les frais mangent tout. Remède intégré : respiration
+//   hebdomadaire + zone morte + proie minimale. Observé : 2 206 trades
+//   sur EURUSD 1D, -47 %.
+//
+// LE GARDE-FOU DÉBRANCHÉ — Symptôme : « 0 % de perte depuis le sommet »
+//   alors que le capital fond. Cause : guérison trop rapide, la mémoire
+//   du sommet s'efface avant d'enregistrer la blessure. Remède intégré :
+//   demi-vie de 500 jours. Observé : NVIDIA, capital à 3 euros sur
+//   10 000, température « normale ».
+//
+// LE COUP D'ÉTAT DES CONTRARIENNES — Symptôme : cap baissier permanent
+//   sur un actif qui monte, contrariennes à 100 % du capital. Cause :
+//   dans une hausse régulière, les espèces de tendance se font stopper
+//   par les respirations pendant que les contrariennes scalpent les
+//   micro-replis — leur forme paraît meilleure. Remède intégré : plafond
+//   à 50 % + interdiction de chasser contre la dérive de fond.
+//
+// LE DÉSERT — Symptôme : extinctions en série quelle que soit la
+//   colonie. Cause : sur les unités de temps courtes, les frais sont
+//   plus gros que les proies. Remède : aucune. On ne cultive pas le
+//   désert, on le quitte. Le tableau l'affiche en première ligne.
+//
+// ============================================================================
+// CARACTÈRE DES DIX SAVANES (à connaître avant d'y mener la meute)
+// ----------------------------------------------------------------------------
+//
+//   OR (XAUUSD) — la grande savane. Tendances longues, portées par les
+//     banques centrales et la peur. Le meilleur territoire mesuré :
+//     +47 %, profit factor 4,6 sur la période testée.
+//   ARGENT (XAGUSD) — cousin nerveux de l'or : mêmes tendances,
+//     volatilité presque double. Réduire la volatilité cible d'un cran.
+//   PÉTROLE (USOIL) — tendances brutales, retournements géopolitiques.
+//     Le système immunitaire y travaille beaucoup.
+//   EURUSD — le marigot. La paire la plus arbitrée du monde, tendances
+//     rares et molles. Mesuré : profit factor 0,77. Y aller seulement
+//     quand le score de savane dit que c'est ouvert.
+//   GBPUSD — marigot avec crocodiles : calme, puis Brexit.
+//   USDJPY — dort des années puis part en tendance historique quand la
+//     Banque du Japon bouge. Bonne savane d'appoint.
+//   S&P 500 (SPX) — dérive haussière structurelle : les shorts y sont
+//     presque toujours une erreur ; le filtre de fond protège.
+//   NASDAQ 100 (NDX) — pareil, en plus volatil.
+//   BITCOIN (BTCUSD) — savane volcanique : tendances énormes,
+//     effondrements de 80 %. La colonie peut y prospérer UNIQUEMENT
+//     grâce au ciblage de volatilité qui réduit la taille des positions.
+//   INDICE DOLLAR (DXY) — le baromètre. Souvent plus utile comme
+//     information (il pilote l'or en miroir) que comme terrain.
+//
+// ============================================================================
+// FAQ DU ROI
+// ----------------------------------------------------------------------------
+//
+// « Le tableau dit affût depuis des semaines, c'est normal ? » — Oui.
+//   L'affût est une position, pas une panne. Le lion qui attend ne perd
+//   rien ; celui qui charge tout ce qui bouge meurt en frais. Vérifiez
+//   simplement la ligne météo : si la savane est stérile, la question
+//   n'est pas d'attendre mais de migrer.
+//
+// « Pourquoi la position réelle ne colle pas exactement à la cible ? » —
+//   La zone morte et la respiration : on ne corrige que les écarts qui
+//   valent leurs frais, une fois par semaine. L'écart résiduel est le
+//   prix de la frugalité.
+//
+// « Puis-je l'utiliser sur plusieurs marchés en même temps ? » — Oui, et
+//   c'est même la vraie architecture des fonds : ouvrez 3-4 graphiques
+//   (or, pétrole, USDJPY, NDX), le même organisme sur chacun, chacun
+//   avec une fraction du capital. Des colonies jumelles sur des
+//   continents différents : quand l'une a faim, l'autre mange.
+//
+// « Un trade a perdu, le robot est-il cassé ? » — Non. Huit charges sur
+//   dix ratent. La seule question qui compte : la perte était-elle
+//   bornée (température, plancher) et la colonie respire-t-elle encore ?
+//
+// « Quand est-ce que je passe en argent réel ? » — Après le protocole
+//   complet du mode d'emploi, jamais avant, et jamais avec un capital
+//   dont la perte changerait votre vie. Le backtest est une promesse,
+//   le paper trading un témoignage, le réel un juge.
+//
+// « Le code peut-il encore évoluer ? » — C'est sa nature. Les prochains
+//   organes possibles : des colonies multi-territoires coordonnées, des
+//   espèces saisonnières, une mémoire des chocs (immunité acquise). Ce
+//   fichier est la génération 7 ; le journal en tête raconte les six
+//   générations qui ont payé, de leur vie, les leçons qu'il contient.
+//
+// ============================================================================
+// FIN DU FICHIER — LE ROI DE LA SAVANE, GÉNÉRATION 7
+// ============================================================================
