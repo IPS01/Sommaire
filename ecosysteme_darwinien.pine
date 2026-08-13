@@ -54,6 +54,8 @@ frais = input.float(0.1, "Frais par unité d'exposition retournée (%)", minval 
 divBonus = input.float(0.5, "Bonus de niche (récompense de la différence)", minval = 0.0, maxval = 1.0, step = 0.1, group = "Sélection naturelle", tooltip = "Les espèces décorrélées de la meute reçoivent jusqu'à ce bonus de nourriture en plus : chasser ailleurs protège la colonie.")
 contMax = input.float(50.0, "Part maximale des contrariennes (%)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Sélection naturelle", tooltip = "Les contrariennes ne peuvent jamais détenir plus que cette part du capital. Sans ce plafond, elles finissent par vendre à découvert une hausse historique — la colonie meurt en chassant l'éléphant à mains nues. Si toutes les espèces de tendance sont affamées, la colonie se met au repos.")
 respectFond = input.bool(true, "Ne jamais chasser contre la tendance de fond (252 bougies)", group = "Sélection naturelle", tooltip = "Interdit toute exposition opposée à la tendance longue de l'actif. Les actions ont une dérive haussière structurelle : la combattre est mortel.")
+hierarchie = input.float(2.0, "Part du lion (hiérarchie de la meute)", minval = 1.0, maxval = 4.0, step = 0.5, group = "La meute (le lion)", tooltip = "1 = démocratie : nourriture proportionnelle à la forme. 2 = meute : l'alpha mange une part disproportionnée (forme au carré). 4 = tyrannie de l'alpha.")
+proieMin = input.float(0.2, "Proie minimale (conviction requise pour charger)", minval = 0.0, maxval = 0.8, step = 0.05, group = "La meute (le lion)", tooltip = "Le lion ne grignote pas : en dessous de cette conviction collective, la meute reste à l'affût sans dépenser un centime de frais. Au-dessus, elle charge. 0 = désactivé.")
 starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution (croisement + mutation)", tooltip = "Au-delà, l'espèce meurt. Son enfant naît du croisement des deux meilleures (moyenne géométrique des rythmes), muté, avec 25 % de la vigueur du champion en héritage.")
 soinParent = input.float(25.0, "Soin parental (% de la vigueur du champion héritée)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Évolution (croisement + mutation)")
 targetVol = input.float(15.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 40, step = 1, group = "Homéostasie")
@@ -170,15 +172,19 @@ q6 = nz(ta.correlation(p6, pEco, 100), 1.0)
 q7 = nz(ta.correlation(p7, pEco, 100), 1.0)
 q8 = nz(ta.correlation(p8, pEco, 100), 1.0)
 
-// ---------------- DARWIN : LE CAPITAL EST LA NOURRITURE (poids ∝ forme × niche)
-w1 = math.max(0.0, fit1) * (1.0 + divBonus * (1.0 - q1))
-w2 = math.max(0.0, fit2) * (1.0 + divBonus * (1.0 - q2))
-w3 = math.max(0.0, fit3) * (1.0 + divBonus * (1.0 - q3))
-w4 = math.max(0.0, fit4) * (1.0 + divBonus * (1.0 - q4))
-w5 = math.max(0.0, fit5) * (1.0 + divBonus * (1.0 - q5))
-w6r = math.max(0.0, fit6) * (1.0 + divBonus * (1.0 - q6))
-w7r = math.max(0.0, fit7) * (1.0 + divBonus * (1.0 - q7))
-w8r = math.max(0.0, fit8) * (1.0 + divBonus * (1.0 - q8))
+// ---------------- LA MEUTE : LE LION MANGE LE PREMIER (forme ^ hiérarchie)
+// hiérarchie = 1 : démocratie. 2 : l'alpha rafle une part disproportionnée.
+// La forme est normalisée par la meilleure avant l'exposant (stabilité).
+bestRef = math.max(fit1, math.max(fit2, math.max(fit3, math.max(fit4, math.max(fit5, math.max(fit6, math.max(fit7, fit8)))))))
+fitRef = math.max(bestRef, 1e-12)
+w1 = math.pow(math.max(0.0, fit1) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q1))
+w2 = math.pow(math.max(0.0, fit2) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q2))
+w3 = math.pow(math.max(0.0, fit3) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q3))
+w4 = math.pow(math.max(0.0, fit4) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q4))
+w5 = math.pow(math.max(0.0, fit5) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q5))
+w6r = math.pow(math.max(0.0, fit6) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q6))
+w7r = math.pow(math.max(0.0, fit7) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q7))
+w8r = math.pow(math.max(0.0, fit8) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q8))
 
 // PLAFOND DES CONTRARIENNES : elles ne peuvent pas rafler tout le capital.
 // Sans ce garde-fou, quand toutes les espèces de tendance sont affamées, les
@@ -328,8 +334,11 @@ eteint := eteint or (ready and strategy.equity < plancher / 100 * strategy.initi
 // TENDANCE DE FOND : on ne chasse jamais contre la dérive longue de l'actif
 fond = close > nz(close[252], close) ? 1 : -1
 
+// LA CHARGE DU LION : en dessous de la proie minimale, la meute reste à
+// l'affût (exposition nulle, zéro frais) ; au-dessus, elle charge.
 dirS = ta.sma(dir, respire)
-fCible = ready and inDate and not eteint ? dirS * levVol * torpeur * bouclier : 0.0
+dirChasse = math.abs(dirS) >= proieMin ? dirS : 0.0
+fCible = ready and inDate and not eteint ? dirChasse * levVol * torpeur * bouclier : 0.0
 fCible := enableLongs or fCible < 0 ? fCible : 0.0
 fCible := enableShorts or fCible > 0 ? fCible : 0.0
 fCible := respectFond and fCible * fond < 0 ? 0.0 : fCible
@@ -356,7 +365,8 @@ pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.n
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
-diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 vivantes · " + str.tostring(naissances) + " naissances · cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirS) < proieMin ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMin, "#") + " %)" : str.tostring(vivantes) + "/8 vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : "Chouette " + str.tostring(L8)) + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
 diagCol = eteint ? color.new(color.red, 60) : ready and not desert and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
 fondTxt = (fond > 0 ? "haussière ▲" : "baissière ▼") + (respectFond ? " · shorts " + (fond > 0 ? "interdits" : "autorisés") : " · filtre désactivé") + " · contrariennes " + str.tostring(wTot > 0 ? 100 * (w6 + w7 + w8) / wTot : 0, "#") + " % (max " + str.tostring(contMax, "#") + " %)"
 immTxt = immun > 0 ? "BOUCLIER : convalescence " + str.tostring(immun, "#") + " bougies" : "au repos, seuil " + str.tostring(chocSeuil, "#.#") + " écarts-types"
@@ -380,7 +390,9 @@ c8c = fit8 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 tempTxt = str.tostring(100 * dd, "#.#") + " % de perte depuis le sommet · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION (guérison en cours)")
 tempCol = torpeur >= 0.99 ? color.new(color.teal, 80) : torpeur > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
 
-var table info = table.new(position.top_right, 2, 19, border_width = 1)
+var table info = table.new(position.top_right, 2, 20, border_width = 1)
+table.cell(info, 0, 19, "Le lion (alpha, part ^" + str.tostring(hierarchie, "#.#") + ")", text_size = size.small, bgcolor = color.new(color.orange, 75))
+table.cell(info, 1, 19, alphaNom, text_size = size.small, bgcolor = color.new(color.orange, 85))
 table.cell(info, 0, 18, "Tendance de fond (252 bougies)", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 18, fondTxt, text_size = size.small, bgcolor = color.new(color.blue, 85))
 table.cell(info, 0, 0, "État de l'écosystème", text_size = size.small, bgcolor = color.new(color.orange, 80))
