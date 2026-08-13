@@ -19,13 +19,21 @@
 //     (moyenne géométrique) puis muté (facteur déterministe).
 //   SOIN PARENTAL — le nouveau-né hérite de 25 % de la vigueur du
 //     champion : il n'entre pas dans le monde affamé.
+//   PLAFOND DES PRÉDATRICES — les contrariennes ne peuvent jamais rafler
+//     plus de la moitié du capital : sans ce garde-fou elles finissent par
+//     vendre à découvert une hausse historique et la colonie meurt.
+//   RESPECT DE LA DÉRIVE — aucune exposition contre la tendance de fond
+//     (252 bougies) : combattre la dérive structurelle d'un actif est mortel.
 //   SYSTÈME IMMUNITAIRE — un choc > 4 écarts-types (krach, annonce)
 //     déclenche un bouclier : exposition réduite de moitié 10 bougies.
 //   HOMÉOSTASIE — ciblage de volatilité, annualisé d'après la durée
 //     réelle des bougies (valable du 1 min au mensuel).
+//   RESPIRATION — la position n'est corrigée qu'une fois par semaine :
+//     les frais ne paient que les vraies décisions, pas les frémissements.
 //   RÉGULATION THERMIQUE — la perte depuis le sommet est une température:
-//     torpeur progressive, hibernation à la borne, puis GUÉRISON (la
-//     mémoire de la blessure s'estompe de 0,1 % par bougie).
+//     torpeur progressive, hibernation à la borne, GUÉRISON lente (demi-vie
+//     500 jours), et PLANCHER DE SURVIE : sous 60 % du capital initial,
+//     extinction définitive. Le point de non-retour existe.
 //   EXTINCTION — si toutes les espèces meurent, tout le monde à l'abri.
 //   ÉTAT CIVIL — âge, génération, naissances totales, doyenne ; chaque
 //     naissance est marquée d'un losange violet sur le graphique.
