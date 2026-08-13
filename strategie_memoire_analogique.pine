@@ -148,9 +148,9 @@ var float slL = na
 var float tpL = na
 var float slS = na
 var float tpS = na
-slL := longEntry ? close - stopDist : strategy.position_size > 0 and score < 0 ? close : nz(slL, close)
+slL := longEntry ? close - stopDist : strategy.position_size > 0 and score <= -tMin ? close : nz(slL, close)
 tpL := longEntry ? math.max(cible, close + stopDist * 0.5) : tpL
-slS := shortEntry ? close + stopDist : strategy.position_size < 0 and score > 0 ? close : nz(slS, close)
+slS := shortEntry ? close + stopDist : strategy.position_size < 0 and score >= tMin ? close : nz(slS, close)
 tpS := shortEntry ? math.min(cible, close - stopDist * 0.5) : tpS
 strategy.exit("Long TP/SL", "Long", stop = slL, limit = tpL, alert_message = "MemoireAnalogique SORTIE LONG " + syminfo.ticker)
 strategy.exit("Short TP/SL", "Short", stop = slS, limit = tpS, alert_message = "MemoireAnalogique SORTIE SHORT " + syminfo.ticker)
