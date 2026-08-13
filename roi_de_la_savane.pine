@@ -1,0 +1,813 @@
+//@version=6
+// ============================================================================
+// ============================================================================
+//
+//   LE ROI DE LA SAVANE — Écosystème Darwinien Complet
+//   La théorie de la vie appliquée au capital, version royale
+//
+// ============================================================================
+// ============================================================================
+//
+// ----------------------------------------------------------------------------
+// LA THÉORIE, EN UNE PAGE
+// ----------------------------------------------------------------------------
+//
+// La savane est le marché. Nous sommes le roi de la savane, et un roi ne
+// fait pas ce que fait le troupeau : il JAUGE son territoire avant de
+// chasser, il laisse la meute prendre les risques, il protège la lignée,
+// et si le territoire devient stérile, il MIGRE.
+//
+// Ce script n'est pas un indicateur. C'est un organisme, construit organe
+// par organe sur les principes du vivant :
+//
+// 1) ON NE PRÉDIT PAS LE MONDE, ON S'Y ADAPTE. Aucune cellule n'a jamais
+//    su qu'elle deviendrait un œil. La nature ne prévoit pas : elle fait
+//    naître des variantes et laisse le réel tuer les faibles. Ici, huit
+//    espèces chassent en permanence avec des instincts différents, et le
+//    capital — la nourriture — va aux formes les plus vigoureuses.
+//
+// 2) LE RISQUE EST PRIS PAR LES INDIVIDUS, JAMAIS PAR LA LIGNÉE. Les corps
+//    sont jetables, les gènes ne le sont pas. Les espèces meurent, mutent,
+//    renaissent — mais le capital-lignée est protégé par la température,
+//    le plancher de survie et le bouclier immunitaire. La ruine est la
+//    seule issue que la nature ne récompense jamais : après elle, plus
+//    d'évolution possible.
+//
+// 3) LE LION NE GRIGNOTE PAS. Il rate huit charges sur dix et vit vieux,
+//    parce qu'il ne charge que les proies qui valent la dépense et
+//    qu'aucune charge ratée ne peut le tuer. Ici : la meute ne charge que
+//    si la conviction collective dépasse la proie minimale, et l'alpha —
+//    la forme la plus haute — mange le premier et le plus.
+//
+// 4) LE ROI JAUGE LA SAVANE. Avant toute chasse, le territoire est noté :
+//    la tendance de fond est-elle assez nette par rapport au bruit ? La
+//    séquence des jours est-elle structurée ou aléatoire (Shannon) ? Si
+//    la savane locale est stérile, le roi ne chasse pas — et il scrute
+//    DIX AUTRES SAVANES en permanence pour désigner la migration.
+//
+// ----------------------------------------------------------------------------
+// LES ORGANES DE L'ORGANISME
+// ----------------------------------------------------------------------------
+//
+//   VARIATION — 8 espèces aux rythmes différents (5 suiveuses de
+//     tendance : Guépard, Loup, Ours, Éléphant, Baleine ; 3 contrariennes:
+//     Colibri, Renard, Chouette), instinct gradué : conviction =
+//     mouvement / bruit, bornée à ±100 %.
+//
+//   SÉLECTION — chaque espèce chasse virtuellement à chaque bougie, frais
+//     déduits ; sa forme (moyenne exponentielle de ses gains) décide de sa
+//     part de nourriture. Qui perd maigrit, qui gagne mange.
+//
+//   LA MEUTE — la nourriture suit la hiérarchie : l'alpha (la forme la
+//     plus haute) mange une part disproportionnée (forme ^ hiérarchie), et
+//     la meute ne CHARGE que si la proie vaut la charge (conviction
+//     au-dessus du seuil) — sinon elle reste à l'affût, sans frais.
+//
+//   HABITATS — chaque case du vivarium a des bornes de rythme propres :
+//     la diversité ne peut pas s'effondrer (anti-consanguinité, découverte
+//     lors du test du 1 minute : 570 générations de clones morts).
+//
+//   NICHES ÉCOLOGIQUES — bonus de nourriture aux espèces décorrélées de
+//     la meute : chasser ailleurs protège la colonie (diversification).
+//
+//   REPRODUCTION SEXUÉE — une espèce affamée trop longtemps meurt ; son
+//     enfant naît du CROISEMENT des rythmes des DEUX meilleures espèces
+//     (moyenne géométrique) puis muté, dans les bornes de son habitat.
+//
+//   SOIN PARENTAL — le nouveau-né hérite de 25 % de la vigueur du
+//     champion : il n'entre pas dans le monde affamé.
+//
+//   RÉ-ENSEMENCEMENT — après 100 bougies d'extinction totale, la vie
+//     repart des spores primordiales (rythmes d'origine, dettes effacées),
+//     comme la Terre après ses grandes extinctions.
+//
+//   PLAFOND DES PRÉDATRICES — les contrariennes ne peuvent jamais rafler
+//     plus de la moitié du capital. Sans ce garde-fou, elles finissent par
+//     vendre à découvert une hausse historique (découvert lors du test
+//     NVIDIA : cap baissier sur une action qui faisait ×20, ruine totale).
+//
+//   RESPECT DE LA DÉRIVE — aucune exposition contre la tendance de fond
+//     (252 bougies) : combattre la dérive structurelle d'un actif est
+//     mortel. Les actions montent structurellement ; on ne les shorte pas.
+//
+//   LA SAVANE LOCALE — le roi jauge son territoire : score = tendance de
+//     fond / bruit annualisé, et entropie de Shannon de la séquence des
+//     jours (une séquence aléatoire est imprévisible par théorème). Si la
+//     savane est stérile, AUCUNE chasse, quelle que soit la meute.
+//
+//   LES DIX SAVANES — en permanence, dix territoires sont notés (or,
+//     argent, pétrole, indices, devises, bitcoin — modifiables dans les
+//     réglages). Si la savane locale est stérile, le tableau désigne la
+//     meilleure migration. Le roi ne meurt pas de fidélité à un désert.
+//
+//   SYSTÈME IMMUNITAIRE — un choc > 4 écarts-types (krach, annonce)
+//     déclenche un bouclier : exposition réduite de moitié 10 bougies.
+//
+//   HOMÉOSTASIE — ciblage de volatilité : le portefeuille vit à
+//     température de risque constante, annualisée d'après la durée réelle
+//     des bougies (valable du 1 minute au mensuel).
+//
+//   RESPIRATION — la position n'est corrigée qu'une fois par semaine :
+//     les frais ne paient que les vraies décisions (découvert lors du test
+//     EURUSD : 2 206 corrections par an épuisaient la colonie en frais).
+//
+//   RÉGULATION THERMIQUE — la perte depuis le sommet est une température:
+//     torpeur progressive, hibernation à la borne, GUÉRISON lente
+//     (demi-vie 500 jours — une guérison trop rapide débranche la
+//     protection, découvert lors du test NVIDIA).
+//
+//   PLANCHER DE SURVIE — sous 60 % du capital initial, extinction
+//     définitive : plus aucune exposition, pour toujours. Le point de
+//     non-retour existe : à -50 %, il faut +100 % pour revenir à zéro.
+//     PAS DE PERTE MORTELLE, SINON C'EST LA MORT — littéralement codé.
+//
+//   EXTINCTION — si toutes les espèces meurent, tout le monde à l'abri.
+//
+//   ÉTAT CIVIL — âge, génération, naissances, doyenne ; chaque naissance
+//     est un losange violet, chaque choc une croix rouge sur le graphique.
+//
+// ----------------------------------------------------------------------------
+// MODE D'EMPLOI
+// ----------------------------------------------------------------------------
+//
+// INSTALLATION
+//   1. Éditeur Pine : créer un NOUVEAU script, tout sélectionner,
+//      supprimer (l'éditeur doit être totalement vide), coller ce fichier
+//      en une seule fois, sauvegarder, ajouter au graphique.
+//   2. Unité de temps : 1D (journalier). En dessous de 4 heures, le
+//      tableau affichera DÉSERT : les frais y dépassent les proies —
+//      c'est une mesure, vérifiée sur vos propres tests (1m, 15m, 1h).
+//   3. Terrain conseillé : XAUUSD (l'or), là où la colonie a réalisé
+//      +47 % avec un profit factor de 4,6 sur la période testée.
+//
+// LECTURE DU TABLEAU (de haut en bas)
+//   - État de l'écosystème : la phrase qui dit tout — amorçage, désert,
+//     affût, charge, extinction, ou ÉTEINT.
+//   - Exposition cible / réelle : la poussée voulue et la position tenue.
+//   - Les 8 espèces : rythme (bougies), génération, cap (montée/baisse),
+//     forme (points de base par bougie), part du capital. Verte = nourrie,
+//     grise = affamée.
+//   - Système immunitaire : au repos ou bouclier actif.
+//   - État civil : naissances totales et doyenne de la colonie.
+//   - Volatilité → levier : la température de risque et le levier retenu.
+//   - Trades / réussite, profit factor, profit net : la comptabilité.
+//   - Température : la perte depuis le sommet et l'état du métabolisme.
+//   - Tendance de fond : la dérive 252 bougies et le droit de shorter.
+//   - Le lion : l'alpha du moment, celui qui mange le premier.
+//   - Météo de la savane locale : le score du territoire et son verdict.
+//   - Les dix savanes : chaque territoire noté, pour savoir où migrer.
+//
+// RÉGLAGES CLÉS (roue dentée)
+//   - Volatilité cible : 15 % = prudent, 25 % = conquérant.
+//   - Borne mortelle : 20 % = prudent, 30 % = conquérant.
+//   - Part du lion : 1 = démocratie, 2 = meute, 4 = tyrannie de l'alpha.
+//   - Proie minimale : 0,2 = charge sélective ; 0 = grignotage permis.
+//   - Savane propice à partir de : 0,8 = exigeant ; 0,4 = tolérant.
+//   - Les dix savanes : remplacez les symboles par vos terrains de chasse.
+//
+// PROTOCOLE DE VALIDATION (dans l'ordre, sans sauter d'étape)
+//   1. Backtest complet : toute l'histoire disponible, SANS Replay.
+//   2. Comparer profils prudent et conquérant sur la même période.
+//   3. Paper trading : créer une alerte TradingView sur la stratégie et
+//      la laisser vivre plusieurs semaines en argent fictif.
+//   4. Seulement ensuite, et jamais avec un capital dont la perte
+//      changerait votre vie. Un backtest est une promesse, pas une preuve.
+//
+// ----------------------------------------------------------------------------
+// LEXIQUE
+// ----------------------------------------------------------------------------
+//
+//   FORME (fitness) — moyenne exponentielle des gains d'une espèce, frais
+//     déduits. C'est la vigueur d'un animal : elle s'estompe avec le temps
+//     (demi-vie réglable), un exploit ancien ne nourrit pas éternellement.
+//   CONVICTION — mouvement du prix rapporté au bruit, borné à ±100 %.
+//     Un mouvement de 2 écarts-types = conviction pleine.
+//   NICHE — récompense de la décorrélation : une espèce qui gagne quand
+//     les autres perdent vaut plus que sa forme seule.
+//   HIÉRARCHIE — exposant appliqué aux formes : à 2, l'alpha rafle une
+//     part disproportionnée ; c'est la part du lion.
+//   PROIE MINIMALE — seuil de conviction collective en dessous duquel la
+//     meute reste à l'affût : pas de grignotage, pas de frais.
+//   SCORE DE SAVANE — |tendance 252 bougies| / volatilité annualisée.
+//     C'est la netteté du terrain : ce qu'il y a à manger, rapporté au
+//     bruit qu'il faut traverser pour l'attraper.
+//   ENTROPIE DE SHANNON — désordre de la séquence des hausses/baisses.
+//     Une pièce de monnaie parfaite mesure ~0,982 sur 96 bougies ; en
+//     dessous, il existe de l'ordre exploitable ; au-dessus, du bruit pur.
+//   TORPEUR — réduction du métabolisme proportionnelle à la blessure ;
+//     HIBERNATION à la borne mortelle ; GUÉRISON à demi-vie lente.
+//   PLANCHER DE SURVIE — le point de non-retour : extinction définitive.
+//   RESPIRATION — rythme de correction de la position (hebdomadaire).
+//   MIGRATION — quand la savane locale est stérile, le tableau désigne
+//     le meilleur des dix territoires surveillés.
+//
+// ----------------------------------------------------------------------------
+// JOURNAL DES GÉNÉRATIONS (l'histoire vraie de cet organisme)
+// ----------------------------------------------------------------------------
+//
+//   G1 Confluence Totale — assemblage classique (EMA, Supertrend, RSI).
+//      Mort : ordres rejetés (marge), signaux sans exécution.
+//   G2 Prévision Trigo-Statistique — régression + Fourier + score z.
+//      Mort : frais supérieurs aux prévisions sur petites unités de temps.
+//   G3 Mémoire Analogique — Takens + Shannon + Kelly, méthode des
+//      analogues. Mort : collage mobile (blocs), puis recalibrages.
+//   G4 Pilotage Continu — exposition de Merton en boucle fermée.
+//   G5 Tendance Journalière — momentum temporel + ciblage de volatilité,
+//      la seule stratégie à preuve publique centenaire.
+//   G6 Écosystème Darwinien — 8 espèces, sélection par le réel.
+//      Leçons payées : consanguinité (570 générations de clones),
+//      hyperactivité (2 206 corrections/an), garde-fou débranché (NVDA,
+//      ruine totale), contrariennes toutes-puissantes (cap baissier sur
+//      une hausse ×20).
+//   G7 LE ROI DE LA SAVANE (ce fichier) — la meute hiérarchisée, la proie
+//      minimale, la météo du territoire, les dix savanes et la migration.
+//      Victoire mesurée : XAUUSD 1D, +47 %, profit factor 4,6.
+//
+// STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur —
+// les 2 seules lignes indentées sont les 2 dernières du fichier.
+// HONNÊTETÉ : la sélection favorise les survivants, elle ne garantit pas
+// de gain — même la nature a ses extinctions. Le zéro-perte n'existe pas;
+// ce qui est codé ici, c'est le zéro-perte-mortelle.
+// ============================================================================
+
+strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 99, margin_long = 5, margin_short = 5, max_bars_back = 500)
+
+// ============================================================================
+// PARAMÈTRES
+// ============================================================================
+
+// ---------------------------------------------------------------- Direction
+enableLongs = input.bool(true, "Autoriser les achats (long)", group = "Direction")
+enableShorts = input.bool(true, "Autoriser les ventes (short)", group = "Direction")
+
+// ------------------------------------------------------ Sélection naturelle
+fitMem = input.int(63, "Mémoire de la forme (demi-vie, bougies)", minval = 10, maxval = 500, group = "Sélection naturelle", tooltip = "La forme d'une espèce est la moyenne exponentielle de ses gains. Court = sélection nerveuse, long = sélection patiente.")
+frais = input.float(0.1, "Frais par unité d'exposition retournée (%)", minval = 0.0, maxval = 1.0, step = 0.01, group = "Sélection naturelle", tooltip = "Chaque espèce paie ses frais virtuels sur ses changements de position : la sélection intègre le coût du réel.")
+divBonus = input.float(0.5, "Bonus de niche (récompense de la différence)", minval = 0.0, maxval = 1.0, step = 0.1, group = "Sélection naturelle", tooltip = "Les espèces décorrélées de la meute reçoivent jusqu'à ce bonus de nourriture en plus : chasser ailleurs protège la colonie.")
+contMax = input.float(50.0, "Part maximale des contrariennes (%)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Sélection naturelle", tooltip = "Les contrariennes ne peuvent jamais détenir plus que cette part du capital. Sans ce plafond, elles finissent par vendre à découvert une hausse historique — la colonie meurt en chassant l'éléphant à mains nues.")
+respectFond = input.bool(true, "Ne jamais chasser contre la tendance de fond (252 bougies)", group = "Sélection naturelle", tooltip = "Interdit toute exposition opposée à la tendance longue de l'actif. Les actions ont une dérive haussière structurelle : la combattre est mortel.")
+
+// ------------------------------------------------------ La meute (le lion)
+hierarchie = input.float(2.0, "Part du lion (hiérarchie de la meute)", minval = 1.0, maxval = 4.0, step = 0.5, group = "La meute (le lion)", tooltip = "1 = démocratie : nourriture proportionnelle à la forme. 2 = meute : l'alpha mange une part disproportionnée (forme au carré). 4 = tyrannie de l'alpha.")
+proieMin = input.float(0.2, "Proie minimale (conviction requise pour charger)", minval = 0.0, maxval = 0.8, step = 0.05, group = "La meute (le lion)", tooltip = "Le lion ne grignote pas : en dessous de cette conviction collective, la meute reste à l'affût sans dépenser un centime de frais. Au-dessus, elle charge. 0 = désactivé.")
+
+// ------------------------------------------- La savane locale (le territoire)
+savaneMin = input.float(0.8, "Savane propice à partir d'un score de", minval = 0.0, maxval = 3.0, step = 0.1, group = "La savane (le territoire)", tooltip = "Score = |tendance 252 bougies| / volatilité annualisée. En dessous, la savane locale est déclarée stérile : aucune chasse, et le tableau désigne la meilleure migration parmi les dix savanes surveillées. 0 = jauge désactivée.")
+wEnt = input.int(96, "Fenêtre d'entropie de Shannon (bougies)", minval = 40, maxval = 300, group = "La savane (le territoire)")
+entMax = input.float(0.995, "Entropie maximale tolérée (1 = jauge désactivée)", minval = 0.80, maxval = 1.0, step = 0.005, group = "La savane (le territoire)", tooltip = "Désordre de la séquence des hausses/baisses. Le hasard pur mesure ~0.982 sur 96 bougies ; au-dessus du seuil, la savane est statistiquement du bruit : le roi ne chasse pas dedans.")
+
+// --------------------------------------------- Les dix savanes (la migration)
+sym1 = input.symbol("OANDA:XAUUSD", "Savane 1 (or)", group = "Les dix savanes (migration)")
+sym2 = input.symbol("OANDA:XAGUSD", "Savane 2 (argent)", group = "Les dix savanes (migration)")
+sym3 = input.symbol("TVC:USOIL", "Savane 3 (pétrole)", group = "Les dix savanes (migration)")
+sym4 = input.symbol("OANDA:EURUSD", "Savane 4 (euro-dollar)", group = "Les dix savanes (migration)")
+sym5 = input.symbol("OANDA:GBPUSD", "Savane 5 (livre-dollar)", group = "Les dix savanes (migration)")
+sym6 = input.symbol("OANDA:USDJPY", "Savane 6 (dollar-yen)", group = "Les dix savanes (migration)")
+sym7 = input.symbol("SP:SPX", "Savane 7 (S&P 500)", group = "Les dix savanes (migration)")
+sym8 = input.symbol("NASDAQ:NDX", "Savane 8 (Nasdaq 100)", group = "Les dix savanes (migration)")
+sym9 = input.symbol("BITSTAMP:BTCUSD", "Savane 9 (bitcoin)", group = "Les dix savanes (migration)")
+sym10 = input.symbol("TVC:DXY", "Savane 10 (indice dollar)", group = "Les dix savanes (migration)")
+
+// --------------------------------------------- Évolution (croisement, mutation)
+starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution (croisement + mutation)", tooltip = "Au-delà, l'espèce meurt. Son enfant naît du croisement des deux meilleures (moyenne géométrique des rythmes), muté, avec 25 % de la vigueur du champion en héritage.")
+soinParent = input.float(25.0, "Soin parental (% de la vigueur du champion héritée)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Évolution (croisement + mutation)")
+
+// -------------------------------------------------------------- Homéostasie
+targetVol = input.float(15.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 40, step = 1, group = "Homéostasie", tooltip = "15 % = prudent, 25 % = conquérant. La crête de Kelly est entre les deux : vos backtests trancheront.")
+volWin = input.int(63, "Fenêtre de mesure de volatilité (bougies)", minval = 20, group = "Homéostasie")
+expoMax = input.float(3.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 10, step = 0.5, group = "Homéostasie")
+rebalPct = input.float(25.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
+respire = input.int(5, "Respiration : rééquilibrage toutes les X bougies", minval = 1, maxval = 21, group = "Homéostasie", tooltip = "5 = hebdomadaire en journalier. Entre deux respirations, l'organisme tient sa position : les frais ne paient que les vraies décisions.")
+
+// --------------------------------------------- Régulation thermique (survie)
+ddMax = input.float(20.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)")
+guerJours = input.int(500, "Guérison : demi-vie de la mémoire du sommet (jours)", minval = 30, maxval = 3000, group = "Régulation thermique (survie)", tooltip = "ATTENTION : une valeur trop courte débranche la protection — la perte n'est jamais enregistrée et la torpeur ne se déclenche jamais (leçon du test NVIDIA).")
+plancher = input.float(60.0, "Plancher de survie : extinction définitive sous (% du capital initial)", minval = 10.0, maxval = 95.0, step = 5.0, group = "Régulation thermique (survie)", tooltip = "Sous ce niveau, plus aucune exposition, définitivement. Pas de perte mortelle, sinon c'est la mort — littéralement.")
+
+// ------------------------------------------------------ Système immunitaire
+chocSeuil = input.float(4.0, "Choc immunitaire (mouvement en écarts-types)", minval = 2.0, maxval = 8.0, step = 0.5, group = "Système immunitaire")
+chocDuree = input.int(10, "Convalescence après choc (bougies)", minval = 1, maxval = 100, group = "Système immunitaire")
+
+// ------------------------------------------------------ Période de backtest
+startDate = input.time(timestamp("1 Jan 2010 00:00 +0000"), "Début", group = "Période de backtest")
+endDate = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin", group = "Période de backtest")
+
+inDate = time >= startDate and time <= endDate
+
+// ============================================================================
+// LE TERRAIN DE CHASSE : MESURES DE BASE
+// ============================================================================
+v = math.log(close / nz(close[1], close))
+sdBar = ta.stdev(v, 50)
+lamF = math.pow(0.5, 1.0 / fitMem)
+fr = frais / 100
+ready = bar_index > 300
+
+// ============================================================================
+// LE GÉNOME : RYTHME DE CHAQUE ESPÈCE (mutable, borné par son habitat)
+// ============================================================================
+var int L1 = 10
+var int L2 = 21
+var int L3 = 63
+var int L4 = 126
+var int L5 = 252
+var int L6 = 2
+var int L7 = 5
+var int L8 = 10
+var int g1 = 1
+var int g2 = 1
+var int g3 = 1
+var int g4 = 1
+var int g5 = 1
+var int g6 = 1
+var int g7 = 1
+var int g8 = 1
+var int age1 = 0
+var int age2 = 0
+var int age3 = 0
+var int age4 = 0
+var int age5 = 0
+var int age6 = 0
+var int age7 = 0
+var int age8 = 0
+var float stv1 = 0.0
+var float stv2 = 0.0
+var float stv3 = 0.0
+var float stv4 = 0.0
+var float stv5 = 0.0
+var float stv6 = 0.0
+var float stv7 = 0.0
+var float stv8 = 0.0
+
+// ============================================================================
+// L'INSTINCT GRADUÉ : conviction = mouvement / bruit, bornée à ±1
+// ============================================================================
+d1 = sdBar * math.sqrt(L1)
+d2 = sdBar * math.sqrt(L2)
+d3 = sdBar * math.sqrt(L3)
+d4 = sdBar * math.sqrt(L4)
+d5 = sdBar * math.sqrt(L5)
+d6 = sdBar * math.sqrt(L6)
+d7 = sdBar * math.sqrt(L7)
+d8 = sdBar * math.sqrt(L8)
+sig1 = d1 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L1], close)) / d1)) : 0.0
+sig2 = d2 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L2], close)) / d2)) : 0.0
+sig3 = d3 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L3], close)) / d3)) : 0.0
+sig4 = d4 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L4], close)) / d4)) : 0.0
+sig5 = d5 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L5], close)) / d5)) : 0.0
+sig6 = d6 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L6], close)) / d6)) : 0.0
+sig7 = d7 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L7], close)) / d7)) : 0.0
+sig8 = d8 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L8], close)) / d8)) : 0.0
+
+// ============================================================================
+// LA CHASSE VIRTUELLE : GAIN RÉEL DE CHAQUE ESPÈCE, FRAIS DÉDUITS
+// ============================================================================
+p1 = nz(sig1[1], 0.0) * v - math.abs(sig1 - nz(sig1[1], sig1)) * 0.5 * fr
+p2 = nz(sig2[1], 0.0) * v - math.abs(sig2 - nz(sig2[1], sig2)) * 0.5 * fr
+p3 = nz(sig3[1], 0.0) * v - math.abs(sig3 - nz(sig3[1], sig3)) * 0.5 * fr
+p4 = nz(sig4[1], 0.0) * v - math.abs(sig4 - nz(sig4[1], sig4)) * 0.5 * fr
+p5 = nz(sig5[1], 0.0) * v - math.abs(sig5 - nz(sig5[1], sig5)) * 0.5 * fr
+p6 = nz(sig6[1], 0.0) * v - math.abs(sig6 - nz(sig6[1], sig6)) * 0.5 * fr
+p7 = nz(sig7[1], 0.0) * v - math.abs(sig7 - nz(sig7[1], sig7)) * 0.5 * fr
+p8 = nz(sig8[1], 0.0) * v - math.abs(sig8 - nz(sig8[1], sig8)) * 0.5 * fr
+pEco = (p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8) / 8
+
+// ============================================================================
+// LA FORME : VIGUEUR DE CHAQUE ESPÈCE (mémoire exponentielle, oubli)
+// ============================================================================
+var float fit1 = 0.0
+var float fit2 = 0.0
+var float fit3 = 0.0
+var float fit4 = 0.0
+var float fit5 = 0.0
+var float fit6 = 0.0
+var float fit7 = 0.0
+var float fit8 = 0.0
+fit1 := barstate.isconfirmed ? lamF * fit1 + (1 - lamF) * p1 : fit1
+fit2 := barstate.isconfirmed ? lamF * fit2 + (1 - lamF) * p2 : fit2
+fit3 := barstate.isconfirmed ? lamF * fit3 + (1 - lamF) * p3 : fit3
+fit4 := barstate.isconfirmed ? lamF * fit4 + (1 - lamF) * p4 : fit4
+fit5 := barstate.isconfirmed ? lamF * fit5 + (1 - lamF) * p5 : fit5
+fit6 := barstate.isconfirmed ? lamF * fit6 + (1 - lamF) * p6 : fit6
+fit7 := barstate.isconfirmed ? lamF * fit7 + (1 - lamF) * p7 : fit7
+fit8 := barstate.isconfirmed ? lamF * fit8 + (1 - lamF) * p8 : fit8
+
+// ============================================================================
+// NICHES ÉCOLOGIQUES : LA DIFFÉRENCE EST RÉCOMPENSÉE (décorrélation)
+// ============================================================================
+q1 = nz(ta.correlation(p1, pEco, 100), 1.0)
+q2 = nz(ta.correlation(p2, pEco, 100), 1.0)
+q3 = nz(ta.correlation(p3, pEco, 100), 1.0)
+q4 = nz(ta.correlation(p4, pEco, 100), 1.0)
+q5 = nz(ta.correlation(p5, pEco, 100), 1.0)
+q6 = nz(ta.correlation(p6, pEco, 100), 1.0)
+q7 = nz(ta.correlation(p7, pEco, 100), 1.0)
+q8 = nz(ta.correlation(p8, pEco, 100), 1.0)
+
+// ============================================================================
+// LA MEUTE : LE LION MANGE LE PREMIER (forme ^ hiérarchie, normalisée)
+// ============================================================================
+bestRef = math.max(fit1, math.max(fit2, math.max(fit3, math.max(fit4, math.max(fit5, math.max(fit6, math.max(fit7, fit8)))))))
+fitRef = math.max(bestRef, 1e-12)
+w1 = math.pow(math.max(0.0, fit1) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q1))
+w2 = math.pow(math.max(0.0, fit2) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q2))
+w3 = math.pow(math.max(0.0, fit3) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q3))
+w4 = math.pow(math.max(0.0, fit4) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q4))
+w5 = math.pow(math.max(0.0, fit5) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q5))
+w6r = math.pow(math.max(0.0, fit6) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q6))
+w7r = math.pow(math.max(0.0, fit7) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q7))
+w8r = math.pow(math.max(0.0, fit8) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q8))
+
+// PLAFOND DES CONTRARIENNES : elles ne peuvent pas rafler tout le capital.
+wT = w1 + w2 + w3 + w4 + w5
+wCr = w6r + w7r + w8r
+cC = contMax / 100
+scaleC = wCr > 0 and cC < 1 ? math.min(1.0, cC * wT / math.max(1e-12, (1 - cC) * wCr)) : 1.0
+w6 = w6r * scaleC
+w7 = w7r * scaleC
+w8 = w8r * scaleC
+wTot = wT + w6 + w7 + w8
+dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6 * sig6 + w7 * sig7 + w8 * sig8) / wTot : 0.0
+vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0)
+
+// ============================================================================
+// ÉVOLUTION : FAMINE, MORT, CROISEMENT DES 2 MEILLEURES, MUTATION
+// ============================================================================
+bestFit = math.max(fit1, math.max(fit2, math.max(fit3, math.max(fit4, math.max(fit5, math.max(fit6, math.max(fit7, fit8)))))))
+bestL = bestFit == fit1 ? L1 : bestFit == fit2 ? L2 : bestFit == fit3 ? L3 : bestFit == fit4 ? L4 : bestFit == fit5 ? L5 : bestFit == fit6 ? L6 : bestFit == fit7 ? L7 : L8
+m2f1 = bestFit == fit1 ? -1e9 : fit1
+m2f2 = bestFit == fit2 ? -1e9 : fit2
+m2f3 = bestFit == fit3 ? -1e9 : fit3
+m2f4 = bestFit == fit4 ? -1e9 : fit4
+m2f5 = bestFit == fit5 ? -1e9 : fit5
+m2f6 = bestFit == fit6 ? -1e9 : fit6
+m2f7 = bestFit == fit7 ? -1e9 : fit7
+m2f8 = bestFit == fit8 ? -1e9 : fit8
+scndFit = math.max(m2f1, math.max(m2f2, math.max(m2f3, math.max(m2f4, math.max(m2f5, math.max(m2f6, math.max(m2f7, m2f8)))))))
+scndL = scndFit == m2f1 ? L1 : scndFit == m2f2 ? L2 : scndFit == m2f3 ? L3 : scndFit == m2f4 ? L4 : scndFit == m2f5 ? L5 : scndFit == m2f6 ? L6 : scndFit == m2f7 ? L7 : L8
+croise = math.sqrt(math.max(2, bestL) * math.max(2, scndL))
+heritage = math.max(bestFit, 0.0) * soinParent / 100
+stv1 := barstate.isconfirmed ? (fit1 <= 0 ? stv1 + 1 : 0.0) : stv1
+stv2 := barstate.isconfirmed ? (fit2 <= 0 ? stv2 + 1 : 0.0) : stv2
+stv3 := barstate.isconfirmed ? (fit3 <= 0 ? stv3 + 1 : 0.0) : stv3
+stv4 := barstate.isconfirmed ? (fit4 <= 0 ? stv4 + 1 : 0.0) : stv4
+stv5 := barstate.isconfirmed ? (fit5 <= 0 ? stv5 + 1 : 0.0) : stv5
+stv6 := barstate.isconfirmed ? (fit6 <= 0 ? stv6 + 1 : 0.0) : stv6
+stv7 := barstate.isconfirmed ? (fit7 <= 0 ? stv7 + 1 : 0.0) : stv7
+stv8 := barstate.isconfirmed ? (fit8 <= 0 ? stv8 + 1 : 0.0) : stv8
+mut1 = barstate.isconfirmed and stv1 > starveMax
+mut2 = barstate.isconfirmed and stv2 > starveMax
+mut3 = barstate.isconfirmed and stv3 > starveMax
+mut4 = barstate.isconfirmed and stv4 > starveMax
+mut5 = barstate.isconfirmed and stv5 > starveMax
+mut6 = barstate.isconfirmed and stv6 > starveMax
+mut7 = barstate.isconfirmed and stv7 > starveMax
+mut8 = barstate.isconfirmed and stv8 > starveMax
+fmut = 0.5 + math.abs(math.sin(bar_index * 12.9898)) * 1.0
+L1 := mut1 ? math.max(5, math.min(20, math.round(croise * fmut))) : L1
+L2 := mut2 ? math.max(15, math.min(40, math.round(croise * fmut * 1.13))) : L2
+L3 := mut3 ? math.max(40, math.min(100, math.round(croise * fmut * 0.87))) : L3
+L4 := mut4 ? math.max(90, math.min(200, math.round(croise * fmut * 1.29))) : L4
+L5 := mut5 ? math.max(180, math.min(400, math.round(croise * fmut * 0.71))) : L5
+L6 := mut6 ? math.max(2, math.min(6, math.round(croise * fmut * 0.2))) : L6
+L7 := mut7 ? math.max(4, math.min(12, math.round(croise * fmut * 0.3))) : L7
+L8 := mut8 ? math.max(8, math.min(30, math.round(croise * fmut * 0.4))) : L8
+fit1 := mut1 ? heritage : fit1
+fit2 := mut2 ? heritage : fit2
+fit3 := mut3 ? heritage : fit3
+fit4 := mut4 ? heritage : fit4
+fit5 := mut5 ? heritage : fit5
+fit6 := mut6 ? heritage : fit6
+fit7 := mut7 ? heritage : fit7
+fit8 := mut8 ? heritage : fit8
+stv1 := mut1 ? 0.0 : stv1
+stv2 := mut2 ? 0.0 : stv2
+stv3 := mut3 ? 0.0 : stv3
+stv4 := mut4 ? 0.0 : stv4
+stv5 := mut5 ? 0.0 : stv5
+stv6 := mut6 ? 0.0 : stv6
+stv7 := mut7 ? 0.0 : stv7
+stv8 := mut8 ? 0.0 : stv8
+g1 := mut1 ? g1 + 1 : g1
+g2 := mut2 ? g2 + 1 : g2
+g3 := mut3 ? g3 + 1 : g3
+g4 := mut4 ? g4 + 1 : g4
+g5 := mut5 ? g5 + 1 : g5
+g6 := mut6 ? g6 + 1 : g6
+g7 := mut7 ? g7 + 1 : g7
+g8 := mut8 ? g8 + 1 : g8
+age1 := mut1 ? 0 : barstate.isconfirmed ? age1 + 1 : age1
+age2 := mut2 ? 0 : barstate.isconfirmed ? age2 + 1 : age2
+age3 := mut3 ? 0 : barstate.isconfirmed ? age3 + 1 : age3
+age4 := mut4 ? 0 : barstate.isconfirmed ? age4 + 1 : age4
+age5 := mut5 ? 0 : barstate.isconfirmed ? age5 + 1 : age5
+age6 := mut6 ? 0 : barstate.isconfirmed ? age6 + 1 : age6
+age7 := mut7 ? 0 : barstate.isconfirmed ? age7 + 1 : age7
+age8 := mut8 ? 0 : barstate.isconfirmed ? age8 + 1 : age8
+
+// ============================================================================
+// RÉ-ENSEMENCEMENT : APRÈS 100 BOUGIES D'EXTINCTION, LES SPORES PRIMORDIALES
+// ============================================================================
+var float extN = 0.0
+extN := barstate.isconfirmed ? (ready and wTot == 0 ? extN + 1 : 0.0) : extN
+resem = barstate.isconfirmed and extN > 100
+L1 := resem ? 10 : L1
+L2 := resem ? 21 : L2
+L3 := resem ? 63 : L3
+L4 := resem ? 126 : L4
+L5 := resem ? 252 : L5
+L6 := resem ? 2 : L6
+L7 := resem ? 5 : L7
+L8 := resem ? 8 : L8
+fit1 := resem ? 0.0 : fit1
+fit2 := resem ? 0.0 : fit2
+fit3 := resem ? 0.0 : fit3
+fit4 := resem ? 0.0 : fit4
+fit5 := resem ? 0.0 : fit5
+fit6 := resem ? 0.0 : fit6
+fit7 := resem ? 0.0 : fit7
+fit8 := resem ? 0.0 : fit8
+stv1 := resem ? 0.0 : stv1
+stv2 := resem ? 0.0 : stv2
+stv3 := resem ? 0.0 : stv3
+stv4 := resem ? 0.0 : stv4
+stv5 := resem ? 0.0 : stv5
+stv6 := resem ? 0.0 : stv6
+stv7 := resem ? 0.0 : stv7
+stv8 := resem ? 0.0 : stv8
+extN := resem ? 0.0 : extN
+
+naissance = mut1 or mut2 or mut3 or mut4 or mut5 or mut6 or mut7 or mut8 or resem
+naissances = g1 + g2 + g3 + g4 + g5 + g6 + g7 + g8 - 8
+doyenne = math.max(age1, math.max(age2, math.max(age3, math.max(age4, math.max(age5, math.max(age6, math.max(age7, age8)))))))
+
+// ============================================================================
+// SYSTÈME IMMUNITAIRE : BOUCLIER APRÈS CHOC ANORMAL
+// ============================================================================
+var float immun = 0.0
+choc = ready and math.abs(v) > chocSeuil * nz(sdBar[1], 1e9)
+immun := choc and barstate.isconfirmed ? chocDuree : math.max(0.0, immun - (barstate.isconfirmed ? 1.0 : 0.0))
+bouclier = immun > 0 ? 0.5 : 1.0
+
+// ============================================================================
+// HOMÉOSTASIE : CIBLAGE DE VOLATILITÉ (toute unité de temps)
+// ============================================================================
+sigA = ta.stdev(v, volWin) * math.sqrt(31536000.0 / timeframe.in_seconds())
+levVol = sigA > 0 ? math.min(expoMax, (targetVol / 100) / sigA) : 0.0
+
+// ============================================================================
+// RÉGULATION THERMIQUE : TORPEUR, HIBERNATION, GUÉRISON, PLANCHER DE SURVIE
+// ============================================================================
+var float eqPeak = na
+guerison = math.pow(0.5, timeframe.in_seconds() / (guerJours * 86400.0))
+eqPeak := math.max(nz(eqPeak, strategy.equity) * guerison, strategy.equity)
+dd = eqPeak > 0 ? 1.0 - strategy.equity / eqPeak : 0.0
+torpeur = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMax / 100)))
+
+// PLANCHER DE SURVIE : le point de non-retour. Pas de perte mortelle.
+var bool eteint = false
+eteint := eteint or (ready and strategy.equity < plancher / 100 * strategy.initial_capital)
+
+// ============================================================================
+// LA SAVANE LOCALE : LE ROI JAUGE SON TERRITOIRE AVANT DE CHASSER
+// Score = |tendance de fond| / bruit annualisé. Entropie de Shannon = la
+// séquence des jours est-elle structurée ou du bruit pur ?
+// ============================================================================
+mom252L = close / nz(close[252], close) - 1
+scoreLocal = sigA > 0 ? math.abs(mom252L) / sigA : 0.0
+up = close > close[1]
+patId = (up ? 1 : 0) + (up[1] ? 2 : 0) + (up[2] ? 4 : 0)
+c0 = math.sum(patId == 0 ? 1.0 : 0.0, wEnt)
+c1 = math.sum(patId == 1 ? 1.0 : 0.0, wEnt)
+c2 = math.sum(patId == 2 ? 1.0 : 0.0, wEnt)
+c3 = math.sum(patId == 3 ? 1.0 : 0.0, wEnt)
+c4 = math.sum(patId == 4 ? 1.0 : 0.0, wEnt)
+c5 = math.sum(patId == 5 ? 1.0 : 0.0, wEnt)
+c6 = math.sum(patId == 6 ? 1.0 : 0.0, wEnt)
+c7 = math.sum(patId == 7 ? 1.0 : 0.0, wEnt)
+tot = c0 + c1 + c2 + c3 + c4 + c5 + c6 + c7
+t0 = c0 > 0 ? (c0 / tot) * math.log(c0 / tot) : 0.0
+t1 = c1 > 0 ? (c1 / tot) * math.log(c1 / tot) : 0.0
+t2 = c2 > 0 ? (c2 / tot) * math.log(c2 / tot) : 0.0
+t3 = c3 > 0 ? (c3 / tot) * math.log(c3 / tot) : 0.0
+t4 = c4 > 0 ? (c4 / tot) * math.log(c4 / tot) : 0.0
+t5 = c5 > 0 ? (c5 / tot) * math.log(c5 / tot) : 0.0
+t6 = c6 > 0 ? (c6 / tot) * math.log(c6 / tot) : 0.0
+t7 = c7 > 0 ? (c7 / tot) * math.log(c7 / tot) : 0.0
+entropie = tot > 0 ? -(t0 + t1 + t2 + t3 + t4 + t5 + t6 + t7) / math.log(2.0) / 3.0 : 1.0
+ordreOk = entropie <= entMax
+savaneOk = (savaneMin <= 0 or scoreLocal >= savaneMin) and ordreOk
+
+// ============================================================================
+// LES DIX SAVANES : LE ROI SCRUTE LES TERRITOIRES VOISINS (migration)
+// Pour chaque savane : tendance de fond 252 bougies et volatilité annuelle,
+// score = |tendance| / bruit. La plus grasse est désignée pour la migration.
+// ============================================================================
+[mo1, vo1] = request.security(sym1, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo2, vo2] = request.security(sym2, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo3, vo3] = request.security(sym3, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo4, vo4] = request.security(sym4, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo5, vo5] = request.security(sym5, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo6, vo6] = request.security(sym6, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo7, vo7] = request.security(sym7, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo8, vo8] = request.security(sym8, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo9, vo9] = request.security(sym9, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+[mo10, vo10] = request.security(sym10, timeframe.period, [close / nz(close[252], close) - 1, ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(252)])
+sc1 = nz(vo1, 0) > 0 ? math.abs(nz(mo1, 0)) / vo1 : 0.0
+sc2 = nz(vo2, 0) > 0 ? math.abs(nz(mo2, 0)) / vo2 : 0.0
+sc3 = nz(vo3, 0) > 0 ? math.abs(nz(mo3, 0)) / vo3 : 0.0
+sc4 = nz(vo4, 0) > 0 ? math.abs(nz(mo4, 0)) / vo4 : 0.0
+sc5 = nz(vo5, 0) > 0 ? math.abs(nz(mo5, 0)) / vo5 : 0.0
+sc6 = nz(vo6, 0) > 0 ? math.abs(nz(mo6, 0)) / vo6 : 0.0
+sc7 = nz(vo7, 0) > 0 ? math.abs(nz(mo7, 0)) / vo7 : 0.0
+sc8 = nz(vo8, 0) > 0 ? math.abs(nz(mo8, 0)) / vo8 : 0.0
+sc9 = nz(vo9, 0) > 0 ? math.abs(nz(mo9, 0)) / vo9 : 0.0
+sc10 = nz(vo10, 0) > 0 ? math.abs(nz(mo10, 0)) / vo10 : 0.0
+scBest = math.max(sc1, math.max(sc2, math.max(sc3, math.max(sc4, math.max(sc5, math.max(sc6, math.max(sc7, math.max(sc8, math.max(sc9, sc10)))))))))
+savBest = scBest == sc1 ? sym1 : scBest == sc2 ? sym2 : scBest == sc3 ? sym3 : scBest == sc4 ? sym4 : scBest == sc5 ? sym5 : scBest == sc6 ? sym6 : scBest == sc7 ? sym7 : scBest == sc8 ? sym8 : scBest == sc9 ? sym9 : sym10
+
+// ============================================================================
+// TENDANCE DE FOND : ON NE CHASSE JAMAIS CONTRE LA DÉRIVE LONGUE DE L'ACTIF
+// ============================================================================
+fond = close > nz(close[252], close) ? 1 : -1
+
+// ============================================================================
+// LA CHARGE DU LION : DÉCISION FINALE (toutes les jauges multipliées)
+// ============================================================================
+dirS = ta.sma(dir, respire)
+dirChasse = math.abs(dirS) >= proieMin ? dirS : 0.0
+fCible = ready and inDate and not eteint ? dirChasse * levVol * torpeur * bouclier : 0.0
+fCible := enableLongs or fCible < 0 ? fCible : 0.0
+fCible := enableShorts or fCible > 0 ? fCible : 0.0
+fCible := respectFond and fCible * fond < 0 ? 0.0 : fCible
+fCible := savaneOk ? fCible : 0.0
+
+// ============================================================================
+// CORRECTION : RÉÉQUILIBRAGE AVEC ZONE MORTE ET RESPIRATION
+// ============================================================================
+qtyCible = fCible * strategy.equity / close
+diffQty = qtyCible - strategy.position_size
+seuilQty = math.max(rebalPct / 100 * math.abs(qtyCible), 0.02 * strategy.equity / close)
+souffle = bar_index % respire == 0
+doPlus = barstate.isconfirmed and souffle and diffQty > seuilQty
+doMoins = barstate.isconfirmed and souffle and -diffQty > seuilQty
+
+// ============================================================================
+// AFFICHAGE SUR LE GRAPHIQUE
+// ============================================================================
+bgcolor(not ready ? na : not savaneOk ? color.new(color.orange, 92) : vivantes == 0 ? color.new(color.red, 90) : dir > 0.2 ? color.new(color.teal, 94) : dir < -0.2 ? color.new(color.red, 94) : na)
+plotshape(doPlus, "Poussée haussière", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.tiny)
+plotshape(doMoins, "Poussée baissière", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.tiny)
+plotshape(naissance, "Naissance d'une espèce", shape.diamond, location.bottom, color.new(color.purple, 0), size = size.tiny)
+plotshape(choc, "Choc immunitaire", shape.xcross, location.top, color.new(color.red, 0), size = size.tiny)
+
+// ============================================================================
+// LE POSTE DE COMMANDEMENT : TABLEAU COMPLET
+// ============================================================================
+expoActu = strategy.position_size * close / strategy.equity
+pousseTxt = (fCible >= 0 ? "+" : "") + str.tostring(100 * fCible, "#.#") + " % / " + (expoActu >= 0 ? "+" : "") + str.tostring(100 * expoActu, "#.#") + " %"
+pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.new(color.red, 70) : color.new(color.gray, 85)
+winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
+pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
+desert = timeframe.in_seconds() < 14400
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : not savaneOk ? "savane locale stérile — le roi conseille de migrer vers " + savBest : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirS) < proieMin ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMin, "#") + " %)" : str.tostring(vivantes) + "/8 vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagCol = eteint ? color.new(color.red, 60) : ready and not desert and savaneOk and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
+alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : "Chouette " + str.tostring(L8)) + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
+fondTxt = (fond > 0 ? "haussière ▲" : "baissière ▼") + (respectFond ? " · shorts " + (fond > 0 ? "interdits" : "autorisés") : " · filtre désactivé") + " · contrariennes " + str.tostring(wTot > 0 ? 100 * (w6 + w7 + w8) / wTot : 0, "#") + " % (max " + str.tostring(contMax, "#") + " %)"
+immTxt = immun > 0 ? "BOUCLIER : convalescence " + str.tostring(immun, "#") + " bougies" : "au repos, seuil " + str.tostring(chocSeuil, "#.#") + " écarts-types"
+immCol = immun > 0 ? color.new(color.red, 70) : color.new(color.gray, 85)
+meteoTxt = "score " + str.tostring(scoreLocal, "#.##") + " (min " + str.tostring(savaneMin, "#.##") + ") · entropie " + str.tostring(100 * entropie, "#.#") + " %" + (savaneOk ? " ✓ propice à la chasse" : " ✗ stérile")
+meteoCol = savaneOk ? color.new(color.teal, 70) : color.new(color.orange, 70)
+e1 = "Guépard " + str.tostring(L1) + "b g" + str.tostring(g1) + " " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
+e2 = "Loup " + str.tostring(L2) + "b g" + str.tostring(g2) + " " + (sig2 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit2, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w2 / wTot : 0, "#") + " %"
+e3 = "Ours " + str.tostring(L3) + "b g" + str.tostring(g3) + " " + (sig3 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit3, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w3 / wTot : 0, "#") + " %"
+e4 = "Éléphant " + str.tostring(L4) + "b g" + str.tostring(g4) + " " + (sig4 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit4, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w4 / wTot : 0, "#") + " %"
+e5 = "Baleine " + str.tostring(L5) + "b g" + str.tostring(g5) + " " + (sig5 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit5, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w5 / wTot : 0, "#") + " %"
+e6 = "Colibri " + str.tostring(L6) + "b g" + str.tostring(g6) + " " + (sig6 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit6, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w6 / wTot : 0, "#") + " %"
+e7 = "Renard " + str.tostring(L7) + "b g" + str.tostring(g7) + " " + (sig7 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit7, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w7 / wTot : 0, "#") + " %"
+e8 = "Chouette " + str.tostring(L8) + "b g" + str.tostring(g8) + " " + (sig8 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit8, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w8 / wTot : 0, "#") + " %"
+c1c = fit1 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c2c = fit2 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c3c = fit3 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c4c = fit4 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c5c = fit5 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c6c = fit6 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c7c = fit7 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c8c = fit8 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+tempTxt = str.tostring(100 * dd, "#.#") + " % de perte depuis le sommet · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION (guérison en cours)")
+tempCol = torpeur >= 0.99 ? color.new(color.teal, 80) : torpeur > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
+s1t = str.tostring(100 * nz(mo1, 0), "#") + " % / vol " + str.tostring(100 * nz(vo1, 0), "#") + " % → " + str.tostring(sc1, "#.##") + (sc1 >= savaneMin ? " ✓ grasse" : sc1 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s2t = str.tostring(100 * nz(mo2, 0), "#") + " % / vol " + str.tostring(100 * nz(vo2, 0), "#") + " % → " + str.tostring(sc2, "#.##") + (sc2 >= savaneMin ? " ✓ grasse" : sc2 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s3t = str.tostring(100 * nz(mo3, 0), "#") + " % / vol " + str.tostring(100 * nz(vo3, 0), "#") + " % → " + str.tostring(sc3, "#.##") + (sc3 >= savaneMin ? " ✓ grasse" : sc3 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s4t = str.tostring(100 * nz(mo4, 0), "#") + " % / vol " + str.tostring(100 * nz(vo4, 0), "#") + " % → " + str.tostring(sc4, "#.##") + (sc4 >= savaneMin ? " ✓ grasse" : sc4 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s5t = str.tostring(100 * nz(mo5, 0), "#") + " % / vol " + str.tostring(100 * nz(vo5, 0), "#") + " % → " + str.tostring(sc5, "#.##") + (sc5 >= savaneMin ? " ✓ grasse" : sc5 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s6t = str.tostring(100 * nz(mo6, 0), "#") + " % / vol " + str.tostring(100 * nz(vo6, 0), "#") + " % → " + str.tostring(sc6, "#.##") + (sc6 >= savaneMin ? " ✓ grasse" : sc6 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s7t = str.tostring(100 * nz(mo7, 0), "#") + " % / vol " + str.tostring(100 * nz(vo7, 0), "#") + " % → " + str.tostring(sc7, "#.##") + (sc7 >= savaneMin ? " ✓ grasse" : sc7 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s8t = str.tostring(100 * nz(mo8, 0), "#") + " % / vol " + str.tostring(100 * nz(vo8, 0), "#") + " % → " + str.tostring(sc8, "#.##") + (sc8 >= savaneMin ? " ✓ grasse" : sc8 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s9t = str.tostring(100 * nz(mo9, 0), "#") + " % / vol " + str.tostring(100 * nz(vo9, 0), "#") + " % → " + str.tostring(sc9, "#.##") + (sc9 >= savaneMin ? " ✓ grasse" : sc9 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+s10t = str.tostring(100 * nz(mo10, 0), "#") + " % / vol " + str.tostring(100 * nz(vo10, 0), "#") + " % → " + str.tostring(sc10, "#.##") + (sc10 >= savaneMin ? " ✓ grasse" : sc10 >= savaneMin / 2 ? " ~ maigre" : " ✗ désert")
+sc1c = sc1 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc2c = sc2 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc3c = sc3 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc4c = sc4 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc5c = sc5 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc6c = sc6 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc7c = sc7 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc8c = sc8 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc9c = sc9 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+sc10c = sc10 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
+
+var table info = table.new(position.top_right, 2, 32, border_width = 1)
+table.cell(info, 0, 0, "État de l'écosystème", text_size = size.small, bgcolor = color.new(color.orange, 80))
+table.cell(info, 1, 0, diagTxt, text_size = size.small, bgcolor = diagCol)
+table.cell(info, 0, 1, "Exposition cible / réelle", text_size = size.small, bgcolor = color.new(color.blue, 80))
+table.cell(info, 1, 1, pousseTxt, text_size = size.small, bgcolor = pousseCol)
+table.cell(info, 0, 2, "Espèce (rythme · génération · forme · part)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 2, "vivante = verte, affamée = grise", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 0, 3, "Tendance", text_size = size.small, bgcolor = c1c)
+table.cell(info, 1, 3, e1, text_size = size.small, bgcolor = c1c)
+table.cell(info, 0, 4, "Tendance", text_size = size.small, bgcolor = c2c)
+table.cell(info, 1, 4, e2, text_size = size.small, bgcolor = c2c)
+table.cell(info, 0, 5, "Tendance", text_size = size.small, bgcolor = c3c)
+table.cell(info, 1, 5, e3, text_size = size.small, bgcolor = c3c)
+table.cell(info, 0, 6, "Tendance", text_size = size.small, bgcolor = c4c)
+table.cell(info, 1, 6, e4, text_size = size.small, bgcolor = c4c)
+table.cell(info, 0, 7, "Tendance", text_size = size.small, bgcolor = c5c)
+table.cell(info, 1, 7, e5, text_size = size.small, bgcolor = c5c)
+table.cell(info, 0, 8, "Contraire", text_size = size.small, bgcolor = c6c)
+table.cell(info, 1, 8, e6, text_size = size.small, bgcolor = c6c)
+table.cell(info, 0, 9, "Contraire", text_size = size.small, bgcolor = c7c)
+table.cell(info, 1, 9, e7, text_size = size.small, bgcolor = c7c)
+table.cell(info, 0, 10, "Contraire", text_size = size.small, bgcolor = c8c)
+table.cell(info, 1, 10, e8, text_size = size.small, bgcolor = c8c)
+table.cell(info, 0, 11, "Système immunitaire", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 11, immTxt, text_size = size.small, bgcolor = immCol)
+table.cell(info, 0, 12, "État civil (naissances / doyenne)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 12, str.tostring(naissances) + " naissances · doyenne " + str.tostring(doyenne) + " bougies", text_size = size.small)
+table.cell(info, 0, 13, "Volatilité réalisée → levier", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 13, str.tostring(100 * sigA, "#.#") + " % → ×" + str.tostring(levVol, "#.##"), text_size = size.small)
+table.cell(info, 0, 14, "Trades / réussite", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 14, str.tostring(strategy.closedtrades) + " / " + str.tostring(winRate, "#.#") + " %", text_size = size.small)
+table.cell(info, 0, 15, "Profit factor", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 15, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
+table.cell(info, 0, 16, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 16, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
+table.cell(info, 0, 17, "Température (perte / borne " + str.tostring(ddMax, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 17, tempTxt, text_size = size.small, bgcolor = tempCol)
+table.cell(info, 0, 18, "Tendance de fond (252 bougies)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 18, fondTxt, text_size = size.small, bgcolor = color.new(color.blue, 85))
+table.cell(info, 0, 19, "Le lion (alpha, part ^" + str.tostring(hierarchie, "#.#") + ")", text_size = size.small, bgcolor = color.new(color.orange, 75))
+table.cell(info, 1, 19, alphaNom, text_size = size.small, bgcolor = color.new(color.orange, 85))
+table.cell(info, 0, 20, "Météo de la savane locale", text_size = size.small, bgcolor = color.new(color.orange, 75))
+table.cell(info, 1, 20, meteoTxt, text_size = size.small, bgcolor = meteoCol)
+table.cell(info, 0, 21, "Les dix savanes (tendance / bruit → score)", text_size = size.small, bgcolor = color.new(color.gray, 80))
+table.cell(info, 1, 21, "migration conseillée : " + savBest, text_size = size.small, bgcolor = color.new(color.gray, 80))
+table.cell(info, 0, 22, sym1, text_size = size.small, bgcolor = sc1c)
+table.cell(info, 1, 22, s1t, text_size = size.small, bgcolor = sc1c)
+table.cell(info, 0, 23, sym2, text_size = size.small, bgcolor = sc2c)
+table.cell(info, 1, 23, s2t, text_size = size.small, bgcolor = sc2c)
+table.cell(info, 0, 24, sym3, text_size = size.small, bgcolor = sc3c)
+table.cell(info, 1, 24, s3t, text_size = size.small, bgcolor = sc3c)
+table.cell(info, 0, 25, sym4, text_size = size.small, bgcolor = sc4c)
+table.cell(info, 1, 25, s4t, text_size = size.small, bgcolor = sc4c)
+table.cell(info, 0, 26, sym5, text_size = size.small, bgcolor = sc5c)
+table.cell(info, 1, 26, s5t, text_size = size.small, bgcolor = sc5c)
+table.cell(info, 0, 27, sym6, text_size = size.small, bgcolor = sc6c)
+table.cell(info, 1, 27, s6t, text_size = size.small, bgcolor = sc6c)
+table.cell(info, 0, 28, sym7, text_size = size.small, bgcolor = sc7c)
+table.cell(info, 1, 28, s7t, text_size = size.small, bgcolor = sc7c)
+table.cell(info, 0, 29, sym8, text_size = size.small, bgcolor = sc8c)
+table.cell(info, 1, 29, s8t, text_size = size.small, bgcolor = sc8c)
+table.cell(info, 0, 30, sym9, text_size = size.small, bgcolor = sc9c)
+table.cell(info, 1, 30, s9t, text_size = size.small, bgcolor = sc9c)
+table.cell(info, 0, 31, sym10, text_size = size.small, bgcolor = sc10c)
+table.cell(info, 1, 31, s10t, text_size = size.small, bgcolor = sc10c)
+
+// ============================================================================
+// CORRECTIONS DE POUSSÉE (les 2 seules lignes indentées, fin du fichier)
+// ============================================================================
+if doPlus
+    strategy.order("Pousse+", strategy.long, qty = diffQty, comment = "cap " + str.tostring(100 * fCible, "#") + "%", alert_message = "RoiSavane HAUSSE exposition vers " + str.tostring(100 * fCible, "#.#") + "% " + syminfo.ticker)
+if doMoins
+    strategy.order("Pousse-", strategy.short, qty = -diffQty, comment = "cap " + str.tostring(100 * fCible, "#") + "%", alert_message = "RoiSavane BAISSE exposition vers " + str.tostring(100 * fCible, "#.#") + "% " + syminfo.ticker)
+
+// ============================================================================
+// NOTES FINALES DU NATURALISTE
+// ----------------------------------------------------------------------------
+// Sur le zéro-perte : le lion rate huit charges sur dix et meurt vieux.
+// Ce ne sont pas les pertes qui tuent, ce sont les pertes MORTELLES. Ce
+// script accepte les charges ratées (petites, bornées par la température)
+// et interdit la blessure dont on ne se relève pas (plancher de survie).
+// Quiconque vous promet zéro perte vous vend un animal empaillé.
+//
+// Sur la migration : la strategy() de TradingView ne peut passer d'ordres
+// que sur le symbole du graphique. Le roi jauge donc les dix savanes et
+// DÉSIGNE la migration ; c'est à vous d'ouvrir le graphique du nouveau
+// territoire — le même organisme s'y réveillera et s'y adaptera.
+//
+// Sur la suite : le protocole de validation est dans le mode d'emploi en
+// tête de fichier. Backtest complet, comparaison de profils, paper
+// trading par alertes, et jamais un capital dont la perte changerait
+// votre vie. La savane ne pardonne pas l'orgueil ; elle récompense la
+// patience armée. Bonne chasse.
+// ============================================================================
