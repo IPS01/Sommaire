@@ -1,45 +1,48 @@
 //@version=6
 // ============================================================================
-// ÉCOSYSTÈME DARWINIEN — la sélection naturelle appliquée au capital
+// ÉCOSYSTÈME DARWINIEN ÉVOLUTIF — sélection, mutation, guérison
 //
-// PRINCIPE (celui de la nature, pas celui des ingénieurs) : on ne teste
-// pas, on n'optimise pas — on fait vivre des variantes et LE RÉEL TUE LES
-// FAIBLES. Huit espèces chassent en permanence dans le robot :
-//   5 SUIVEUSES DE TENDANCE : Guépard (10), Loup (21), Ours (63),
-//     Éléphant (126), Baleine (252 bougies) — des métabolismes différents.
-//   3 CONTRARIENNES : Colibri (2), Renard (5), Chouette (10 bougies) —
-//     elles chassent le retour en arrière.
+// PRINCIPE : on ne teste pas, on n'optimise pas — on fait vivre des
+// variantes et LE RÉEL TUE LES FAIBLES. Et depuis cette version, les
+// morts ne restent pas morts : ils sont remplacés par des ENFANTS MUTÉS
+// du champion. Le génome évolue à vie.
 //
-// SÉLECTION : chaque espèce trade virtuellement à chaque bougie, frais
-// déduits. Sa FORME = moyenne exponentielle de ses gains (la vigueur d'un
-// animal, qui s'estompe). Le CAPITAL EST LA NOURRITURE : il est réparti
-// proportionnellement à la forme. Qui gagne grossit et pèse dans la
-// décision ; qui perd maigrit et meurt de faim ; qui se remet à gagner
-// renaît. Si TOUTES meurent, l'écosystème se met à l'abri (exposition 0).
-// Le marché choisit la stratégie, en continu. Pas nous.
+// LES 8 ESPÈCES (5 suiveuses de tendance, 3 contrariennes) :
+//   INSTINCT GRADUÉ : conviction = mouvement / bruit, bornée à ±100 %.
+//   Un signal net engage fort, un signal mou engage peu.
+//   CHASSE VIRTUELLE : chaque espèce trade en continu, frais déduits.
+//   FORME : moyenne exponentielle de ses gains (la vigueur, qui s'estompe).
+//   NOURRITURE : le capital est réparti proportionnellement à la forme.
+//   FAMINE puis MORT : une espèce en forme négative trop longtemps meurt ;
+//   naît alors un enfant du champion, au rythme muté (héritage × facteur),
+//   génération +1. L'évolution ne s'arrête jamais.
 //
-// HOMÉOSTASIE : l'exposition globale est dimensionnée par ciblage de
-// volatilité (le portefeuille garde une « température de risque »
-// constante) et rééquilibrée avec zone morte anti-frais.
+// HOMÉOSTASIE : exposition par ciblage de volatilité, annualisée d'après
+// la durée réelle des bougies (valable du 1 min au mensuel).
+// RÉGULATION THERMIQUE : la perte depuis le sommet est une température —
+// torpeur progressive, hibernation à la borne, GUÉRISON (la mémoire de la
+// blessure s'estompe de 0,1 % par bougie, l'organisme se réveille).
+// EXTINCTION TOTALE : tout le monde à l'abri (exposition nulle).
 //
 // STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur —
 // les 2 seules lignes indentées sont les 2 dernières du fichier.
 // HONNÊTETÉ : la sélection favorise les survivants, elle ne garantit pas
-// de gain — même la nature a ses extinctions. Conçu pour le journalier.
+// de gain — même la nature a ses extinctions. Terrain conseillé : 1D.
 // ============================================================================
 
-strategy("Écosystème Darwinien [8 espèces, sélection par le réel]", shorttitle = "Darwin", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 99, margin_long = 5, margin_short = 5)
+strategy("Écosystème Darwinien Évolutif [sélection + mutation + guérison]", shorttitle = "Darwin Évolutif", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 99, margin_long = 5, margin_short = 5, max_bars_back = 500)
 
 // ---------------------------------------------------------------- PARAMÈTRES
 enableLongs = input.bool(true, "Autoriser les achats (long)", group = "Direction")
 enableShorts = input.bool(true, "Autoriser les ventes (short)", group = "Direction")
-fitMem = input.int(63, "Mémoire de la forme (demi-vie, bougies)", minval = 10, maxval = 500, group = "Sélection naturelle", tooltip = "La forme d'une espèce est la moyenne exponentielle de ses gains : ses exploits d'il y a une demi-vie comptent moitié moins. Court = sélection nerveuse, long = sélection patiente.")
-frais = input.float(0.1, "Frais par changement d'avis d'une espèce (%)", minval = 0.0, maxval = 1.0, step = 0.01, group = "Sélection naturelle", tooltip = "Chaque espèce paie ses frais virtuels quand elle retourne sa position : la sélection intègre le coût du réel.")
+fitMem = input.int(63, "Mémoire de la forme (demi-vie, bougies)", minval = 10, maxval = 500, group = "Sélection naturelle", tooltip = "La forme d'une espèce est la moyenne exponentielle de ses gains. Court = sélection nerveuse, long = sélection patiente.")
+frais = input.float(0.1, "Frais par unité d'exposition retournée (%)", minval = 0.0, maxval = 1.0, step = 0.01, group = "Sélection naturelle", tooltip = "Chaque espèce paie ses frais virtuels sur ses changements de position : la sélection intègre le coût du réel.")
+starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution (mutation)", tooltip = "Au-delà, l'espèce meurt et un enfant muté du champion prend sa place : rythme hérité × facteur de mutation, génération +1.")
 targetVol = input.float(15.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 40, step = 1, group = "Homéostasie")
 volWin = input.int(63, "Fenêtre de mesure de volatilité (bougies)", minval = 20, group = "Homéostasie")
 expoMax = input.float(3.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 10, step = 0.5, group = "Homéostasie")
 rebalPct = input.float(20.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
-ddMax = input.float(20.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)", tooltip = "La température du trading, c'est le risque. Plus la perte depuis le plus haut du capital approche cette borne, plus le robot entre en torpeur (poussée réduite) ; à la borne, hibernation complète ; puis réveil graduel quand le capital se refait.")
+ddMax = input.float(20.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)", tooltip = "Approche de la borne = torpeur ; borne atteinte = hibernation ; puis guérison graduelle (la mémoire du sommet s'estompe).")
 
 startDate = input.time(timestamp("1 Jan 2010 00:00 +0000"), "Début", group = "Période de backtest")
 endDate = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin", group = "Période de backtest")
@@ -48,21 +51,56 @@ inDate = time >= startDate and time <= endDate
 
 // ------------------------------------------------ LE TERRAIN DE CHASSE
 v = math.log(close / nz(close[1], close))
+sdBar = ta.stdev(v, 50)
 lamF = math.pow(0.5, 1.0 / fitMem)
 fr = frais / 100
 ready = bar_index > 300
 
-// ------------------------- LES 8 ESPÈCES : LEUR INSTINCT (signal -1/+1)
-sig1 = close > nz(close[10], close) ? 1.0 : -1.0
-sig2 = close > nz(close[21], close) ? 1.0 : -1.0
-sig3 = close > nz(close[63], close) ? 1.0 : -1.0
-sig4 = close > nz(close[126], close) ? 1.0 : -1.0
-sig5 = close > nz(close[252], close) ? 1.0 : -1.0
-sig6 = close > nz(close[2], close) ? -1.0 : 1.0
-sig7 = close > nz(close[5], close) ? -1.0 : 1.0
-sig8 = close > nz(close[10], close) ? -1.0 : 1.0
+// ------------------------- LE GÉNOME : RYTHME DE CHAQUE ESPÈCE (mutable)
+var int L1 = 10
+var int L2 = 21
+var int L3 = 63
+var int L4 = 126
+var int L5 = 252
+var int L6 = 2
+var int L7 = 5
+var int L8 = 10
+var int g1 = 1
+var int g2 = 1
+var int g3 = 1
+var int g4 = 1
+var int g5 = 1
+var int g6 = 1
+var int g7 = 1
+var int g8 = 1
+var float stv1 = 0.0
+var float stv2 = 0.0
+var float stv3 = 0.0
+var float stv4 = 0.0
+var float stv5 = 0.0
+var float stv6 = 0.0
+var float stv7 = 0.0
+var float stv8 = 0.0
 
-// ---------------- LA CHASSE VIRTUELLE : GAIN RÉEL DE CHAQUE ESPÈCE, FRAIS DÉDUITS
+// ---------------- L'INSTINCT GRADUÉ : conviction = mouvement / bruit (±1)
+d1 = sdBar * math.sqrt(L1)
+d2 = sdBar * math.sqrt(L2)
+d3 = sdBar * math.sqrt(L3)
+d4 = sdBar * math.sqrt(L4)
+d5 = sdBar * math.sqrt(L5)
+d6 = sdBar * math.sqrt(L6)
+d7 = sdBar * math.sqrt(L7)
+d8 = sdBar * math.sqrt(L8)
+sig1 = d1 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L1], close)) / d1)) : 0.0
+sig2 = d2 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L2], close)) / d2)) : 0.0
+sig3 = d3 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L3], close)) / d3)) : 0.0
+sig4 = d4 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L4], close)) / d4)) : 0.0
+sig5 = d5 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L5], close)) / d5)) : 0.0
+sig6 = d6 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L6], close)) / d6)) : 0.0
+sig7 = d7 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L7], close)) / d7)) : 0.0
+sig8 = d8 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L8], close)) / d8)) : 0.0
+
+// ---------------- LA CHASSE VIRTUELLE : GAIN DE CHAQUE ESPÈCE, FRAIS DÉDUITS
 p1 = nz(sig1[1], 0.0) * v - math.abs(sig1 - nz(sig1[1], sig1)) * 0.5 * fr
 p2 = nz(sig2[1], 0.0) * v - math.abs(sig2 - nz(sig2[1], sig2)) * 0.5 * fr
 p3 = nz(sig3[1], 0.0) * v - math.abs(sig3 - nz(sig3[1], sig3)) * 0.5 * fr
@@ -103,13 +141,66 @@ wTot = w1 + w2 + w3 + w4 + w5 + w6 + w7 + w8
 dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6 * sig6 + w7 * sig7 + w8 * sig8) / wTot : 0.0
 vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0)
 
-// ---------------- HOMÉOSTASIE : TAILLE PAR CIBLAGE DE VOLATILITÉ
+// ---------------- ÉVOLUTION : FAMINE, MORT, NAISSANCE D'UN ENFANT MUTÉ
+// Le champion transmet son rythme, multiplié par un facteur de mutation
+// (déterministe, dérivé de la bougie de naissance). Génération +1.
+bestFit = math.max(fit1, math.max(fit2, math.max(fit3, math.max(fit4, math.max(fit5, math.max(fit6, math.max(fit7, fit8)))))))
+bestL = bestFit == fit1 ? L1 : bestFit == fit2 ? L2 : bestFit == fit3 ? L3 : bestFit == fit4 ? L4 : bestFit == fit5 ? L5 : bestFit == fit6 ? L6 : bestFit == fit7 ? L7 : L8
+stv1 := barstate.isconfirmed ? (fit1 <= 0 ? stv1 + 1 : 0.0) : stv1
+stv2 := barstate.isconfirmed ? (fit2 <= 0 ? stv2 + 1 : 0.0) : stv2
+stv3 := barstate.isconfirmed ? (fit3 <= 0 ? stv3 + 1 : 0.0) : stv3
+stv4 := barstate.isconfirmed ? (fit4 <= 0 ? stv4 + 1 : 0.0) : stv4
+stv5 := barstate.isconfirmed ? (fit5 <= 0 ? stv5 + 1 : 0.0) : stv5
+stv6 := barstate.isconfirmed ? (fit6 <= 0 ? stv6 + 1 : 0.0) : stv6
+stv7 := barstate.isconfirmed ? (fit7 <= 0 ? stv7 + 1 : 0.0) : stv7
+stv8 := barstate.isconfirmed ? (fit8 <= 0 ? stv8 + 1 : 0.0) : stv8
+mut1 = barstate.isconfirmed and stv1 > starveMax
+mut2 = barstate.isconfirmed and stv2 > starveMax
+mut3 = barstate.isconfirmed and stv3 > starveMax
+mut4 = barstate.isconfirmed and stv4 > starveMax
+mut5 = barstate.isconfirmed and stv5 > starveMax
+mut6 = barstate.isconfirmed and stv6 > starveMax
+mut7 = barstate.isconfirmed and stv7 > starveMax
+mut8 = barstate.isconfirmed and stv8 > starveMax
+fmut = 0.5 + math.abs(math.sin(bar_index * 12.9898)) * 1.0
+L1 := mut1 ? math.max(5, math.min(400, math.round(bestL * fmut))) : L1
+L2 := mut2 ? math.max(5, math.min(400, math.round(bestL * fmut * 1.13))) : L2
+L3 := mut3 ? math.max(5, math.min(400, math.round(bestL * fmut * 0.87))) : L3
+L4 := mut4 ? math.max(5, math.min(400, math.round(bestL * fmut * 1.29))) : L4
+L5 := mut5 ? math.max(5, math.min(400, math.round(bestL * fmut * 0.71))) : L5
+L6 := mut6 ? math.max(2, math.min(30, math.round(math.max(2, bestL) * fmut * 0.2))) : L6
+L7 := mut7 ? math.max(2, math.min(30, math.round(math.max(2, bestL) * fmut * 0.3))) : L7
+L8 := mut8 ? math.max(2, math.min(30, math.round(math.max(2, bestL) * fmut * 0.4))) : L8
+fit1 := mut1 ? 0.0 : fit1
+fit2 := mut2 ? 0.0 : fit2
+fit3 := mut3 ? 0.0 : fit3
+fit4 := mut4 ? 0.0 : fit4
+fit5 := mut5 ? 0.0 : fit5
+fit6 := mut6 ? 0.0 : fit6
+fit7 := mut7 ? 0.0 : fit7
+fit8 := mut8 ? 0.0 : fit8
+stv1 := mut1 ? 0.0 : stv1
+stv2 := mut2 ? 0.0 : stv2
+stv3 := mut3 ? 0.0 : stv3
+stv4 := mut4 ? 0.0 : stv4
+stv5 := mut5 ? 0.0 : stv5
+stv6 := mut6 ? 0.0 : stv6
+stv7 := mut7 ? 0.0 : stv7
+stv8 := mut8 ? 0.0 : stv8
+g1 := mut1 ? g1 + 1 : g1
+g2 := mut2 ? g2 + 1 : g2
+g3 := mut3 ? g3 + 1 : g3
+g4 := mut4 ? g4 + 1 : g4
+g5 := mut5 ? g5 + 1 : g5
+g6 := mut6 ? g6 + 1 : g6
+g7 := mut7 ? g7 + 1 : g7
+g8 := mut8 ? g8 + 1 : g8
+
+// ---------------- HOMÉOSTASIE : CIBLAGE DE VOLATILITÉ (toute unité de temps)
 sigA = ta.stdev(v, volWin) * math.sqrt(31536000.0 / timeframe.in_seconds())
 levVol = sigA > 0 ? math.min(expoMax, (targetVol / 100) / sigA) : 0.0
 
-// ---------------- RÉGULATION THERMIQUE : TORPEUR PRÈS DE LA BORNE MORTELLE
-// Perte depuis le sommet du capital = température. Poussée réduite en
-// proportion ; hibernation complète à la borne, réveil graduel au-dessus.
+// ---------------- RÉGULATION THERMIQUE : TORPEUR, HIBERNATION, GUÉRISON
 var float eqPeak = na
 eqPeak := math.max(nz(eqPeak, strategy.equity) * 0.999, strategy.equity)
 dd = eqPeak > 0 ? 1.0 - strategy.equity / eqPeak : 0.0
@@ -137,16 +228,16 @@ pousseTxt = (fCible >= 0 ? "+" : "") + str.tostring(100 * fCible, "#.#") + " % /
 pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.new(color.red, 70) : color.new(color.gray, 85)
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
-diagTxt = not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 espèces vivantes, cap " + (dir > 0 ? "haussier" : dir < 0 ? "baissier" : "neutre")
+diagTxt = not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : vivantes == 0 ? "extinction : tout le monde à l'abri" : str.tostring(vivantes) + "/8 espèces vivantes, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = ready and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
-e1 = "Guépard 10j " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
-e2 = "Loup 21j " + (sig2 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit2, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w2 / wTot : 0, "#") + " %"
-e3 = "Ours 63j " + (sig3 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit3, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w3 / wTot : 0, "#") + " %"
-e4 = "Éléphant 126j " + (sig4 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit4, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w4 / wTot : 0, "#") + " %"
-e5 = "Baleine 252j " + (sig5 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit5, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w5 / wTot : 0, "#") + " %"
-e6 = "Colibri 2j " + (sig6 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit6, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w6 / wTot : 0, "#") + " %"
-e7 = "Renard 5j " + (sig7 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit7, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w7 / wTot : 0, "#") + " %"
-e8 = "Chouette 10j " + (sig8 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit8, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w8 / wTot : 0, "#") + " %"
+e1 = "Guépard " + str.tostring(L1) + "b g" + str.tostring(g1) + " " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
+e2 = "Loup " + str.tostring(L2) + "b g" + str.tostring(g2) + " " + (sig2 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit2, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w2 / wTot : 0, "#") + " %"
+e3 = "Ours " + str.tostring(L3) + "b g" + str.tostring(g3) + " " + (sig3 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit3, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w3 / wTot : 0, "#") + " %"
+e4 = "Éléphant " + str.tostring(L4) + "b g" + str.tostring(g4) + " " + (sig4 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit4, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w4 / wTot : 0, "#") + " %"
+e5 = "Baleine " + str.tostring(L5) + "b g" + str.tostring(g5) + " " + (sig5 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit5, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w5 / wTot : 0, "#") + " %"
+e6 = "Colibri " + str.tostring(L6) + "b g" + str.tostring(g6) + " " + (sig6 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit6, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w6 / wTot : 0, "#") + " %"
+e7 = "Renard " + str.tostring(L7) + "b g" + str.tostring(g7) + " " + (sig7 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit7, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w7 / wTot : 0, "#") + " %"
+e8 = "Chouette " + str.tostring(L8) + "b g" + str.tostring(g8) + " " + (sig8 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit8, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w8 / wTot : 0, "#") + " %"
 c1c = fit1 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c2c = fit2 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c3c = fit3 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
@@ -155,18 +246,15 @@ c5c = fit5 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c6c = fit6 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c7c = fit7 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c8c = fit8 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
-
-tempTxt = str.tostring(100 * dd, "#.#") + " % de perte depuis le sommet · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION")
+tempTxt = str.tostring(100 * dd, "#.#") + " % de perte depuis le sommet · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION (guérison en cours)")
 tempCol = torpeur >= 0.99 ? color.new(color.teal, 80) : torpeur > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
 
 var table info = table.new(position.top_right, 2, 16, border_width = 1)
-table.cell(info, 0, 15, "Température (perte / borne " + str.tostring(ddMax, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 15, tempTxt, text_size = size.small, bgcolor = tempCol)
 table.cell(info, 0, 0, "État de l'écosystème", text_size = size.small, bgcolor = color.new(color.orange, 80))
 table.cell(info, 1, 0, diagTxt, text_size = size.small, bgcolor = diagCol)
 table.cell(info, 0, 1, "Exposition cible / réelle", text_size = size.small, bgcolor = color.new(color.blue, 80))
 table.cell(info, 1, 1, pousseTxt, text_size = size.small, bgcolor = pousseCol)
-table.cell(info, 0, 2, "Espèce (cap · forme · part du capital)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 0, 2, "Espèce (rythme · génération · forme · part)", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 2, "vivante = verte, affamée = grise", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 0, 3, "Tendance", text_size = size.small, bgcolor = c1c)
 table.cell(info, 1, 3, e1, text_size = size.small, bgcolor = c1c)
@@ -192,6 +280,8 @@ table.cell(info, 0, 13, "Profit factor", text_size = size.small, bgcolor = color
 table.cell(info, 1, 13, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
 table.cell(info, 0, 14, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 14, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
+table.cell(info, 0, 15, "Température (perte / borne " + str.tostring(ddMax, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 15, tempTxt, text_size = size.small, bgcolor = tempCol)
 
 // ------- CORRECTIONS DE POUSSÉE (les 2 seules lignes indentées, fin du fichier)
 if doPlus
