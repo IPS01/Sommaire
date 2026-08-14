@@ -273,16 +273,16 @@ starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minva
 soinParent = input.float(25.0, "Soin parental (% de la vigueur du champion héritée)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Évolution (croisement + mutation)")
 
 // -------------------------------------------------------------- Homéostasie
-targetVol = input.float(15.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 40, step = 1, group = "Homéostasie", tooltip = "15 % = prudent, 25 % = conquérant. La crête de Kelly est entre les deux : vos backtests trancheront.")
+targetVol = input.float(25.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 40, step = 1, group = "Homéostasie", tooltip = "15 % = prudent, 25 % = conquérant. La crête de Kelly est entre les deux : vos backtests trancheront.")
 volWin = input.int(63, "Fenêtre de mesure de volatilité (bougies)", minval = 20, group = "Homéostasie")
-expoMax = input.float(3.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 10, step = 0.5, group = "Homéostasie")
+expoMax = input.float(5.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 10, step = 0.5, group = "Homéostasie")
 rebalPct = input.float(25.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
 respire = input.int(5, "Respiration : rééquilibrage toutes les X bougies", minval = 1, maxval = 21, group = "Homéostasie", tooltip = "5 = hebdomadaire en journalier. Entre deux respirations, l'organisme tient sa position : les frais ne paient que les vraies décisions.")
 
 // --------------------------------------------- Régulation thermique (survie)
-ddMax = input.float(20.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)")
+ddMax = input.float(30.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)")
 guerJours = input.int(500, "Guérison : demi-vie de la mémoire du sommet (jours)", minval = 30, maxval = 3000, group = "Régulation thermique (survie)", tooltip = "ATTENTION : une valeur trop courte débranche la protection — la perte n'est jamais enregistrée et la torpeur ne se déclenche jamais (leçon du test NVIDIA).")
-plancher = input.float(60.0, "Plancher de survie : extinction définitive sous (% du capital initial)", minval = 10.0, maxval = 95.0, step = 5.0, group = "Régulation thermique (survie)", tooltip = "Sous ce niveau, plus aucune exposition, définitivement. Pas de perte mortelle, sinon c'est la mort — littéralement.")
+plancher = input.float(50.0, "Plancher de survie : extinction définitive sous (% du capital initial)", minval = 10.0, maxval = 95.0, step = 5.0, group = "Régulation thermique (survie)", tooltip = "Sous ce niveau, plus aucune exposition, définitivement. Pas de perte mortelle, sinon c'est la mort — littéralement.")
 
 // ------------------------------------------------------ Système immunitaire
 chocSeuil = input.float(4.0, "Choc immunitaire (mouvement en écarts-types)", minval = 2.0, maxval = 8.0, step = 0.5, group = "Système immunitaire")
