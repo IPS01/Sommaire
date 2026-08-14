@@ -1958,3 +1958,57 @@ if doMoins
 // le souverain règne sans descendre dans l'arène, et que le seul
 // tribunal qui compte — le réel — lui soit favorable. Bonne chasse.
 // ============================================================================
+//
+// ============================================================================
+// ANNEXE XIII — LES TROIS PROFILS DE RÈGNE (tableau comparatif des réglages)
+// ============================================================================
+//
+// Le même écosystème peut être réglé pour trois tempéraments de souverain.
+// Le code livré est réglé en CONQUÉRANT (choix du souverain : « je veux de
+// plus gros gains pour prévenir la famine »). Voici les deux autres
+// tempéraments, pour mémoire, et pour le jour où la savane deviendra dure.
+//
+// Paramètre            | PRUDENT      | ÉQUILIBRÉ    | CONQUÉRANT (actuel)
+// ---------------------|--------------|--------------|--------------------
+// targetVol (chaleur)  | 10           | 15           | 25
+// expoMax (levier max) | 1.5          | 3            | 5
+// ddMax (torpeur à)    | 15 %         | 20 %         | 30 %
+// plancher (ruine)     | 70 %         | 60 %         | 50 %
+// guerJours            | 750          | 500          | 500
+// hierarchie           | 1            | 2            | 2
+// proieMin             | 0.30         | 0.25         | 0.20
+// savaneMin            | 1.0          | 0.9          | 0.8
+// respire              | 8            | 5            | 5
+// rebalPct             | 33           | 25           | 25
+// contMax              | 30 %         | 40 %         | 50 %
+//
+// Lecture du tableau :
+// - Le PRUDENT vise la survie avant tout : chaleur basse, levier plafonné
+//   à 1.5, torpeur dès 15 % de perte, extinction à 70 % du capital
+//   (il ne risque jamais plus de 30 % de son trésor). Il chasse moins
+//   souvent (proieMin 0.30, savaneMin 1.0) mais presque jamais à tort.
+//   C'est le profil pour de l'argent réel au début, ou pour un capital
+//   que l'on ne peut pas se permettre d'entamer.
+// - L'ÉQUILIBRÉ est le centre de gravité : c'était le réglage des
+//   générations G5-G6, celui qui a produit les premières victoires
+//   mesurées sur XAUUSD. Bon compromis entre fréquence de chasse et
+//   profondeur des blessures acceptées.
+// - Le CONQUÉRANT est le réglage actuel : il accepte de saigner jusqu'à
+//   30 % pour viser des festins doubles. Il exige en contrepartie une
+//   discipline absolue du souverain : ne JAMAIS élargir ddMax ou plancher
+//   après une perte, car c'est exactement ainsi que meurent les rois.
+//
+// Règle de passage entre profils :
+// - On DESCEND de profil (Conquérant → Équilibré → Prudent) librement,
+//   à tout moment, sans honte. La nature récompense celui qui sent
+//   l'hiver arriver avant les autres.
+// - On ne MONTE de profil qu'après une saison complète (3 mois minimum)
+//   de chasse profitable au profil courant, jamais après une perte
+//   (« se refaire » est le premier des douze pièges mortels, annexe VI).
+// - Le changement de profil est un acte de règne : il se fait sur la
+//   version gelée, se note dans le carnet du souverain (annexe IV),
+//   et repart pour une saison d'observation avant tout jugement.
+//
+// Ainsi s'achève la charte du Roi de la Savane. Le reste appartient
+// au réel — seul tribunal, seul juge, seul maître après le souverain.
+// ============================================================================
