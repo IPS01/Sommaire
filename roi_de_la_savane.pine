@@ -288,6 +288,9 @@ plancher = input.float(50.0, "Plancher de survie : extinction définitive sous (
 chocSeuil = input.float(4.0, "Choc immunitaire (mouvement en écarts-types)", minval = 2.0, maxval = 8.0, step = 0.5, group = "Système immunitaire")
 chocDuree = input.int(10, "Convalescence après choc (bougies)", minval = 1, maxval = 100, group = "Système immunitaire")
 
+// ------------------------------------------------- L'Homme (le souverain)
+pacteAbri = input.bool(false, "ORDRE SOUVERAIN : toute la colonie à l'abri, immédiatement", group = "L'Homme (le souverain)", tooltip = "Le seul pouvoir direct de l'Homme dans la savane : d'un mot, toutes les espèces à l'abri — annonce majeure, doute, absence. Décochez pour rendre la savane à ses lois. Tout le reste — chasser, doser, muter, survivre — appartient à l'écosystème : l'Homme légifère et alloue, il ne descend pas dans l'arène.")
+
 // ------------------------------------------------------ Période de backtest
 startDate = input.time(timestamp("1 Jan 2010 00:00 +0000"), "Début", group = "Période de backtest")
 endDate = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin", group = "Période de backtest")
@@ -687,6 +690,7 @@ fCible := enableLongs or fCible < 0 ? fCible : 0.0
 fCible := enableShorts or fCible > 0 ? fCible : 0.0
 fCible := respectFond and fCible * fond < 0 ? 0.0 : fCible
 fCible := savaneOk ? fCible : 0.0
+fCible := pacteAbri ? 0.0 : fCible
 
 // ============================================================================
 // CORRECTION : RÉÉQUILIBRAGE AVEC ZONE MORTE ET RESPIRATION
@@ -716,7 +720,7 @@ pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.n
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
-diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : not savaneOk ? "savane locale stérile — le roi conseille de migrer vers " + savBest : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirS) < proieMin ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMin, "#") + " %)" : str.tostring(vivantes) + "/11 vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : not savaneOk ? "savane locale stérile — le roi conseille de migrer vers " + savBest : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirS) < proieMin ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMin, "#") + " %)" : str.tostring(vivantes) + "/11 vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = eteint ? color.new(color.red, 60) : ready and not desert and savaneOk and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
 alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle 252" : bestFit == fit10 ? "Crocodile 55" : "Hyène 20") + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
 fondTxt = (fond > 0 ? "haussière ▲" : "baissière ▼") + (respectFond ? " · shorts " + (fond > 0 ? "interdits" : "autorisés") : " · filtre désactivé") + " · contrariennes " + str.tostring(wTot > 0 ? 100 * (w6 + w7 + w8) / wTot : 0, "#") + " % (max " + str.tostring(contMax, "#") + " %)"
@@ -769,7 +773,9 @@ sc8c = sc8 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
 sc9c = sc9 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
 sc10c = sc10 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
 
-var table info = table.new(position.top_right, 2, 35, border_width = 1)
+var table info = table.new(position.top_right, 2, 36, border_width = 1)
+table.cell(info, 0, 35, "L'Homme (souverain)", text_size = size.small, bgcolor = color.new(color.purple, 70))
+table.cell(info, 1, 35, pacteAbri ? "a ordonné l'abri — la savane attend son retour" : "laisse régner ses lois : il légifère, il alloue, il n'intervient pas", text_size = size.small, bgcolor = color.new(color.purple, 85))
 table.cell(info, 0, 32, "Fossile", text_size = size.small, bgcolor = c9c)
 table.cell(info, 1, 32, e9, text_size = size.small, bgcolor = c9c)
 table.cell(info, 0, 33, "Fossile", text_size = size.small, bgcolor = c10c)
