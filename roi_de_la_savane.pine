@@ -304,6 +304,16 @@ pacteAbri = input.bool(false, "ORDRE SOUVERAIN : toute la colonie à l'abri, imm
 // -------------------------------------------------------------- Affichage
 tabCompact = input.bool(false, "Tableau compact : replier le détail des 20 savanes (petits écrans)", group = "Affichage", tooltip = "Les seize espèces et tous les organes restent affichés. Seules les vingt lignes de détail des savanes sont repliées ; la ligne de migration conseillée reste visible. Idéal sur téléphone.")
 
+// ----------------------------------------------- Les organes de la G9
+// Tous NEUTRES par défaut : l'eau, le miroir et les termites ne font
+// qu'afficher ; fourmis, abeilles et anticorps n'agissent que si armés.
+// Le moteur qui a produit les victoires mesurées reste donc identique.
+swapAnnuel = input.float(3.0, "L'eau : coût de financement du levier (% par an)", minval = 0.0, maxval = 20.0, step = 0.5, group = "Les organes de la G9", tooltip = "Le loyer de la force empruntée : ce que votre courtier facture chaque nuit sur la position à levier (swap). Comptabilisé et affiché pour rendre le profit honnête — ne modifie pas les ordres. Renseignez le taux réel de votre courtier.")
+fourmisOn = input.bool(false, "Armer les fourmis : réduire l'exposition quand l'orage micro approche", group = "Les organes de la G9", tooltip = "Les fourmis sentent la pluie : quand le bruit des 10 dernières bougies dépasse 1,5 fois le bruit de fond des 100 dernières, un choc approche statistiquement. Armées, elles réduisent l'exposition de 30 % le temps de l'orage. Décochées, elles observent et alertent seulement.")
+abeillesOn = input.bool(false, "Armer les abeilles : réduire l'exposition en tempête systémique", group = "Les organes de la G9", tooltip = "Les abeilles surveillent la ruche entière : quand la volatilité moyenne des 20 savanes dépasse 1,4 fois sa normale annuelle, la tempête est mondiale et la diversification meurt (2008, 2020). Armées, elles réduisent l'exposition de 30 %. Décochées, elles observent et alertent.")
+immAcqOn = input.bool(false, "Armer l'immunité acquise : prudence durable après une série de chocs", group = "Les organes de la G9", tooltip = "Le bouclier réflexe oublie tout après 10 bougies ; les anticorps, non. Chaque choc laisse une trace qui s'estompe à demi-vie d'un an : trois chocs récents = exposition durablement réduite. Armée, l'immunité divise l'exposition jusqu'à 2 au maximum. Décochée, elle observe.")
+miroirWin = input.int(126, "Le miroir : fenêtre du présent (bougies)", minval = 50, maxval = 400, group = "Les organes de la G9", tooltip = "Le miroir compare le gain de la fenêtre récente au rythme moyen de toute l'histoire. Si le présent décroche durablement du passé, la promesse du backtest est en train de se rompre : c'est l'alerte la plus précieuse du souverain. Affichage et alerte seulement.")
+
 // ------------------------------------------------------ Période de backtest
 startDate = input.time(timestamp("1 Jan 2010 00:00 +0000"), "Début", group = "Période de backtest")
 endDate = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin", group = "Période de backtest")
@@ -720,6 +730,14 @@ choc = ready and math.abs(v) > chocSeuil * nz(sdBar[1], 1e9)
 immun := choc and barstate.isconfirmed ? chocDuree : math.max(0.0, immun - (barstate.isconfirmed ? 1.0 : 0.0))
 bouclier = immun > 0 ? 0.5 : 1.0
 
+// IMMUNITÉ ACQUISE : la mémoire des chocs. Chaque choc laisse un anticorps
+// qui s'estompe à demi-vie de 252 bougies : l'organisme reste durablement
+// prudent après une série de traumatismes, comme le vivant.
+var float anticorps = 0.0
+lamA = math.pow(0.5, 1.0 / 252.0)
+anticorps := barstate.isconfirmed ? anticorps * lamA + (choc ? 1.0 : 0.0) : anticorps
+immAcqF = math.max(0.5, 1.0 / (1.0 + 0.25 * anticorps))
+
 // ============================================================================
 // HOMÉOSTASIE : CIBLAGE DE VOLATILITÉ (toute unité de temps)
 // ============================================================================
@@ -818,6 +836,26 @@ scBest = math.max(sc1, math.max(sc2, math.max(sc3, math.max(sc4, math.max(sc5, m
 savBest = scBest == sc1 ? sym1 : scBest == sc2 ? sym2 : scBest == sc3 ? sym3 : scBest == sc4 ? sym4 : scBest == sc5 ? sym5 : scBest == sc6 ? sym6 : scBest == sc7 ? sym7 : scBest == sc8 ? sym8 : scBest == sc9 ? sym9 : scBest == sc10 ? sym10 : scBest == sc11 ? sym11 : scBest == sc12 ? sym12 : scBest == sc13 ? sym13 : scBest == sc14 ? sym14 : scBest == sc15 ? sym15 : scBest == sc16 ? sym16 : scBest == sc17 ? sym17 : scBest == sc18 ? sym18 : scBest == sc19 ? sym19 : sym20
 
 // ============================================================================
+// L'ESSAIM : LES INSECTES SENTINELLES
+// Ils ne chassent jamais (les frais tueraient tout insecte-chasseur — leçon
+// du désert) : ils écoutent le sol et préviennent la colonie, gratuitement.
+// ============================================================================
+// LES FOURMIS — l'orage qui vient : bruit court rapporté au bruit de fond.
+sdCourt = ta.stdev(v, 10)
+sdLong = ta.stdev(v, 100)
+orage = sdLong > 0 ? sdCourt / sdLong : 1.0
+fourmisAlerte = ready and orage > 1.5
+// LES ABEILLES — la tempête systémique : quand les 20 savanes tremblent
+// ensemble, la diversification meurt au moment où l'on en a besoin.
+ruche = (nz(vo1, 0) + nz(vo2, 0) + nz(vo3, 0) + nz(vo4, 0) + nz(vo5, 0) + nz(vo6, 0) + nz(vo7, 0) + nz(vo8, 0) + nz(vo9, 0) + nz(vo10, 0) + nz(vo11, 0) + nz(vo12, 0) + nz(vo13, 0) + nz(vo14, 0) + nz(vo15, 0) + nz(vo16, 0) + nz(vo17, 0) + nz(vo18, 0) + nz(vo19, 0) + nz(vo20, 0)) / 20
+rucheMoy = ta.sma(ruche, 252)
+abeillesAlerte = ready and rucheMoy > 0 and ruche > 1.4 * rucheMoy
+// LES TERMITES — la santé du sol : proportion de mèches dans les bougies.
+// Un sol plein de mèches est un sol où les stops glissent (slippage réel).
+meches = ta.sma((high - low - math.abs(close - open)) / math.max(high - low, syminfo.mintick), 50)
+solTraitre = meches > 0.55
+
+// ============================================================================
 // TENDANCE DE FOND : ON NE CHASSE JAMAIS CONTRE LA DÉRIVE LONGUE DE L'ACTIF
 // ============================================================================
 fond = close > nz(close[252], close) ? 1 : -1
@@ -833,6 +871,11 @@ fCible := enableShorts or fCible > 0 ? fCible : 0.0
 fCible := respectFond and fCible * fond < 0 ? 0.0 : fCible
 fCible := savaneOk ? fCible : 0.0
 fCible := pacteAbri ? 0.0 : fCible
+// L'essaim et les anticorps ne mordent que si le souverain les a armés :
+// par défaut ces trois lignes ne changent rien (garantie de la G8).
+fCible := fourmisOn and fourmisAlerte ? fCible * 0.7 : fCible
+fCible := abeillesOn and abeillesAlerte ? fCible * 0.7 : fCible
+fCible := immAcqOn ? fCible * immAcqF : fCible
 
 // ============================================================================
 // CORRECTION : RÉÉQUILIBRAGE AVEC ZONE MORTE ET RESPIRATION
@@ -857,6 +900,16 @@ plotshape(choc, "Choc immunitaire", shape.xcross, location.top, color.new(color.
 // LE POSTE DE COMMANDEMENT : TABLEAU COMPLET
 // ============================================================================
 expoActu = strategy.position_size * close / strategy.equity
+// L'EAU : le loyer du levier. Comptabilité pure — n'agit pas sur les ordres,
+// mais rend le profit honnête : toute force empruntée se paie chaque nuit.
+var float eauCum = 0.0
+eauCum := barstate.isconfirmed ? eauCum + math.abs(expoActu) * (swapAnnuel / 100) * (timeframe.in_seconds() / 31536000.0) * strategy.equity : eauCum
+// LE MIROIR : le présent tient-il la promesse du passé ? Gain de la fenêtre
+// récente contre le rythme moyen de toute l'histoire, par fenêtre égale.
+retPresent = strategy.equity / math.max(nz(strategy.equity[miroirWin], strategy.initial_capital), 1e-9) - 1
+nFen = math.max(1.0, (bar_index - 300.0) / miroirWin)
+retRythme = math.pow(math.max(strategy.equity / strategy.initial_capital, 1e-9), 1.0 / nFen) - 1
+decroche = ready and strategy.closedtrades > 10 and retPresent < retRythme - 0.10
 pousseTxt = (fCible >= 0 ? "+" : "") + str.tostring(100 * fCible, "#.#") + " % / " + (expoActu >= 0 ? "+" : "") + str.tostring(100 * expoActu, "#.#") + " %"
 pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.new(color.red, 70) : color.new(color.gray, 85)
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
@@ -945,30 +998,37 @@ sc18c = sc18 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90
 sc19c = sc19 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
 sc20c = sc20 >= savaneMin ? color.new(color.teal, 82) : color.new(color.gray, 90)
 
-// En mode compact, les vingt lignes de savanes sont toutes redirigées vers
-// la ligne 30, où l'en-tête (écrit en dernier) les recouvre : repliées.
-rs1 = tabCompact ? 30 : 31
-rs2 = tabCompact ? 30 : 32
-rs3 = tabCompact ? 30 : 33
-rs4 = tabCompact ? 30 : 34
-rs5 = tabCompact ? 30 : 35
-rs6 = tabCompact ? 30 : 36
-rs7 = tabCompact ? 30 : 37
-rs8 = tabCompact ? 30 : 38
-rs9 = tabCompact ? 30 : 39
-rs10 = tabCompact ? 30 : 40
-rs11 = tabCompact ? 30 : 41
-rs12 = tabCompact ? 30 : 42
-rs13 = tabCompact ? 30 : 43
-rs14 = tabCompact ? 30 : 44
-rs15 = tabCompact ? 30 : 45
-rs16 = tabCompact ? 30 : 46
-rs17 = tabCompact ? 30 : 47
-rs18 = tabCompact ? 30 : 48
-rs19 = tabCompact ? 30 : 49
-rs20 = tabCompact ? 30 : 50
+eauTxt = str.tostring(swapAnnuel, "#.#") + " %/an · coût cumulé " + str.tostring(eauCum, "#") + " · profit après eau : " + str.tostring(strategy.netprofit - eauCum, "#")
+eauCol = eauCum > 0.2 * math.max(strategy.netprofit, 1.0) ? color.new(color.orange, 75) : color.new(color.gray, 85)
+miroirTxt = "présent " + str.tostring(100 * retPresent, "#.#") + " % / fenêtre · rythme historique " + str.tostring(100 * retRythme, "#.#") + " %" + (decroche ? " ⚠ DÉCROCHAGE" : " ✓ cohérent")
+miroirCol = decroche ? color.new(color.red, 70) : color.new(color.teal, 82)
+essaimTxt = "fourmis " + (fourmisAlerte ? "⚡ orage" : "calmes") + (fourmisOn ? "" : " (obs.)") + " · abeilles " + (abeillesAlerte ? "⚡ tempête" : "calmes") + (abeillesOn ? "" : " (obs.)") + " · sol " + (solTraitre ? "traître" : "sain") + " · anticorps " + str.tostring(anticorps, "#.#") + (immAcqOn ? " (armés)" : " (obs.)")
+essaimCol = fourmisAlerte or abeillesAlerte or solTraitre ? color.new(color.orange, 75) : color.new(color.gray, 85)
 
-var table info = table.new(position.top_right, 2, 51, border_width = 1)
+// En mode compact, les vingt lignes de savanes sont toutes redirigées vers
+// la ligne 33, où l'en-tête (écrit en dernier) les recouvre : repliées.
+rs1 = tabCompact ? 33 : 34
+rs2 = tabCompact ? 33 : 35
+rs3 = tabCompact ? 33 : 36
+rs4 = tabCompact ? 33 : 37
+rs5 = tabCompact ? 33 : 38
+rs6 = tabCompact ? 33 : 39
+rs7 = tabCompact ? 33 : 40
+rs8 = tabCompact ? 33 : 41
+rs9 = tabCompact ? 33 : 42
+rs10 = tabCompact ? 33 : 43
+rs11 = tabCompact ? 33 : 44
+rs12 = tabCompact ? 33 : 45
+rs13 = tabCompact ? 33 : 46
+rs14 = tabCompact ? 33 : 47
+rs15 = tabCompact ? 33 : 48
+rs16 = tabCompact ? 33 : 49
+rs17 = tabCompact ? 33 : 50
+rs18 = tabCompact ? 33 : 51
+rs19 = tabCompact ? 33 : 52
+rs20 = tabCompact ? 33 : 53
+
+var table info = table.new(position.top_right, 2, 54, border_width = 1)
 table.cell(info, 0, 0, "État de l'écosystème", text_size = size.small, bgcolor = color.new(color.orange, 80))
 table.cell(info, 1, 0, diagTxt, text_size = size.small, bgcolor = diagCol)
 table.cell(info, 0, 1, "Exposition cible / réelle", text_size = size.small, bgcolor = color.new(color.blue, 80))
@@ -1029,6 +1089,12 @@ table.cell(info, 0, 28, "Météo de la savane locale", text_size = size.small, b
 table.cell(info, 1, 28, meteoTxt, text_size = size.small, bgcolor = meteoCol)
 table.cell(info, 0, 29, "L'Homme (souverain)", text_size = size.small, bgcolor = color.new(color.purple, 70))
 table.cell(info, 1, 29, pacteAbri ? "a ordonné l'abri — la savane attend son retour" : "laisse régner ses lois : il légifère, il alloue, il n'intervient pas", text_size = size.small, bgcolor = color.new(color.purple, 85))
+table.cell(info, 0, 30, "L'eau (financement du levier)", text_size = size.small, bgcolor = eauCol)
+table.cell(info, 1, 30, eauTxt, text_size = size.small, bgcolor = eauCol)
+table.cell(info, 0, 31, "Le miroir (présent vs passé)", text_size = size.small, bgcolor = miroirCol)
+table.cell(info, 1, 31, miroirTxt, text_size = size.small, bgcolor = miroirCol)
+table.cell(info, 0, 32, "L'essaim (sentinelles)", text_size = size.small, bgcolor = essaimCol)
+table.cell(info, 1, 32, essaimTxt, text_size = size.small, bgcolor = essaimCol)
 table.cell(info, 0, rs1, sym1, text_size = size.small, bgcolor = sc1c)
 table.cell(info, 1, rs1, s1t, text_size = size.small, bgcolor = sc1c)
 table.cell(info, 0, rs2, sym2, text_size = size.small, bgcolor = sc2c)
@@ -1070,9 +1136,9 @@ table.cell(info, 1, rs19, s19t, text_size = size.small, bgcolor = sc19c)
 table.cell(info, 0, rs20, sym20, text_size = size.small, bgcolor = sc20c)
 table.cell(info, 1, rs20, s20t, text_size = size.small, bgcolor = sc20c)
 // L'en-tête des savanes est écrit APRÈS leurs vingt lignes : en mode
-// compact, toutes visent la ligne 30 et l'en-tête les recouvre.
-table.cell(info, 0, 30, "Les vingt savanes (tendance / bruit → score)", text_size = size.small, bgcolor = color.new(color.gray, 80))
-table.cell(info, 1, 30, (tabCompact ? "détail replié · " : "") + "migration conseillée : " + savBest, text_size = size.small, bgcolor = color.new(color.gray, 80))
+// compact, toutes visent la ligne 33 et l'en-tête les recouvre.
+table.cell(info, 0, 33, "Les vingt savanes (tendance / bruit → score)", text_size = size.small, bgcolor = color.new(color.gray, 80))
+table.cell(info, 1, 33, (tabCompact ? "détail replié · " : "") + "migration conseillée : " + savBest, text_size = size.small, bgcolor = color.new(color.gray, 80))
 
 // ============================================================================
 // LA BANQUE D'ALERTES DU SOUVERAIN — pour le paper trading et la vraie vie
@@ -1092,6 +1158,9 @@ alertcondition(math.abs(dirS) >= proieMin and math.abs(dirS[1]) < proieMin, "Roi
 alertcondition(math.abs(dirS) < proieMin and math.abs(dirS[1]) >= proieMin, "Roi : retour à l'affût", "La conviction collective est repassée sous la proie minimale")
 alertcondition(sig11 > 0 and sig11[1] <= 0, "Roi : festin de la Hyène", "Capitulation détectée : la Hyène entre sur la carcasse")
 alertcondition(sig16 > 0 and sig16[1] <= 0, "Roi : le Vautour descend", "Effondrement profond : le Vautour descend sur le grand charnier")
+alertcondition(fourmisAlerte and not fourmisAlerte[1], "Roi : les fourmis sentent l'orage", "Le bruit court dépasse 1,5 fois le bruit de fond : un choc approche statistiquement")
+alertcondition(abeillesAlerte and not abeillesAlerte[1], "Roi : les abeilles fuient la ruche", "Tempête systémique : les vingt savanes tremblent ensemble, la diversification meurt")
+alertcondition(decroche and not decroche[1], "Roi : le miroir décroche", "Le présent ne tient plus la promesse du passé : convoquer le conseil, geler toute montée en charge")
 
 // ============================================================================
 // CORRECTIONS DE POUSSÉE (les 2 seules lignes indentées, fin du fichier)
