@@ -313,6 +313,8 @@ fourmisOn = input.bool(false, "Armer les fourmis : réduire l'exposition quand l
 abeillesOn = input.bool(false, "Armer les abeilles : réduire l'exposition en tempête systémique", group = "Les organes de la G9", tooltip = "Les abeilles surveillent la ruche entière : quand la volatilité moyenne des 20 savanes dépasse 1,4 fois sa normale annuelle, la tempête est mondiale et la diversification meurt (2008, 2020). Armées, elles réduisent l'exposition de 30 %. Décochées, elles observent et alertent.")
 immAcqOn = input.bool(false, "Armer l'immunité acquise : prudence durable après une série de chocs", group = "Les organes de la G9", tooltip = "Le bouclier réflexe oublie tout après 10 bougies ; les anticorps, non. Chaque choc laisse une trace qui s'estompe à demi-vie d'un an : trois chocs récents = exposition durablement réduite. Armée, l'immunité divise l'exposition jusqu'à 2 au maximum. Décochée, elle observe.")
 miroirWin = input.int(126, "Le miroir : fenêtre du présent (bougies)", minval = 50, maxval = 400, group = "Les organes de la G9", tooltip = "Le miroir compare le gain de la fenêtre récente au rythme moyen de toute l'histoire. Si le présent décroche durablement du passé, la promesse du backtest est en train de se rompre : c'est l'alerte la plus précieuse du souverain. Affichage et alerte seulement.")
+saisonsOn = input.bool(false, "Armer les saisons : abri automatique avant chaque annonce de résultats", group = "Les organes de la G9", tooltip = "Sur les actions, la nuit des résultats trimestriels est un saut de ±10 % que nul instinct ne peut prévoir : ce n'est pas de la chasse, c'est de la loterie. Armées, les saisons mettent la colonie à l'abri X jours avant chaque annonce (date lue par TradingView). Sans effet sur les devises, métaux et indices. Sans effet sur le backtest (la date n'est connue que pour la PROCHAINE annonce) : c'est un organe pour la vraie vie et le paper trading.")
+joursAbri = input.int(3, "Jours d'abri avant l'annonce", minval = 1, maxval = 10, group = "Les organes de la G9")
 
 // ------------------------------------------------------ Période de backtest
 startDate = input.time(timestamp("1 Jan 2010 00:00 +0000"), "Début", group = "Période de backtest")
@@ -854,6 +856,10 @@ abeillesAlerte = ready and rucheMoy > 0 and ruche > 1.4 * rucheMoy
 // Un sol plein de mèches est un sol où les stops glissent (slippage réel).
 meches = ta.sma((high - low - math.abs(close - open)) / math.max(high - low, syminfo.mintick), 50)
 solTraitre = meches > 0.55
+// LES SAISONS — la nuit des résultats : la date de la prochaine annonce
+// est fournie par TradingView (actions seulement, na ailleurs).
+prochaineAnnonce = earnings.future_time
+abriSaison = saisonsOn and not na(prochaineAnnonce) and prochaineAnnonce >= time and prochaineAnnonce - time <= joursAbri * 86400000
 
 // ============================================================================
 // TENDANCE DE FOND : ON NE CHASSE JAMAIS CONTRE LA DÉRIVE LONGUE DE L'ACTIF
@@ -876,6 +882,7 @@ fCible := pacteAbri ? 0.0 : fCible
 fCible := fourmisOn and fourmisAlerte ? fCible * 0.7 : fCible
 fCible := abeillesOn and abeillesAlerte ? fCible * 0.7 : fCible
 fCible := immAcqOn ? fCible * immAcqF : fCible
+fCible := abriSaison ? 0.0 : fCible
 
 // ============================================================================
 // CORRECTION : RÉÉQUILIBRAGE AVEC ZONE MORTE ET RESPIRATION
@@ -1002,8 +1009,8 @@ eauTxt = str.tostring(swapAnnuel, "#.#") + " %/an · coût cumulé " + str.tostr
 eauCol = eauCum > 0.2 * math.max(strategy.netprofit, 1.0) ? color.new(color.orange, 75) : color.new(color.gray, 85)
 miroirTxt = "présent " + str.tostring(100 * retPresent, "#.#") + " % / fenêtre · rythme historique " + str.tostring(100 * retRythme, "#.#") + " %" + (decroche ? " ⚠ DÉCROCHAGE" : " ✓ cohérent")
 miroirCol = decroche ? color.new(color.red, 70) : color.new(color.teal, 82)
-essaimTxt = "fourmis " + (fourmisAlerte ? "⚡ orage" : "calmes") + (fourmisOn ? "" : " (obs.)") + " · abeilles " + (abeillesAlerte ? "⚡ tempête" : "calmes") + (abeillesOn ? "" : " (obs.)") + " · sol " + (solTraitre ? "traître" : "sain") + " · anticorps " + str.tostring(anticorps, "#.#") + (immAcqOn ? " (armés)" : " (obs.)")
-essaimCol = fourmisAlerte or abeillesAlerte or solTraitre ? color.new(color.orange, 75) : color.new(color.gray, 85)
+essaimTxt = "fourmis " + (fourmisAlerte ? "⚡ orage" : "calmes") + (fourmisOn ? "" : " (obs.)") + " · abeilles " + (abeillesAlerte ? "⚡ tempête" : "calmes") + (abeillesOn ? "" : " (obs.)") + " · sol " + (solTraitre ? "traître" : "sain") + " · anticorps " + str.tostring(anticorps, "#.#") + (immAcqOn ? " (armés)" : " (obs.)") + (saisonsOn and not na(prochaineAnnonce) ? (abriSaison ? " · saison : ABRI (annonce proche)" : " · saison calme") : "")
+essaimCol = fourmisAlerte or abeillesAlerte or solTraitre or abriSaison ? color.new(color.orange, 75) : color.new(color.gray, 85)
 
 // En mode compact, les vingt lignes de savanes sont toutes redirigées vers
 // la ligne 33, où l'en-tête (écrit en dernier) les recouvre : repliées.
@@ -1161,6 +1168,7 @@ alertcondition(sig16 > 0 and sig16[1] <= 0, "Roi : le Vautour descend", "Effondr
 alertcondition(fourmisAlerte and not fourmisAlerte[1], "Roi : les fourmis sentent l'orage", "Le bruit court dépasse 1,5 fois le bruit de fond : un choc approche statistiquement")
 alertcondition(abeillesAlerte and not abeillesAlerte[1], "Roi : les abeilles fuient la ruche", "Tempête systémique : les vingt savanes tremblent ensemble, la diversification meurt")
 alertcondition(decroche and not decroche[1], "Roi : le miroir décroche", "Le présent ne tient plus la promesse du passé : convoquer le conseil, geler toute montée en charge")
+alertcondition(abriSaison and not abriSaison[1], "Roi : la saison des annonces", "Annonce de résultats imminente : la colonie se met à l'abri jusqu'au lendemain de la nuit dangereuse")
 
 // ============================================================================
 // CORRECTIONS DE POUSSÉE (les 2 seules lignes indentées, fin du fichier)
