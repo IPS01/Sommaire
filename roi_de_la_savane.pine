@@ -252,7 +252,7 @@ hierarchie = input.float(2.0, "Part du lion (hiérarchie de la meute)", minval =
 proieMin = input.float(0.2, "Proie minimale (conviction requise pour charger)", minval = 0.0, maxval = 0.8, step = 0.05, group = "La meute (le lion)", tooltip = "Le lion ne grignote pas : en dessous de cette conviction collective, la meute reste à l'affût sans dépenser un centime de frais. Au-dessus, elle charge. 0 = désactivé.")
 
 // ------------------------------------------- La savane locale (le territoire)
-savaneMin = input.float(0.8, "Savane propice à partir d'un score de", minval = 0.0, maxval = 3.0, step = 0.1, group = "La savane (le territoire)", tooltip = "Score = |tendance 252 bougies| / volatilité annualisée. En dessous, la savane locale est déclarée stérile : aucune chasse, et le tableau désigne la meilleure migration parmi les dix savanes surveillées. 0 = jauge désactivée.")
+savaneMin = input.float(0.6, "Savane propice à partir d'un score de", minval = 0.0, maxval = 3.0, step = 0.1, group = "La savane (le territoire)", tooltip = "Score = |tendance 252 bougies| / volatilité annualisée. En dessous, la savane locale est déclarée stérile : aucune chasse, et le tableau désigne la meilleure migration parmi les dix savanes surveillées. 0 = jauge désactivée.")
 wEnt = input.int(96, "Fenêtre d'entropie de Shannon (bougies)", minval = 40, maxval = 300, group = "La savane (le territoire)")
 entMax = input.float(0.995, "Entropie maximale tolérée (1 = jauge désactivée)", minval = 0.80, maxval = 1.0, step = 0.005, group = "La savane (le territoire)", tooltip = "Désordre de la séquence des hausses/baisses. Le hasard pur mesure ~0.982 sur 96 bougies ; au-dessus du seuil, la savane est statistiquement du bruit : le roi ne chasse pas dedans.")
 
@@ -2074,7 +2074,7 @@ if doMoins
 // guerJours            | 750          | 500          | 500
 // hierarchie           | 1            | 2            | 2
 // proieMin             | 0.30         | 0.25         | 0.20
-// savaneMin            | 1.0          | 0.9          | 0.8
+// savaneMin            | 1.0          | 0.9          | 0.6
 // respire              | 8            | 5            | 5
 // rebalPct             | 33           | 25           | 25
 // contMax              | 30 %         | 40 %         | 50 %
