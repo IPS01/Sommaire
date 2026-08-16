@@ -2157,3 +2157,849 @@ if doMoins
 // Ainsi s'achève la charte du Roi de la Savane. Le reste appartient
 // au réel — seul tribunal, seul juge, seul maître après le souverain.
 // ============================================================================
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XIV — LES RÉGLAGES PAR TERRITOIRE (la carte d'état-major)
+// ============================================================================
+// ============================================================================
+//
+// AVERTISSEMENT DU NATURALISTE, à lire avant le tableau : seuls deux
+// territoires sont VALIDÉS par des backtests mesurés — l'or en journalier
+// et NVDA en hebdomadaire. Tout le reste est un point de départ raisonné
+// d'après le caractère de chaque savane (sa volatilité, sa dérive
+// structurelle, son péage réel), jamais une promesse. On ne grave un
+// réglage qu'après SON backtest complet : profit factor supérieur à 1,5
+// et creux maximal inférieur ou égal à 30 % sur tout l'historique.
+// Et l'on se méfie du piège numéro 7 : vingt réglages sur-sculptés
+// valent moins qu'un profil robuste par famille.
+//
+// LA BASE COMMUNE (identique sur toutes les colonies) :
+//   mémoire de la forme 63 · bonus de niche 0,5 · part du lion 2 ·
+//   proie minimale 0,2 · savane propice 0,6 · entropie max 0,995 ·
+//   borne mortelle 30 % · guérison 500 jours · plancher 50 % ·
+//   choc 4 écarts-types / convalescence 10 · frais = ceux de VOTRE
+//   courtier (c'est la seule case qui rend la sélection honnête).
+//
+// LE TABLEAU (unité de temps · vol. cible · expo max · respiration) :
+//
+//   XAUUSD (or) — VALIDÉ .......... 1D · 25 · 3   · 5
+//   XAUUSD (or) — VALIDÉ .......... 1W · 25 · 3   · 2
+//   XAGUSD (argent) ............... 1D · 18 · 2   · 5
+//   XPTUSD (platine) .............. 1D · 18 · 2   · 5
+//   XPDUSD (palladium) ............ 1D · 10 · 1,5 · 5
+//   NVDA / actions — VALIDÉ ....... 1W · 25 · 2   · 2
+//   SPX / NDX (indices) ........... 1D · 20 · 2   · 5
+//   USDJPY, EURJPY (paires yen) ... 1W · 15 · 3   · 2
+//   AUDUSD, NZDUSD, USDCAD, USDCHF  1D · 15 · 3   · 5
+//   BTCUSD / ETHUSD (volcans) ..... 1W · 15 · 1,5 · 2
+//   USOIL / UKOIL (pétrole) ....... 1D · 15 · 2   · 5
+//   EURUSD, GBPUSD, EURGBP ........ AUCUNE COLONIE (deux morts mesurées)
+//   DXY ........................... baromètre de l'Aigle, pas un terrain
+//
+// LES CASES À COCHER PAR FAMILLE :
+//   Actions et indices — respect de la dérive OUI (les shorts y sont un
+//     piège structurel) ; armer les SAISONS sur les actions individuelles
+//     (abri 3 jours avant chaque annonce) ; contrariennes max 40 %.
+//   Métaux, devises, pétrole — respect de la dérive OUI aussi : ce
+//     filtre n'interdit pas les shorts, il les autorise seulement quand
+//     la tendance de fond est baissière — c'est un filtre intelligent.
+//     Contrariennes 50 %. Saisons sans objet (pas d'annonces).
+//   Crypto — tout au minimum, et le plancher de survie REMONTÉ à 60 % :
+//     un volcan mérite une sortie plus précoce que la moyenne.
+//   L'eau (swap annuel indicatif) — or/argent 2-4 %, devises 0,5-2 %,
+//     actions/indices CFD 3-5 %, crypto 5-15 %. Mettez les chiffres
+//     exacts de votre courtier, pas ceux-ci.
+//
+// LES TROIS RÈGLES QUI DOMINENT LE TABLEAU :
+//   1. RESPIRATION 5 EN JOURNALIER, 2 EN HEBDOMADAIRE. Leçon payée
+//      -5 184 en simulation : cinq SEMAINES sans pouvoir dégonfler une
+//      position à levier dans un krach, c'est la mort ; cinq JOURS, ça
+//      va. La respiration se mesure en temps réel, pas en bougies.
+//   2. VÉRIFIER LE LEVIER AFFICHÉ après chaque installation (ligne
+//      « Volatilité réalisée → levier ») : sous ×3 partout, sous ×1,5
+//      sur crypto et palladium. Un levier anormal = un réglage a dérivé.
+//   3. LE PROTOCOLE D'OCCUPATION : backtest complet → PF > 1,5 et creux
+//      ≤ 30 % exigés → alertes → paper trading 4-8 semaines → colonie.
+//      Ce tableau donne le point de départ de l'examen, pas son résultat.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XV — LES ORGANES DE LA GÉNÉRATION 9 (le corps complet)
+// ============================================================================
+// ============================================================================
+//
+// La G9 a ajouté six organes. AUCUN ne modifie le moteur par défaut :
+// l'eau, le miroir et les termites ne font qu'afficher ; les fourmis,
+// les abeilles, les anticorps et les saisons n'agissent que si le
+// souverain les ARME par leurs cases à cocher. La garantie est
+// structurelle : décochés, ces organes multiplient l'exposition par 1.
+//
+// L'EAU — LE LOYER DU LEVIER
+//   Toute force empruntée se paie chaque nuit : le swap. Le backtest
+//   TradingView ne le compte pas ; l'eau le comptabilise en continu
+//   (exposition × taux annuel × durée réelle de la bougie) et affiche
+//   le PROFIT APRÈS EAU — le seul chiffre honnête pour une stratégie
+//   à levier. Si le coût cumulé dépasse 20 % du profit, la ligne
+//   passe à l'orange : la colonie boit plus qu'elle ne mange.
+//
+// LE MIROIR — LE PRÉSENT CONTRE LE PASSÉ
+//   Le seul organe qui surveille l'organisme lui-même. Il compare le
+//   gain de la fenêtre récente (126 bougies par défaut) au rythme
+//   moyen de toute l'histoire, fenêtre pour fenêtre. Tant que le
+//   présent tient la promesse du passé : « ✓ cohérent ». S'il décroche
+//   de plus de 10 points : « ⚠ DÉCROCHAGE » et alerte — c'est le
+//   signal que le monde a changé plus vite que l'évolution interne,
+//   celui qui commande de geler toute montée en charge et de convoquer
+//   le conseil. Un backtest est une promesse ; le miroir vérifie
+//   qu'elle est tenue, semaine après semaine.
+//
+// L'IMMUNITÉ ACQUISE — LES ANTICORPS
+//   Le bouclier réflexe oublie tout après dix bougies. Les anticorps,
+//   non : chaque choc laisse une trace qui s'estompe à demi-vie d'un
+//   an. Trois chocs récents = un organisme durablement plus prudent,
+//   comme le vivant après une maladie. Armée, l'immunité divise
+//   l'exposition jusqu'à 2 au maximum ; désarmée, elle compte et
+//   affiche, pour que le souverain sache dans quel monde il règne.
+//
+// L'ESSAIM — LES INSECTES SENTINELLES
+//   Les insectes ne chassent jamais : les frais tueraient tout
+//   insecte-chasseur (leçon du désert, payée deux fois). Ils écoutent
+//   le sol, gratuitement, et préviennent la colonie :
+//   LES FOURMIS sentent l'orage : quand le bruit des 10 dernières
+//     bougies dépasse 1,5 fois le bruit de fond des 100 dernières,
+//     un choc approche statistiquement — la volatilité s'agite avant
+//     de frapper. Armées : -30 % d'exposition le temps de l'orage.
+//   LES ABEILLES surveillent la ruche entière : quand la volatilité
+//     moyenne des VINGT savanes dépasse 1,4 fois sa normale annuelle,
+//     la tempête est mondiale (2008, 2020) et la diversification meurt
+//     au moment où l'on en a besoin. Armées : -30 % partout.
+//   LES TERMITES goûtent le sol : la proportion de mèches dans les
+//     bougies. Un sol plein de mèches est un sol où les stops glissent
+//     — le slippage réel y dépasse le slippage simulé. Affichage
+//     seulement : « sol sain » ou « sol traître ».
+//
+// LES SAISONS — LA NUIT DES RÉSULTATS
+//   Sur les actions, la nuit d'une annonce trimestrielle est un saut
+//   de ±10 % que nul instinct ne peut prévoir : ce n'est pas de la
+//   chasse, c'est une loterie. Armées, les saisons mettent la colonie
+//   à l'abri N jours avant chaque annonce (date lue par TradingView).
+//   Limites honnêtes : sans effet sur devises, métaux et indices (pas
+//   d'annonces) ; sans effet sur le backtest (seule la PROCHAINE date
+//   est connue) — c'est un organe pour le paper trading et le réel,
+//   précisément là où les gaps font mal.
+//
+// LE BASCULEMENT — LA COURONNE DES SAVANES
+//   La migration conseillée ne clignote plus : un territoire ne prend
+//   la couronne que si son score dépasse de 15 % celui du tenant du
+//   titre (hystérésis). Chaque passage de couronne déclenche l'alerte
+//   « BASCULEMENT de migration » : la carte du monde vient au
+//   souverain, il n'a plus à la surveiller.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XVI — L'ALBATROS ET LA LOI DU PORTAGE (la 17e espèce)
+// ============================================================================
+// ============================================================================
+//
+// POURQUOI LES DEVISES RÉSISTAIENT À LA MEUTE
+//   Une action monte parce qu'une entreprise crée de la valeur. L'or
+//   monte parce que la monnaie s'érode. Mais une paire de devises est
+//   un RAPPORT entre deux monnaies : aucune dérive structurelle,
+//   aucune marée de fond garantie — un tir à la corde perpétuel,
+//   arbitré par les plus grosses banques du monde à la microseconde.
+//   La tendance y est rare et le retour à la moyenne y est déjà
+//   dévoré. Nos seize espèces n'avaient que ces deux métiers-là :
+//   c'est pourquoi EURUSD a tué deux configurations (l'hyperactive de
+//   G6, le guépard de G9) — le style de chasse ne crée pas la proie.
+//
+// LE SEUL GIBIER PROUVÉ : LE PORTAGE (CARRY)
+//   Il existe pourtant UN avantage documenté sur un siècle dans les
+//   devises : détenir la monnaie qui PAIE le plus d'intérêts contre
+//   celle qui en paie le moins. Qui est long AUDJPY quand les taux
+//   australiens paient 4 % et les taux japonais 0,3 % encaisse ~3,7 %
+//   par an EN DORMANT — le salaire du portage, versé par le
+//   différentiel de taux, indépendamment de la direction du prix.
+//   C'est le métier historique des devises, celui des grandes banques
+//   et des fonds macro. Il a ses hivers (les paniques, où tout le
+//   monde fuit vers le yen et le franc suisse en massacrant les
+//   porteurs), mais sur la durée, il paie.
+//
+// L'INSTINCT DE L'ALBATROS
+//   L'oiseau qui plane des années sans battre des ailes : le portage
+//   incarné. Son instinct lit les TAUX À DEUX ANS des deux monnaies de
+//   la paire affichée (huit flux surveillés : USD via US02Y, EUR via
+//   DE02Y — le Bund allemand, référence de la zone euro —, JPY, GBP,
+//   AUD, CAD, CHF, NZD) :
+//     portage = taux de la monnaie de base − taux de la monnaie cotée
+//     signal  = borner( portage / 2 points, ±1 )
+//   Deux points de différentiel = conviction pleine. Le signal est
+//   LENT par nature : les banques centrales bougent par trimestres —
+//   l'Albatros tient ses positions des mois, quasi sans frais de
+//   retournement. Sur un territoire non-devise, il dort : signal nul,
+//   poids nul, AUCUN effet — les victoires validées restent intactes.
+//
+// POURQUOI IL EST FOSSILE, ET POURQUOI LA SÉLECTION LE SURVEILLE
+//   Son design ne mute pas : le portage est le portage, il n'y a pas
+//   de rythme à faire évoluer. Mais sa forme est jugée comme les
+//   autres : dans les hivers du carry (2008 : -30 % pour les paniers
+//   de portage), ses gains virtuels s'effondrent et la meute lui coupe
+//   les vivres automatiquement. Le plafond des contrariennes ne le
+//   concerne pas : il est rangé chez les suiveuses, car le portage EST
+//   une tendance de fond — celle des politiques monétaires.
+//
+// COMMENT LE VOIR TRAVAILLER
+//   Ouvrez USDJPY ou EURJPY : la ligne « Fossile — Albatros (portage
+//   2 ans) » affiche le différentiel en points et son cap. Sur l'or ou
+//   NVDA : « — dort (pas une devise) ». S'il devient l'alpha sur une
+//   paire, la ligne du lion affichera « Albatros 252b — il mange le
+//   premier » : ce jour-là, la savane des devises aura trouvé son roi.
+//
+// LE PROGRAMME D'ESSAIS FOREX (dans l'ordre des chances) :
+//   1. USDJPY 1W puis EURJPY 1W — portage historiquement énorme sur
+//      les paires yen, vraies tendances de régime. Vol cible 15,
+//      respiration 2, expo max 3.
+//   2. AUDUSD 1D — portage moyen, bruit modéré.
+//   3. EURUSD — reste banni. Même l'Albatros n'y trouve qu'un petit
+//      différentiel ; deux morts suffisent, on ne laboure pas un
+//      cimetière une troisième fois.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XVII — CHRONIQUES DE LA GÉNÉRATION 9 (les morts qui enseignent)
+// ============================================================================
+// ============================================================================
+//
+// CHRONIQUE DU GUÉPARD D'EURUSD — LE STYLE NE CRÉE PAS LA PROIE
+//   Hypothèse du souverain : « chasser EURUSD comme le guépard —
+//   vite, tourner à droite puis à gauche, bondir, suivre jusqu'à
+//   l'épuisement de la proie ». Traduction en réglages : respiration
+//   2, proie minimale 0,10, mémoire 25, contrariennes 60 %, frais
+//   réels 0,02, filtre de dérive coupé. Verdict de l'arène : profit
+//   factor 0,1, 14,3 % de réussite, -25 %. L'autopsie a révélé trois
+//   causes : un score de savane de 0,08 (presque rien à manger), une
+//   entropie de 99,2 % (séquence indiscernable d'une pièce de
+//   monnaie), et un levier monté à ×10 par le ciblage de volatilité
+//   sur un actif quasi immobile. Leçon gravée : on peut donner à la
+//   colonie les pattes du guépard — si la savane est un désert
+//   statistique, on obtient seulement un guépard qui meurt plus vite.
+//   Le coût de cette leçon : zéro, car elle fut payée en simulation.
+//   C'est exactement à ça que sert la méthode.
+//
+// CHRONIQUE DE L'OR EN HEBDOMADAIRE — LA RESPIRATION QUI TUE
+//   Le même territoire qui avait donné +230 % a rendu -5 184 (-52 %,
+//   plancher franchi, extinction) avec UNE différence : la volatilité
+//   cible poussée vers 60 % (« les lots ×10 »), soit un levier de
+//   ×2,7 sur l'or. Pendant la chute de 5 500 à 4 000, la position ne
+//   pouvait être dégonflée qu'à la respiration — toutes les CINQ
+//   SEMAINES en hebdomadaire. -27 % de chute × 2,7 de levier, encaissés
+//   plus vite que la torpeur ne pouvait freiner. Deux leçons gravées :
+//   la respiration se mesure en temps réel, pas en bougies (5 jours en
+//   1D = bien ; 5 semaines en 1W = mortel → respiration 2 en 1W) ; et
+//   la crête de Kelly n'est pas une opinion — mêmes lois, même
+//   territoire, même tendance, et la seule différence entre +230 % et
+//   la ruine est la taille des bouchées. Le plancher de survie, lui, a
+//   fait son travail : -52 % au lieu du -99,97 % de NVIDIA autrefois.
+//
+// CHRONIQUE DU TABLEAU COUPÉ — L'ERGONOMIE EST UN ORGANE
+//   Sur téléphone, les nouvelles espèces de la G8 étaient invisibles :
+//   empilées sous les savanes, hors écran. Le souverain a demandé
+//   « où sont les autres espèces ? » — et il avait raison : une
+//   information qu'on ne peut pas voir n'existe pas. Réponse : la
+//   meute regroupée en tête (familles puis rythme croissant), l'Homme
+//   au-dessus des savanes, et le mode « tableau compact » qui replie
+//   les vingt savanes en gardant la migration visible. Leçon : le
+//   poste de commandement se conçoit pour l'écran du roi, pas pour
+//   celui de l'ingénieur.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XVIII — LE ROYAUME : UN GRAPHIQUE = UNE SAVANE = UNE COLONIE
+// ============================================================================
+// ============================================================================
+//
+// LA QUESTION LÉGITIME DU SOUVERAIN
+//   « Quel est l'intérêt d'avoir des savanes si rien ne se fait tout
+//   seul ? » Réponse : le vrai modèle d'automatisation n'est PAS une
+//   colonie qui déménage — c'est PLUSIEURS colonies postées en
+//   permanence, qui s'activent toutes seules. La nature ne téléporte
+//   pas les lions : elle couvre le territoire de prédateurs, et chaque
+//   poste chasse quand son terrain nourrit.
+//
+// L'ARCHITECTURE DU ROYAUME
+//   1. UN GRAPHIQUE PAR TERRITOIRE VALIDÉ, le script posé dessus.
+//      Chaque colonie évolue selon SON territoire : sur l'or l'Ours ou
+//      l'Éléphant régnera, sur NVDA la Baleine, sur USDJPY peut-être
+//      l'Albatros — des populations isolées qui divergent, comme les
+//      pinsons de Darwin sur leurs îles.
+//   2. CHAQUE COLONIE S'AUTO-PILOTE : savane grasse → elle chasse ;
+//      stérile → exposition zéro, zéro frais, elle dort. Le
+//      basculement automatique existe déjà — réparti dans l'espace au
+//      lieu d'être un déménagement dans le temps.
+//   3. LES ALERTES PAR COLONIE (le trio minimal) : « la meute
+//      charge », « la savane devient stérile », « BASCULEMENT de
+//      migration ». Le téléphone du souverain devient le poste de
+//      commandement du royaume entier.
+//   4. LE CAPITAL : un tiers par colonie validée, alloué par parité de
+//      douleur (l'inverse du creux maximal — Annexe VII). C'est LA
+//      décision humaine, et elle doit le rester : l'allocation est le
+//      métier du souverain (Loi XVI).
+//
+// CE QUE TRADINGVIEW INTERDIT (l'honnêteté due au roi)
+//   Une stratégie Pine ne peut passer d'ordres QUE sur le symbole du
+//   graphique affiché. Aucun code au monde ne contourne cette règle.
+//   La « migration automatique » d'une colonie unique est donc
+//   impossible — et c'est pourquoi le royaume se construit en
+//   plusieurs postes plutôt qu'en un poste voyageur. La seule action
+//   qui restera toujours humaine : changer le symbole d'un graphique
+//   (30 secondes) pour fonder ou visiter une colonie.
+//
+// LA RÈGLE DE FER : ON NE POSTE PAS VINGT COLONIES
+//   Des colonies UNIQUEMENT sur les territoires validés par backtest.
+//   Les autres savanes restent ce qu'elles doivent être : des
+//   territoires SURVEILLÉS par le tableau — la carte des futurs
+//   postes. Quand un territoire non occupé reste « ✓ grasse »
+//   plusieurs mois (la persistance, Annexe V), l'alerte de basculement
+//   le désigne, le backtest l'examine, et s'il passe, on y fonde la
+//   colonie suivante. Poster une colonie sur un territoire non validé,
+//   c'est envoyer des soldats dans un désert parce qu'il existe.
+//
+// LE CIRCUIT COMPLET, UNE FOIS INSTALLÉ
+//   La savane locale meurt → alerte « stérile » → un territoire prend
+//   la couronne → alerte « BASCULEMENT » → le souverain lit, décide,
+//   éventuellement fonde → la colonie se réveille seule → alertes de
+//   chasse. La part humaine : deux notifications lues, un symbole
+//   tapé, dix minutes de carnet par semaine. Tout le reste — jauger,
+//   doser, s'abriter, muter, survivre — est dans la machine.
+//
+// L'ÉTAPE D'APRÈS (pour mémoire, pas pour maintenant)
+//   Les alertes TradingView savent envoyer des webhooks vers un pont
+//   d'exécution broker : chaque ordre du script porte déjà son
+//   alert_message prêt pour ça. C'est la voie de l'automatisation
+//   intégrale — réservée à une stratégie qui a survécu au paper
+//   trading. On ne branche pas le pilote automatique sur un avion
+//   qu'on n'a pas fini de tester.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XIX — LES DIX-HUIT ALERTES, UNE PAR UNE
+// ============================================================================
+// ============================================================================
+//
+// Créer une alerte : graphique → cloche → condition « Roi de la
+// Savane » → choisir la condition → « Toutes les X » → notification
+// mobile. Les dix-huit sentinelles :
+//
+//  1. POUSSÉE HAUSSIÈRE — la colonie augmente son exposition. Info.
+//  2. POUSSÉE BAISSIÈRE — elle réduit ou inverse. Info.
+//  3. NAISSANCE D'UNE ESPÈCE — une lignée est morte de faim, son
+//     enfant muté la remplace. Comptage au carnet.
+//  4. CHOC IMMUNITAIRE — mouvement > 4 écarts-types, bouclier levé.
+//     Vérifier les nouvelles du monde ce jour-là.
+//  5. LA SAVANE REDEVIENT PROPICE — le territoire rouvre. Si aucune
+//     colonie n'y est postée, noter la date (persistance).
+//  6. LA SAVANE DEVIENT STÉRILE — le territoire se referme. La
+//     colonie passera à l'affût seule ; rien à faire.
+//  7. TORPEUR PROFONDE — perte > moitié de la borne. Le soin est en
+//     cours : NE PAS INTERVENIR (piège n° 1).
+//  8. HIBERNATION — borne mortelle atteinte, tout est à l'abri,
+//     guérison en cours. Relire l'Annexe IV avant de toucher à quoi
+//     que ce soit.
+//  9. EXTINCTION DÉFINITIVE — plancher franchi. La colonie est morte
+//     pour toujours sur ce territoire : autopsie au carnet, leçon,
+//     et c'est la seule alerte qui autorise un démontage.
+// 10. LA MEUTE CHARGE — la conviction dépasse la proie minimale.
+// 11. RETOUR À L'AFFÛT — la conviction retombe. Les deux ensemble
+//     donnent le pouls de la colonie sans ouvrir l'appli.
+// 12. FESTIN DE LA HYÈNE — capitulation détectée (1,5-3 σ sous le
+//     sommet 20). Les charognards entrent.
+// 13. LE VAUTOUR DESCEND — effondrement profond (2,5-4,5 σ sous le
+//     sommet 40) : les grands charniers. Rare et précieux.
+// 14. LES FOURMIS SENTENT L'ORAGE — le bruit court dépasse 1,5 × le
+//     bruit de fond : un choc approche statistiquement.
+// 15. LES ABEILLES FUIENT LA RUCHE — tempête systémique : les vingt
+//     savanes tremblent ensemble. Le jour où celle-ci sonne, relire
+//     la Loi XIV et vérifier TOUTES les colonies.
+// 16. LE MIROIR DÉCROCHE — le présent ne tient plus la promesse du
+//     passé. Geler toute montée en charge, convoquer le conseil.
+// 17. LA SAISON DES ANNONCES — résultats imminents (actions) : la
+//     colonie s'abrite jusqu'au lendemain de la nuit dangereuse.
+// 18. BASCULEMENT DE MIGRATION — un nouveau territoire prend la
+//     couronne (score > 115 % du tenant). La carte du monde a bougé :
+//     lire le tableau, décider en souverain.
+//
+// LE TRIO MINIMAL par colonie si l'on ne veut que trois cloches :
+// n° 10 (la meute charge), n° 6 (savane stérile), n° 18 (basculement).
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XX — LEXIQUE COMPLET DE LA GÉNÉRATION 9
+// ============================================================================
+// ============================================================================
+//
+//   ALBATROS — 17e espèce, fossile : le portage des devises. Lit les
+//     taux 2 ans des deux monnaies de la paire, plane dans le sens du
+//     différentiel. Dort hors devises.
+//   ANTICORPS — mémoire des chocs à demi-vie d'un an : la prudence
+//     durable après une série de traumatismes (immunité acquise).
+//   BASCULEMENT — passage de couronne entre savanes : la migration
+//     conseillée ne change que si le prétendant dépasse le tenant de
+//     15 %. Alerte n° 18.
+//   CONVICTION — mouvement du prix rapporté au bruit, borné à ±100 %.
+//   DÉCROCHAGE — verdict du miroir quand le gain récent est inférieur
+//     de plus de 10 points au rythme historique par fenêtre égale.
+//   EAU — le loyer du levier (swap), comptabilisé en continu ; le
+//     profit APRÈS eau est le seul chiffre honnête d'une stratégie à
+//     levier.
+//   ENTROPIE DE SHANNON — désordre de la séquence des hausses/baisses;
+//     ~0,982 = pièce de monnaie parfaite sur 96 bougies. Au-dessus du
+//     seuil, le territoire est du bruit : on ne chasse pas dedans.
+//   ESSAIM — les capteurs sans frais : fourmis (orage micro), abeilles
+//     (tempête systémique), termites (santé du sol).
+//   FORME — moyenne exponentielle des gains virtuels d'une espèce,
+//     frais déduits ; sa vigueur, qui s'estompe à demi-vie réglable.
+//   FOSSILE — espèce au design parfait, exempte de mutation : Aigle
+//     (dollar inversé), Crocodile (Donchian 55), Albatros (portage).
+//   GUÉRISON — demi-vie de la mémoire du sommet (500 jours réels) :
+//     assez lente pour enregistrer la blessure, assez rapide pour que
+//     l'organisme se réveille.
+//   HIÉRARCHIE — exposant appliqué aux formes ; à 2, l'alpha rafle une
+//     part disproportionnée : la part du lion.
+//   MIGRATION — changement de territoire, décidé par le souverain sur
+//     désignation du tableau ; 30 secondes : taper le symbole.
+//   MIROIR — l'organe d'honnêteté : le présent contre le passé.
+//   NICHE — récompense de la décorrélation : qui chasse ailleurs que
+//     la meute protège la meute.
+//   PLANCHER DE SURVIE — le point de non-retour : sous 50 % du capital
+//     initial, extinction définitive. La loi qui a borné la ruine de
+//     l'or hebdomadaire à -52 % au lieu de -100 %.
+//   PORTAGE (CARRY) — détenir la monnaie qui paie le plus d'intérêts
+//     contre celle qui en paie le moins ; le salaire des devises.
+//   PROIE MINIMALE — seuil de conviction sous lequel la meute reste à
+//     l'affût : pas de grignotage, pas de frais.
+//   RESPIRATION — rythme de correction de la position. EN TEMPS RÉEL :
+//     5 en journalier, 2 en hebdomadaire.
+//   SAISONS — l'abri automatique avant les annonces de résultats.
+//   SAVANE — un territoire de chasse : un symbole, un graphique, une
+//     colonie possible. Vingt sont notées en permanence.
+//   SCORE DE SAVANE — |tendance 252 bougies| / volatilité annualisée :
+//     ce qu'il y a à manger, rapporté au bruit à traverser.
+//   TORPEUR — réduction du métabolisme proportionnelle à la perte
+//     depuis le sommet ; hibernation à la borne mortelle.
+//   VIVANTES — les espèces au poids non nul : celles qui mangent.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XXI — LE JOURNAL DES GÉNÉRATIONS, ÉDITION COMPLÈTE
+// ============================================================================
+// ============================================================================
+//
+// G1 CONFLUENCE TOTALE — l'assemblage classique (EMA, Supertrend,
+//    RSI, ADX). Mort : marge par défaut de Pine v6, ordres rejetés en
+//    silence. A légué : margin_long/short = 5, et la méfiance envers
+//    les signaux sans exécution.
+// G2 PRÉVISION TRIGO-STATISTIQUE — régression + Fourier + score z.
+//    Mort : le péage (0,12 %) douze fois plus cher que la prévision
+//    (+0,01 %) sur les petites unités de temps. A légué : la loi du
+//    désert (rien sous 4 heures).
+// G3 MÉMOIRE ANALOGIQUE — Takens, Shannon, Kelly, les analogues de
+//    Lorenz. Mort : le collage mobile cassait les blocs. A légué : la
+//    structure sans boucles, et l'entropie de Shannon comme jauge.
+// G4 PILOTAGE CONTINU — l'exposition de Merton en boucle fermée.
+//    A légué : la position comme variable continue, jamais un pari
+//    binaire.
+// G5 TENDANCE JOURNALIÈRE — momentum temporel + ciblage de
+//    volatilité, l'anomalie prouvée sur un siècle. A légué : le cœur
+//    du moteur actuel.
+// G6 ÉCOSYSTÈME DARWINIEN — huit espèces, la sélection par le réel.
+//    Quatre ruines simulées, quatre organes : habitats
+//    (consanguinité), respiration (hyperactivité EURUSD), guérison
+//    lente + plancher + plafond des contrariennes + respect de la
+//    dérive (NVIDIA, -9 997).
+// G7 LE ROI DE LA SAVANE — la meute hiérarchisée, la proie minimale,
+//    la météo du territoire, dix savanes, la migration, les fossiles,
+//    la Hyène, le Pacte du Souverain. Victoires : or 1D +89,7 %
+//    PF 2,27 ; or 1W +230 % PF 6,5.
+// G8 LA GRANDE MEUTE — seize espèces (Panthère, Lynx, Bison, Serpent,
+//    Vautour), vingt savanes, treize alertes, les annexes. Victoire :
+//    NVDA 1W +590 % PF 19,45 — la revanche du territoire qui avait
+//    tué la G6.
+// G9 L'ÂGE DES ORGANES (ce fichier) — l'eau, le miroir, l'immunité
+//    acquise, l'essaim, les saisons, le basculement à hystérésis, et
+//    l'ALBATROS : le portage entre dans la meute, dix-sept espèces.
+//    Leçons payées en simulation : le guépard d'EURUSD (le style ne
+//    crée pas la proie), la respiration hebdomadaire (5 semaines sans
+//    dégonfler = mort), la crête de Kelly (mêmes lois, bouchées
+//    doubles, ruine). Tableau 17 espèces + 3 organes + 20 savanes,
+//    dix-huit alertes, mode compact mobile.
+//
+// LES CHIFFRES DE LA G9, pour le souverain de dans un an :
+//   Territoires validés : XAUUSD 1D (PF 2,27, +89,7 %), NVDA 1W
+//   (PF 19,45, +590 %). Territoires bannis : EURUSD (deux morts),
+//   GBPUSD et EURGBP par parenté. Candidats à l'examen : XAGUSD, SPX,
+//   USDJPY 1W, EURJPY 1W (avec l'Albatros). Creux tenus : 30 % — la
+//   borne, jamais plus, sur toutes les victoires.
+//
+// ============================================================================
+// LE MOT DE LA FIN DE LA GÉNÉRATION 9
+// ----------------------------------------------------------------------------
+// Ce fichier a commencé par « je ne veux pas ips01 » et une stratégie
+// qui ne compilait pas sur un téléphone. Il est aujourd'hui un
+// écosystème de dix-sept espèces qui chasse sur vingt territoires,
+// paie son eau, se regarde dans un miroir, garde des anticorps,
+// écoute les fourmis, s'abrite les nuits d'annonces, et sonne
+// dix-huit cloches. Chaque organe est une cicatrice ; chaque
+// cicatrice fut payée en simulation, jamais en argent réel — c'est
+// toute la différence entre apprendre et saigner. La suite appartient
+// au protocole : geler, alerter, paper-trader, puis régner par
+// paliers. Que la meute chasse bien, que l'Albatros plane haut, et
+// que le seul tribunal qui compte — le réel — trouve le royaume
+// prêt. Bonne chasse, souverain.
+// ============================================================================
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XXII — LE MANUEL D'INSTALLATION COMPLET, PAS À PAS
+// ============================================================================
+// ============================================================================
+//
+// ÉTAPE 0 — AVANT TOUT (une fois pour toutes)
+//   Sur mobile, l'éditeur Pine abîme les collages partiels : la seule
+//   méthode fiable est le collage UNIQUE dans un éditeur VIDE. Ce
+//   fichier est construit pour y survivre : aucune boucle, aucune
+//   fonction utilisateur, et les deux seules lignes indentées sont les
+//   deux dernières lignes de code. Tout ce qui suit les deux ordres
+//   finaux n'est que commentaire : même si le collage abîmait les
+//   annexes, la stratégie compilerait.
+//
+// ÉTAPE 1 — INSTALLER LE SCRIPT (5 minutes)
+//   1. TradingView → graphique → Éditeur Pine.
+//   2. Menu de l'éditeur → « Créer un nouveau script ».
+//   3. TOUT sélectionner, TOUT supprimer : l'éditeur doit être vide.
+//   4. Coller ce fichier EN UNE SEULE FOIS.
+//   5. Vérifier : un seul « //@version=6 » en tête, un seul
+//      « strategy( » dans le fichier.
+//   6. Sauvegarder (nommer « Roi de la Savane G9 »), puis « Ajouter
+//      au graphique ».
+//   7. Vérifier la dernière ligne du fichier collé : elle doit être
+//      la ligne d'ordre « Pousse- » ou, si les annexes ont suivi, une
+//      ligne de commentaire « ==== ». En cas de doute : recoller.
+//
+// ÉTAPE 2 — CHOISIR LE TERRITOIRE ET L'UNITÉ DE TEMPS
+//   Commencer par un territoire VALIDÉ : XAUUSD en 1D, ou NVDA en 1W.
+//   Consulter l'Annexe XIV pour les réglages de la famille, et
+//   TOUJOURS : respiration 5 en journalier, 2 en hebdomadaire.
+//
+// ÉTAPE 3 — RÉGLER LA COLONIE (roue dentée, 5 minutes)
+//   1. Groupe Homéostasie : volatilité cible et exposition max selon
+//      l'Annexe XIV. Vérifier ensuite la ligne « Volatilité réalisée
+//      → levier » du tableau : sous ×3, toujours.
+//   2. Groupe Sélection naturelle : frais = les VRAIS frais de votre
+//      courtier (aller-retour, spread compris).
+//   3. Groupe G9 : l'eau = le VRAI swap annuel de votre courtier.
+//      Fourmis, abeilles, anticorps : décochés pour le premier
+//      backtest (comparabilité), à armer ensuite un par un.
+//      Saisons : armées sur les actions individuelles.
+//   4. Sur mobile : cocher « Tableau compact ».
+//
+// ÉTAPE 4 — LE BACKTEST COMPLET (le tribunal)
+//   Onglet « Testeur de stratégie » : toute l'histoire disponible,
+//   SANS Replay. Les quatre chiffres du verdict :
+//     profit factor > 1,5 · creux maximal ≤ 30 % · nombre de trades
+//     raisonnable (dizaines, pas milliers) · profit APRÈS eau positif
+//     (ligne « L'eau » du tableau).
+//   Verdict favorable → étape 5. Défavorable → ce territoire n'aura
+//   pas de colonie ; consulter la migration conseillée.
+//
+// ÉTAPE 5 — LES ALERTES (10 minutes)
+//   Le trio minimal par colonie : « la meute charge », « la savane
+//   devient stérile », « BASCULEMENT de migration ». Le grand jeu :
+//   les dix-huit (Annexe XIX). Options : « Toutes les X », validité
+//   « illimitée », notification mobile.
+//
+// ÉTAPE 6 — LE PAPER TRADING (4 à 8 semaines, incompressible)
+//   La colonie vit en argent fictif, le souverain tient le carnet
+//   (Annexe IV), ne touche à RIEN. Au terme : les résultats vivants
+//   ressemblent-ils au backtest ? Le miroir dit-il « cohérent » ?
+//   Oui → étape 7. Non → la conversation reprend, et elle n'aura
+//   rien coûté.
+//
+// ÉTAPE 7 — LE RÉEL, PAR PALIERS
+//   Un quart du capital prévu le premier mois, la moitié le deuxième
+//   si le carnet est serein, le reste le troisième. Jamais d'argent
+//   dont la perte changerait votre vie. Le stop catastrophe chez le
+//   courtier (-25 % sous l'entrée, jamais touché en temps normal) est
+//   la ceinture de sécurité pour la panne d'alerte.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XXIII — L'ANATOMIE DU TABLEAU, LIGNE PAR LIGNE
+// ============================================================================
+// ============================================================================
+//
+// LIGNE 1 · ÉTAT DE L'ÉCOSYSTÈME — la phrase qui dit tout. Verte : la
+//   meute charge ou vit normalement. Orange : amorçage, affût, désert,
+//   savane stérile (avec la destination conseillée). Rouge : éteint.
+// LIGNE 2 · EXPOSITION CIBLE / RÉELLE — la poussée voulue par
+//   l'organisme et la position réellement tenue. L'écart entre les
+//   deux est le prix de la frugalité (zone morte + respiration).
+// LIGNES 4 À 20 · LES DIX-SEPT ESPÈCES — familles dans l'ordre :
+//   les huit suiveuses par rythme croissant (Panthère, Guépard, Loup,
+//   Lynx, Ours, Éléphant, Bison, Baleine), les quatre contestataires
+//   (Colibri, Serpent, Renard, Chouette), les trois fossiles (Aigle,
+//   Crocodile, Albatros), les deux charognards (Hyène, Vautour).
+//   Chaque ligne : rythme · génération · cap ▲▼ · forme en points de
+//   base · part du capital. Verte = nourrie, grise = affamée.
+//   L'Albatros affiche en plus son portage en points de taux.
+// LIGNE 21 · SYSTÈME IMMUNITAIRE — au repos, ou bouclier en
+//   convalescence (nombre de bougies restantes).
+// LIGNE 22 · ÉTAT CIVIL — naissances totales et doyenne : la santé
+//   génétique de la colonie. Des naissances qui s'emballent (g20+)
+//   signalent un territoire qui affame tout le monde.
+// LIGNE 23 · VOLATILITÉ → LEVIER — la température du terrain et la
+//   taille des bouchées. LE chiffre à vérifier après tout réglage.
+// LIGNES 24-26 · TRADES / PF / PROFIT — la comptabilité brute.
+// LIGNE 27 · TEMPÉRATURE — perte depuis le sommet mémorisé, état du
+//   métabolisme (normal, fièvre, torpeur, hibernation).
+// LIGNE 28 · TENDANCE DE FOND — la dérive 252 bougies, le droit de
+//   shorter, et la part courante des contrariennes sous leur plafond.
+// LIGNE 29 · LE LION — l'alpha du moment et sa forme. Un changement
+//   d'alpha raconte un changement de régime du marché.
+// LIGNE 30 · MÉTÉO DE LA SAVANE LOCALE — score contre minimum,
+//   entropie, verdict : propice ✓ ou stérile ✗.
+// LIGNE 31 · L'HOMME — le souverain : il laisse régner ses lois, ou
+//   il a ordonné l'abri.
+// LIGNE 32 · L'EAU — le swap réglé, le coût cumulé, le profit APRÈS
+//   eau. Orange si l'eau boit plus de 20 % du profit.
+// LIGNE 33 · LE MIROIR — présent contre rythme historique :
+//   ✓ cohérent ou ⚠ DÉCROCHAGE.
+// LIGNE 34 · L'ESSAIM — fourmis, abeilles, sol, anticorps, saison.
+//   « (obs.) » = le capteur observe sans agir (non armé).
+// LIGNE 35 · LES VINGT SAVANES (en-tête) — la migration conseillée,
+//   stabilisée par l'hystérésis du basculement.
+// LIGNES 36-55 · LES VINGT TERRITOIRES — tendance / bruit → score et
+//   verdict : ✓ grasse, ~ maigre, ✗ désert. En mode compact, ces
+//   vingt lignes se replient sous l'en-tête.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XXIV — LES LOIS NOUVELLES DE LA GÉNÉRATION 9 (XVII à XX)
+// ============================================================================
+// ============================================================================
+//
+// LOI XVII — DE L'EAU. Toute force empruntée se paie chaque nuit ;
+//   le seul profit qui compte est le profit après eau. Un royaume qui
+//   ignore le loyer de son levier se croit riche jusqu'au jour du
+//   propriétaire.
+//
+// LOI XVIII — DU MIROIR. Le royaume se regarde chaque semaine : tant
+//   que le présent tient la promesse du passé, on règne ; quand il
+//   décroche, on gèle toute montée en charge et l'on convoque le
+//   conseil. Le déni est le dernier luxe des royaumes morts.
+//
+// LOI XIX — DE LA RESPIRATION VRAIE. Le rythme de correction se
+//   mesure en temps réel, non en bougies : cinq jours protègent,
+//   cinq semaines tuent. Toute colonie hebdomadaire respire deux
+//   bougies, jamais cinq.
+//
+// LOI XX — DU PORTAGE. Dans les devises, nul ne mange durablement la
+//   tendance seule : le salaire du territoire est le différentiel des
+//   taux. Que l'Albatros plane sur toute paire, et que la sélection le
+//   juge comme les autres — car même le portage a ses hivers.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XXV — LE GRAND ORAL DE LA GÉNÉRATION 9 (questions nouvelles)
+// ============================================================================
+// ============================================================================
+//
+// « L'Albatros affiche 0 % de part sur ma paire alors que le portage
+//   est gros. Pourquoi ? »
+//   Sa PART dépend de sa FORME, pas de son signal : s'il vient de
+//   naître (début de backtest) ou si le carry vient de traverser un
+//   hiver, sa forme est basse et la meute le nourrit peu. Laissez la
+//   sélection faire : si le portage paie sur ce territoire, sa part
+//   montera d'elle-même.
+//
+// « Les fourmis sonnent souvent. C'est grave ? »
+//   Non : elles détectent les orages, et il pleut régulièrement. Non
+//   armées, elles n'agissent pas — c'est de l'information. Armées,
+//   elles coûtent un peu de gain par temps calme et en sauvent
+//   beaucoup par tempête : le backtest avec/sans tranche par
+//   territoire.
+//
+// « Le miroir dit DÉCROCHAGE après une hibernation. Bug ? »
+//   Non : pendant une hibernation, le gain récent est nul alors que
+//   le rythme historique est positif — le miroir constate, c'est son
+//   travail. Il redira « cohérent » quand la chasse aura repris. S'il
+//   décroche SANS hibernation, là, c'est le vrai signal.
+//
+// « Pourquoi le plancher est-il resté à 50 % alors que l'or 1W est
+//   mort à -52 % ? »
+//   Parce que le plancher se mesure sur le capital INITIAL et que la
+//   perte s'est étalée sur plusieurs respirations : la dernière bougie
+//   a traversé la ligne des 50 % et l'extinction a tout gelé à -52 %.
+//   Sans lui : -70 % et au-delà. Le plancher n'est pas un parachute
+//   qui évite la chute, c'est un filet qui l'arrête.
+//
+// « Je veux tester une idée de réglage. Procédure ? »
+//   Une loi à la fois, sur la version gelée, avant/après sur le MÊME
+//   historique, noté au carnet, et le changement n'est gardé que s'il
+//   améliore le profit factor ET le creux. Deux améliorations sur
+//   trois territoires valent mieux qu'une merveille sur un seul :
+//   c'est la robustesse qu'on cherche, pas le miroir du passé.
+//
+// « Combien de colonies au maximum ? »
+//   Autant que de territoires VALIDÉS et pas plus que ce que dix
+//   minutes de carnet hebdomadaire peuvent suivre. En pratique : deux
+//   aujourd'hui (or 1D, NVDA 1W), trois ou quatre à terme. Au-delà de
+//   cinq, le souverain devient le maillon faible.
+//
+// « Et si TradingView supprime les symboles de taux (US02Y...) ? »
+//   L'Albatros est protégé : ignore_invalid_symbol le fait dormir au
+//   lieu de faire planter le script. La meute continue sans lui,
+//   comme avant la G9.
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XXVI — TABLE DES MATIÈRES GÉNÉRALE DU FICHIER
+// ============================================================================
+// ============================================================================
+//
+//   EN-TÊTE ......... la théorie G9, les organes, le mode d'emploi
+//   PARAMÈTRES ...... direction · sélection · meute · savane · vingt
+//                     territoires · évolution · homéostasie ·
+//                     thermique · immunitaire · l'Homme · affichage ·
+//                     organes G9 · période
+//   LE TERRAIN ...... rendements, bruit, préparation
+//   LE GÉNOME ....... rythmes mutables, état civil
+//   LES INSTINCTS ... dix-sept signaux gradués, dont les taux 2 ans
+//                     de l'Albatros (8 flux)
+//   LA CHASSE ....... gains virtuels nets de frais, dix-sept chasseurs
+//   LA FORME ........ vigueur exponentielle
+//   LES NICHES ...... décorrélation récompensée
+//   LA MEUTE ........ part du lion, plafond des prédatrices, vote
+//   L'ÉVOLUTION ..... famine, croisement, mutation, ré-ensemencement
+//   L'IMMUNITÉ ...... bouclier réflexe + anticorps acquis
+//   L'HOMÉOSTASIE ... ciblage de volatilité en temps réel
+//   LA THERMIQUE .... torpeur, hibernation, guérison, plancher
+//   LA SAVANE ....... météo locale (score + entropie)
+//   LES VINGT SAVANES  surveillance, couronne, basculement
+//   L'ESSAIM ........ fourmis, abeilles, termites, saisons
+//   LA CHARGE ....... décision finale, toutes jauges multipliées
+//   LA CORRECTION ... rééquilibrage respiré à zone morte
+//   L'AFFICHAGE ..... fond, triangles, losanges, croix
+//   LE TABLEAU ...... 55 lignes, mode compact mobile
+//   LES ALERTES ..... dix-huit sentinelles
+//   LES ORDRES ...... les deux seules lignes indentées
+//   ANNEXES I-XIII .. l'héritage des générations 7 et 8 : portraits,
+//                     mathématiques, chroniques, carnet, savanes,
+//                     erreurs, protocole multi-colonies,
+//                     correspondance des tailles, journal, lois I-XVI,
+//                     grand oral, table G8, profils de règne
+//   ANNEXE XIV ...... les réglages par territoire (carte d'état-major)
+//   ANNEXE XV ....... les organes de la G9
+//   ANNEXE XVI ...... l'Albatros et la loi du portage
+//   ANNEXE XVII ..... chroniques de la G9 (guépard, respiration, Kelly)
+//   ANNEXE XVIII .... le royaume multi-colonies
+//   ANNEXE XIX ...... les dix-huit alertes
+//   ANNEXE XX ....... lexique complet
+//   ANNEXE XXI ...... journal des générations, édition complète
+//   ANNEXE XXII ..... manuel d'installation pas à pas
+//   ANNEXE XXIII .... anatomie du tableau ligne par ligne
+//   ANNEXE XXIV ..... les lois nouvelles XVII-XX
+//   ANNEXE XXV ...... grand oral de la G9
+//   ANNEXE XXVI ..... cette table
+//
+// ============================================================================
+// SCEAU DE LA GÉNÉRATION 9 — L'ÂGE DES ORGANES
+// ----------------------------------------------------------------------------
+// Dix-sept espèces. Vingt savanes. Six organes nouveaux. Dix-huit
+// alertes. Vingt lois. Deux territoires validés, deux bannis, quatre
+// à l'examen. Toutes les cicatrices furent payées en simulation.
+// Le code est gelé ; que l'arène juge. Bonne chasse, souverain.
+// ============================================================================
+//
+// ============================================================================
+// ============================================================================
+// ANNEXE XXVII — LE CARNET DU SOUVERAIN : MODÈLE À RECOPIER
+// ============================================================================
+// ============================================================================
+//
+// Le carnet est le dernier organe du royaume, et il vit hors du code :
+// dans un cahier, une note de téléphone, un tableur. Dix minutes par
+// semaine. Voici le modèle, à recopier tel quel.
+//
+// ---------------------------------------------------------------------------
+// FICHE HEBDOMADAIRE (une par semaine, toutes colonies)
+// ---------------------------------------------------------------------------
+//   Date : ...............  Semaine n° : ......
+//
+//   COLONIE 1 (territoire · UT) : ......................
+//     État (1re ligne du tableau) : ....................
+//     Exposition réelle : ......  Levier affiché : ×.....
+//     Température (perte/borne) : ......................
+//     Alpha (le lion) : ................................
+//     Miroir : cohérent / décrochage
+//     Essaim : fourmis ... abeilles ... sol ... saison ...
+//     Profit net / après eau : ............ / ...........
+//
+//   COLONIE 2 : (mêmes lignes)
+//   COLONIE 3 : (mêmes lignes)
+//
+//   LA CARTE DU MONDE :
+//     Migration conseillée cette semaine : ..............
+//     Territoires ✓ grasses non occupés : ...............
+//     (noter depuis combien de semaines : la persistance)
+//
+//   DÉCISIONS DE LA SEMAINE (souvent : « aucune ») : .....
+//   ÉMOTION DOMINANTE (un mot, en toute honnêteté) : .....
+//     (l'émotion notée est une émotion désamorcée — c'est
+//      elle, pas le marché, qui tue les souverains)
+//
+// ---------------------------------------------------------------------------
+// FICHE MENSUELLE (en plus, chaque fin de mois)
+// ---------------------------------------------------------------------------
+//   Profit factor du mois vs profit factor du backtest : ......
+//   Trois mois de dégradation d'affilée ? oui / non
+//     (oui → conversation, pas panique — Annexe VI, piège n° 4)
+//   Alertes TradingView toutes actives ? oui / non
+//   L'eau cumulée du mois : ......  (cohérente avec le swap réel ?)
+//
+// ---------------------------------------------------------------------------
+// FICHE TRIMESTRIELLE (la saison de règne)
+// ---------------------------------------------------------------------------
+//   Allocation entre colonies revue (parité de douleur) : ......
+//   Un territoire candidat a-t-il tenu 3 mois « ✓ grasse » ? ....
+//     → si oui : backtest d'examen, verdict : ..................
+//   Changement de profil envisagé (Annexe XIII) : ..............
+//     (rappel : on ne MONTE de profil qu'après une saison
+//      profitable, jamais après une perte)
+//   Relecture de la Chronique de NVIDIA faite ? oui / non
+//     (elle vaccine — c'est son seul rôle)
+//
+// ---------------------------------------------------------------------------
+// EXEMPLE DE FICHE REMPLIE (pour la première fois)
+// ---------------------------------------------------------------------------
+//   Date : lundi. Semaine n° 1 du paper trading.
+//   COLONIE 1 (XAUUSD · 1D) : à l'affût, proie trop maigre.
+//     Exposition 0 %. Levier ×1,1. Température 0 %. Alpha : Ours 63b.
+//     Miroir : cohérent. Essaim : tout calme, sol sain.
+//   COLONIE 2 (NVDA · 1W) : la meute charge, cap haussier.
+//     Exposition +54 %. Levier ×0,8. Température 3 %. Alpha :
+//     Baleine 180b. Saisons : calme (prochaine annonce dans 6 sem.).
+//   CARTE : migration conseillée XAGUSD (2e semaine de suite — noté).
+//   DÉCISIONS : aucune. ÉMOTION : impatience (notée, désamorcée).
+//
+// Le souverain qui tient ce carnet pendant huit semaines connaît son
+// royaume mieux que la plupart des professionnels ne connaissent le
+// leur. Celui qui ne le tient pas confie son trésor à sa mémoire —
+// et la mémoire, sous stress, est le plus menteur des conseillers.
+//
+// ============================================================================
+// FIN DU FICHIER — LE ROI DE LA SAVANE, GÉNÉRATION 9 : L'ÂGE DES ORGANES
+// Trois mille lignes : un moteur sans boucle, dix-sept espèces, vingt
+// savanes, six organes, dix-huit alertes, vingt lois, quatorze annexes
+// d'héritage et treize de génération — et pas une ligne qui n'ait été
+// payée, en simulation, par une mort ou une victoire mesurée.
+// ============================================================================
