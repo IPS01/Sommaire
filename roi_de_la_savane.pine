@@ -230,7 +230,7 @@
 // ce qui est codé ici, c'est le zéro-perte-mortelle.
 // ============================================================================
 
-strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 99, margin_long = 5, margin_short = 5, max_bars_back = 500)
+strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane", overlay = true, initial_capital = 10000, currency = currency.NONE, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 99, margin_long = 5, margin_short = 5, max_bars_back = 500)
 
 // ============================================================================
 // PARAMÈTRES
