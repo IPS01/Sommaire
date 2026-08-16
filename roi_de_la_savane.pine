@@ -836,6 +836,14 @@ sc19 = nz(vo19, 0) > 0 ? math.abs(nz(mo19, 0)) / vo19 : 0.0
 sc20 = nz(vo20, 0) > 0 ? math.abs(nz(mo20, 0)) / vo20 : 0.0
 scBest = math.max(sc1, math.max(sc2, math.max(sc3, math.max(sc4, math.max(sc5, math.max(sc6, math.max(sc7, math.max(sc8, math.max(sc9, math.max(sc10, math.max(sc11, math.max(sc12, math.max(sc13, math.max(sc14, math.max(sc15, math.max(sc16, math.max(sc17, math.max(sc18, math.max(sc19, sc20)))))))))))))))))))
 savBest = scBest == sc1 ? sym1 : scBest == sc2 ? sym2 : scBest == sc3 ? sym3 : scBest == sc4 ? sym4 : scBest == sc5 ? sym5 : scBest == sc6 ? sym6 : scBest == sc7 ? sym7 : scBest == sc8 ? sym8 : scBest == sc9 ? sym9 : scBest == sc10 ? sym10 : scBest == sc11 ? sym11 : scBest == sc12 ? sym12 : scBest == sc13 ? sym13 : scBest == sc14 ? sym14 : scBest == sc15 ? sym15 : scBest == sc16 ? sym16 : scBest == sc17 ? sym17 : scBest == sc18 ? sym18 : scBest == sc19 ? sym19 : sym20
+// LE BASCULEMENT : la cible de migration OFFICIELLE, avec hystérésis.
+// savBest clignote au gré des scores du jour ; migCible ne bascule que
+// si un territoire dépasse la cible en titre de 15 % — un vrai passage
+// de couronne, pas une humeur. Chaque basculement déclenche l'alerte.
+var string migCible = ""
+scMig = migCible == sym1 ? sc1 : migCible == sym2 ? sc2 : migCible == sym3 ? sc3 : migCible == sym4 ? sc4 : migCible == sym5 ? sc5 : migCible == sym6 ? sc6 : migCible == sym7 ? sc7 : migCible == sym8 ? sc8 : migCible == sym9 ? sc9 : migCible == sym10 ? sc10 : migCible == sym11 ? sc11 : migCible == sym12 ? sc12 : migCible == sym13 ? sc13 : migCible == sym14 ? sc14 : migCible == sym15 ? sc15 : migCible == sym16 ? sc16 : migCible == sym17 ? sc17 : migCible == sym18 ? sc18 : migCible == sym19 ? sc19 : migCible == sym20 ? sc20 : 0.0
+bascule = barstate.isconfirmed and ready and savBest != migCible and (migCible == "" or scBest > scMig * 1.15)
+migCible := bascule ? savBest : migCible
 
 // ============================================================================
 // L'ESSAIM : LES INSECTES SENTINELLES
@@ -922,7 +930,7 @@ pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.n
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
-diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : not savaneOk ? "savane locale stérile — le roi conseille de migrer vers " + savBest : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirS) < proieMin ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMin, "#") + " %)" : str.tostring(vivantes) + "/16 vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : not savaneOk ? "savane locale stérile — le roi conseille de migrer vers " + (migCible == "" ? savBest : migCible) : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirS) < proieMin ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMin, "#") + " %)" : str.tostring(vivantes) + "/16 vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = eteint ? color.new(color.red, 60) : ready and not desert and savaneOk and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
 alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle 252" : bestFit == fit10 ? "Crocodile 55" : bestFit == fit11 ? "Hyène 20" : bestFit == fit12 ? "Panthère " + str.tostring(L12) : bestFit == fit13 ? "Lynx " + str.tostring(L13) : bestFit == fit14 ? "Bison " + str.tostring(L14) : bestFit == fit15 ? "Serpent " + str.tostring(L15) : "Vautour 40") + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
 fondTxt = (fond > 0 ? "haussière ▲" : "baissière ▼") + (respectFond ? " · shorts " + (fond > 0 ? "interdits" : "autorisés") : " · filtre désactivé") + " · contrariennes " + str.tostring(wTot > 0 ? 100 * (w6 + w7 + w8) / wTot : 0, "#") + " % (max " + str.tostring(contMax, "#") + " %)"
@@ -1145,7 +1153,7 @@ table.cell(info, 1, rs20, s20t, text_size = size.small, bgcolor = sc20c)
 // L'en-tête des savanes est écrit APRÈS leurs vingt lignes : en mode
 // compact, toutes visent la ligne 33 et l'en-tête les recouvre.
 table.cell(info, 0, 33, "Les vingt savanes (tendance / bruit → score)", text_size = size.small, bgcolor = color.new(color.gray, 80))
-table.cell(info, 1, 33, (tabCompact ? "détail replié · " : "") + "migration conseillée : " + savBest, text_size = size.small, bgcolor = color.new(color.gray, 80))
+table.cell(info, 1, 33, (tabCompact ? "détail replié · " : "") + "migration conseillée : " + (migCible == "" ? savBest : migCible), text_size = size.small, bgcolor = color.new(color.gray, 80))
 
 // ============================================================================
 // LA BANQUE D'ALERTES DU SOUVERAIN — pour le paper trading et la vraie vie
@@ -1169,6 +1177,7 @@ alertcondition(fourmisAlerte and not fourmisAlerte[1], "Roi : les fourmis senten
 alertcondition(abeillesAlerte and not abeillesAlerte[1], "Roi : les abeilles fuient la ruche", "Tempête systémique : les vingt savanes tremblent ensemble, la diversification meurt")
 alertcondition(decroche and not decroche[1], "Roi : le miroir décroche", "Le présent ne tient plus la promesse du passé : convoquer le conseil, geler toute montée en charge")
 alertcondition(abriSaison and not abriSaison[1], "Roi : la saison des annonces", "Annonce de résultats imminente : la colonie se met à l'abri jusqu'au lendemain de la nuit dangereuse")
+alertcondition(bascule, "Roi : BASCULEMENT de migration", "La carte du monde a bougé : un nouveau territoire domine nettement. Ouvrez le tableau pour lire la nouvelle destination, puis changez le symbole du graphique pour y réveiller la colonie.")
 
 // ============================================================================
 // CORRECTIONS DE POUSSÉE (les 2 seules lignes indentées, fin du fichier)
