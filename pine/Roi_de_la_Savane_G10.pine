@@ -108,18 +108,27 @@ entMax = input.float(0.995, "Entropie maximale tolérée (1 = jauge désactivée
 profil = input.string("Automatique (selon la classe d'actif)", "Profil de chasse", options = ["Automatique (selon la classe d'actif)", "Actions & indices (réglage NVIDIA)", "Or & métaux", "Forex", "Manuel (mes réglages ci-dessous)"], group = "Profil de chasse", tooltip = "AUTOMATIQUE : la classe de l'actif est détectée et le profil correspondant s'applique — NVIDIA prend le profil actions, l'or le profil métaux, l'EURUSD le profil forex. Les trois autres choix forcent un profil quelle que soit la classe. MANUEL : plus aucun profil, ce sont vos réglages des groupes ci-dessous qui commandent, tous sans exception. Les réglages livrés par défaut dans ces groupes SONT le profil NVIDIA : en passant en Manuel vous partez donc de NVIDIA et vous modifiez ce que vous voulez.")
 classeMan = input.string("automatique", "Classe d'actif (forcer si la détection se trompe)", options = ["automatique", "forex", "métaux", "indices", "actions", "crypto", "énergie"], group = "Profil de chasse")
 
-// ================= LE BIP-BIP : L'ESPÈCE DU DÉSERT =================
-// Les seize autres espèces refusent de chasser quand le territoire est
-// déclaré stérile — c'est ce refus qui a fait rendre 5 000 € à seize ans de
-// forex. Le Bip-Bip n'a pas ce scrupule : ça monte il achète, ça descend il
-// vend, et il s'engage à fond dès le premier tiers d'écart-type. Quand la
-// savane se ferme, la meute se couche et lui seul continue à courir.
-// Les bornes de survie (torpeur, bouclier, plancher, ordre souverain) le
-// tiennent malgré tout : « sans restriction » n'a jamais voulu dire immortel.
-bipOn = input.bool(false, "Le Bip-Bip : chasser aussi quand la savane est stérile", group = "Le Bip-Bip (le désert)", tooltip = "Armé, le Bip-Bip devient la dix-septième espèce de la meute ET le chasseur solitaire du désert : quand le score de la savane passe sous son seuil, au lieu de tout arrêter, la colonie le laisse courir seul. Désarmé, il n'existe pas du tout — le moteur est alors rigoureusement celui des seize espèces. Les profils Forex et Or l'arment ; le profil NVIDIA le laisse au repos.")
-bipDesert = input.float(75.0, "Part d'exposition du Bip-Bip dans le désert (%)", minval = 0.0, maxval = 150.0, step = 5.0, group = "Le Bip-Bip (le désert)", tooltip = "100 % = il court dans le désert avec toute la force que l'homéostasie autorise. En dessous, il y va prudemment. Au-dessus de 100 %, il charge plus fort dans le désert que la meute en savane grasse — c'est possible, ce n'est pas conseillé.")
-bipGain = input.float(3.0, "Gain du Bip-Bip (réactivité)", minval = 1.0, maxval = 8.0, step = 0.5, group = "Le Bip-Bip (le désert)", tooltip = "Le multiplicateur de conviction avant saturation. À 3, le Bip-Bip est à fond dès que le mouvement atteint un tiers d'écart-type : il ne dose pas, il s'engage. Plus haut = plus nerveux, plus de frais, plus d'allers-retours.")
-bipLibre = input.bool(true, "Le Bip-Bip ignore le filtre de tendance de fond", group = "Le Bip-Bip (le désert)", tooltip = "Dans le désert, le Bip-Bip prend les deux sens quoi qu'en dise la tendance de l'année. C'est le sens de « sans restriction ».")
+// ================= LE DÉSERT : CHASSER QUAND MÊME =================
+// Le score de savane mesure la TENDANCE de l'année. Un actif qui fait des
+// allers-retours toute l'année score près de zéro — et c'est exactement le
+// terrain des contrariennes. Le test EURUSD l'a montré noir sur blanc :
+// savane « stérile » à 0,12, et pourtant le Renard à +2,6 pb par bougie avec
+// 74 % de la meute, les contrariennes collées à leur plafond de 85 %.
+// La proie était là. C'est la jauge de tendance qui regardait ailleurs.
+//
+// Donc : dans le désert, la MEUTE chasse — avec ses poids habituels, ceux qui
+// se nourrissent vraiment — à une fraction réglable de son exposition. Pas
+// une espèce désignée d'avance : la première mouture confiait tout au Bip-Bip
+// dès que la savane se fermait, c'est-à-dire à un momentum 3 bougies, la
+// famille dont TOUTES les espèces sont en négatif sur l'EURUSD. -52 %.
+//
+// Si aucune espèce ne se nourrit, la meute va d'elle-même à zéro (les poids
+// sont nuls) : le désert ne force personne à parier à vide.
+chasseDesert = input.bool(false, "CHASSER quand la savane est déclarée stérile", group = "Le désert (chasser quand même)", tooltip = "Le score de savane mesure la TENDANCE de l'année. Un actif qui fait des allers-retours toute l'année a un score proche de zéro — et c'est précisément le terrain où les espèces contrariennes se nourrissent le mieux. Fermer le territoire sur ce critère revient à interdire la chasse là où la proie abonde : sur l'EURUSD, le Renard affichait +2,6 pb par bougie et 74 % de la meute pendant que la colonie restait à l'abri. Cochée, la meute chasse quand même — la MEUTE, avec ses poids habituels, pas une espèce désignée d'avance — à la fraction d'exposition réglée ci-dessous.")
+bipOn = input.bool(false, "Armer le Bip-Bip (17e espèce : momentum ultra-court)", group = "Le désert (chasser quand même)", tooltip = "Le Bip-Bip est une espèce comme les autres : un génome de momentum très court qui s'engage à fond dès un tiers d'écart-type. Il concourt, il se reproduit, il meurt de faim, et il ne reçoit du capital que si sa forme est positive — comme tout le monde. Il n'a AUCUN privilège dans le désert : la première mouture lui confiait toute la colonie dès que la savane se fermait, ce qui a coûté 52 % du capital sur l'EURUSD, où le momentum court est précisément la famille qui perd. Désarmé, il n'existe pas du tout et le moteur est rigoureusement celui des seize espèces.")
+bipDesert = input.float(75.0, "Part d'exposition de la meute dans le désert (%)", minval = 0.0, maxval = 150.0, step = 5.0, group = "Le désert (chasser quand même)", tooltip = "100 % = la meute chasse dans le désert avec toute la force que l'homéostasie autorise, exactement comme en savane grasse. En dessous, elle y va prudemment. Au-dessus de 100 %, elle charge plus fort dans le désert qu'ailleurs — c'est possible, ce n'est pas conseillé.")
+bipGain = input.float(3.0, "Gain du Bip-Bip (réactivité)", minval = 1.0, maxval = 8.0, step = 0.5, group = "Le désert (chasser quand même)", tooltip = "Le multiplicateur de conviction avant saturation. À 3, le Bip-Bip est à fond dès que le mouvement atteint un tiers d'écart-type : il ne dose pas, il s'engage. Plus haut = plus nerveux, plus de frais, plus d'allers-retours.")
+bipLibre = input.bool(true, "Dans le désert, ignorer le filtre de tendance de fond", group = "Le désert (chasser quand même)", tooltip = "Un actif sans tendance annuelle n'a pas de sens privilégié : dans le désert, la meute prend les deux sens quoi qu'en dise la tendance de l'année.")
 
 // --------------------------------------------- Évolution (croisement, mutation)
 starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution (croisement + mutation)", tooltip = "Au-delà, l'espèce meurt. Son enfant naît du croisement des deux meilleures (moyenne géométrique des rythmes), muté, avec 25 % de la vigueur du champion en héritage.")
@@ -274,13 +283,14 @@ expoMaxE = pFx ? 10.0 : pMet ? 12.0 : pAct ? 10.0 : expoMax
 proieMinE = pFx ? 0.12 : pMet ? 0.20 : pAct ? 0.35 : proieMin
 fraisE = pFx ? 0.015 : pMet ? 0.04 : pAct ? 0.1 : frais
 respectFondE = pFx ? false : pMet ? false : pAct ? true : respectFond
-contMaxE = pFx ? 85.0 : pMet ? 80.0 : pAct ? 80.0 : contMax
+contMaxE = pFx ? 95.0 : pMet ? 80.0 : pAct ? 80.0 : contMax
 hierarchieE = pFx ? 3.0 : pMet ? 3.5 : pAct ? 4.0 : hierarchie
 convNormE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : convNorm
 swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : swapAnnuel
 respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : respire
 ddMaxE = pFx ? 50.0 : pMet ? 50.0 : pAct ? 50.0 : ddMax
 chocDureeE = pFx ? 1 : pMet ? 1 : pAct ? 1 : chocDuree
+chasseDesertE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : chasseDesert
 bipOnE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : bipOn
 bipDesertE = (pFx ? 100.0 : pMet ? 75.0 : pAct ? 0.0 : bipDesert) / 100
 bipGainE = pFx ? 3.5 : pMet ? 3.0 : pAct ? 3.0 : bipGain
@@ -407,10 +417,12 @@ sig12 = d12 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L12], c
 sig13 = d13 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L13], close)) / d13)) : 0.0
 sig14 = d14 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L14], close)) / d14)) : 0.0
 sig15 = d15 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L15], close)) / d15)) : 0.0
-// ---------------- LE BIP-BIP : L'ESPÈCE DU DÉSERT
+// ---------------- LE BIP-BIP : LE MOMENTUM ULTRA-COURT
 // Pas de dosage, pas de nuance : le gain multiplie la conviction avant la
 // saturation, si bien qu'un tiers d'écart-type suffit à l'engager à fond.
 // Ça monte, il achète. Ça descend, il vend. Il ne réfléchit pas, il court.
+// Une espèce parmi les autres : il ne reçoit du capital que si sa forme est
+// positive. Sur l'EURUSD elle ne l'est pas — il s'y tait, et c'est très bien.
 d17 = sdBar * math.sqrt(L17)
 sig17 = d17 > 0 ? math.max(-1.0, math.min(1.0, bipGainE * math.log(close / nz(close[L17], close)) / d17)) : 0.0
 hVautour = ta.highest(close, 40)
@@ -944,15 +956,14 @@ dirChasse = math.abs(dirUse) >= proieMinE ? dirUse : 0.0
 // désert était le premier verrou des 5 000 € en seize ans ; c'est ce verrou-là
 // que le Bip-Bip fait sauter. Les bornes de SURVIE, elles, tiennent toujours :
 // torpeur, bouclier immunitaire, plancher d'extinction, ordre souverain.
-// LE DÉSERT SE MÉRITE. Première mouture : il suffisait que le Bip-Bip soit
-// armé pour qu'on lui confie toute la colonie dès que la savane se fermait.
-// Sur l'EURUSD, la savane est stérile en permanence (score 0,12 contre un
-// seuil de 0,25) : il a donc chassé seul pendant dix ans, à x15 de levier,
-// sans jamais avoir eu à prouver qu'il savait chasser. Désormais il ne prend
-// le relais que si SA PROPRE FORME est positive — la même règle que pour
-// toutes les autres espèces. Pas de preuve, pas de capital.
-desertOn = bipOnE and ready and not savaneOk and fit17 > 0
-dirEff = desertOn ? sig17 : dirChasse
+// LE RÉGIME DÉSERT : la savane est déclarée stérile, et la meute chasse
+// quand même — réduite, mais c'est bien ELLE, avec ses poids du moment.
+// Aucune espèce n'est désignée d'avance : celles qui se nourrissent tiennent
+// la barre, celles qui jeûnent ont un poids nul. Si personne ne mange, dir
+// vaut zéro tout seul et la colonie reste à l'abri sans qu'on ait à
+// l'interdire. C'est la sélection qui décide, pas le code.
+desertOn = chasseDesertE and ready and not savaneOk
+dirEff = dirChasse
 mulDesert = desertOn ? bipDesertE : 1.0
 fCible = ready and inDate and not eteint ? dirEff * levVol * torpeur * bouclier * mulDesert : 0.0
 fCible := enableLongs or fCible < 0 ? fCible : 0.0
@@ -1000,7 +1011,7 @@ pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.n
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
-diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : desertOn ? "🏜 DÉSERT : la meute se couche, le Bip-Bip court seul (" + str.tostring(100 * bipDesertE, "#") + " % d'exposition)" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirUse) < proieMinE ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirUse), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : desertOn ? "🏜 DÉSERT : savane jugée stérile, la meute chasse quand même à " + str.tostring(100 * bipDesertE, "#") + " % — " + str.tostring(vivantes) + " espèces se nourrissent" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirUse) < proieMinE ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirUse), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = eteint ? color.new(color.red, 60) : ready and not desert and (savaneOk or desertOn) and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
 alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle " + str.tostring(lbAn) : bestFit == fit10 ? "Crocodile 55" : bestFit == fit11 ? "Hyène 20" : bestFit == fit12 ? "Panthère " + str.tostring(L12) : bestFit == fit13 ? "Lynx " + str.tostring(L13) : bestFit == fit14 ? "Bison " + str.tostring(L14) : bestFit == fit15 ? "Serpent " + str.tostring(L15) : bipOnE and bestFit == fit17 ? "Bip-Bip " + str.tostring(L17) : "Vautour 40") + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
 partCont = wTot > 0 ? 100 * (w6 + w7 + w8 + w11 + w15 + w16) / wTot : 0
@@ -1011,8 +1022,8 @@ meteoTxt = "score " + str.tostring(scoreLocal, "#.##") + " (seuil " + str.tostri
 meteoCol = savaneOk ? color.new(color.teal, 70) : color.new(color.orange, 70)
 profTxt = prof + " · classe " + classe + (legacy ? " · HÉRITAGE G9" : "") + " · seuil " + str.tostring(savaneMinE, "#.##") + " · entropie max " + str.tostring(entMaxE, "#.###") + " · vol cible " + str.tostring(targetVolE, "#") + " % · levier max ×" + str.tostring(expoMaxE, "#.#") + " · proie " + str.tostring(proieMinE, "#.##") + " · frais sél. " + str.tostring(fraisE, "#.###") + " % · lion ^" + str.tostring(hierarchieE, "#.#") + " · contrariennes " + str.tostring(contMaxE, "#") + " % · fond " + (respectFondE ? "respecté" : "libre") + " · respiration " + str.tostring(respireE) + " · borne " + str.tostring(ddMaxE, "#") + " %"
 profCol = legacy ? color.new(color.gray, 80) : pFx or pMet ? color.new(color.blue, 75) : pAct ? color.new(color.orange, 82) : color.new(color.gray, 85)
-bipTxt = not bipOnE ? "au repos — la meute des seize chasse seule, le désert reste interdit" : fit17 <= 0 and not savaneOk ? "affamé (forme " + str.tostring(10000 * fit17, "#.#") + " pb) — le désert lui reste fermé tant qu'il n'a rien prouvé" : "Bip-Bip " + str.tostring(L17) + "b g" + str.tostring(g17) + " gain ×" + str.tostring(bipGainE, "#.#") + " " + (sig17 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit17, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w17 / wTot : 0, "#") + " % de la meute · désert " + str.tostring(100 * bipDesertE, "#") + " %" + (desertOn ? " · IL COURT SEUL DANS LE DÉSERT" : " · savane grasse, il chasse avec la meute")
-bipCol = not bipOnE ? color.new(color.gray, 88) : desertOn ? color.new(color.orange, 68) : color.new(color.teal, 80)
+bipTxt = (chasseDesertE ? "désert : la meute chasse à " + str.tostring(100 * bipDesertE, "#") + " %" + (desertOn ? " — EN COURS" : " — savane grasse, pleine puissance") : "désert : chasse interdite, la colonie s'abrite") + " · Bip-Bip " + (not bipOnE ? "désarmé (16 espèces)" : str.tostring(L17) + "b g" + str.tostring(g17) + " " + (sig17 > 0 ? "▲" : "▼") + " " + str.tostring(10000 * fit17, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w17 / wTot : 0, "#") + " % de la meute")
+bipCol = desertOn ? color.new(color.orange, 68) : chasseDesertE ? color.new(color.teal, 80) : color.new(color.gray, 88)
 convTxt = "brute " + str.tostring(100 * dirS, "#.#") + " %" + (convNormE ? " → normalisée " + str.tostring(100 * dirUse, "#.#") + " % (amplitude de référence " + str.tostring(100 * convRef, "#.#") + " %)" : " (normalisation désactivée : la meute n'utilise qu'une fraction du levier autorisé)")
 convCol = convNormE ? color.new(color.teal, 80) : color.new(color.orange, 85)
 e1 = "Guépard " + str.tostring(L1) + "b g" + str.tostring(g1) + " " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
@@ -1190,7 +1201,7 @@ table.cell(info, 0, 33, "Profil de chasse", text_size = size.small, bgcolor = pr
 table.cell(info, 1, 33, profTxt, text_size = size.small, bgcolor = profCol)
 table.cell(info, 0, 34, "Conviction de la meute", text_size = size.small, bgcolor = convCol)
 table.cell(info, 1, 34, convTxt, text_size = size.small, bgcolor = convCol)
-table.cell(info, 0, 35, "Le Bip-Bip (le désert)", text_size = size.small, bgcolor = bipCol)
+table.cell(info, 0, 35, "Le désert (chasser quand même)", text_size = size.small, bgcolor = bipCol)
 table.cell(info, 1, 35, bipTxt, text_size = size.small, bgcolor = bipCol)
 table.cell(info, 0, rs1, sym1, text_size = size.small, bgcolor = sc1c)
 table.cell(info, 1, rs1, s1t, text_size = size.small, bgcolor = sc1c)
@@ -1258,8 +1269,8 @@ alertcondition(abeillesAlerte and not abeillesAlerte[1], "Roi : les abeilles fui
 alertcondition(decroche and not decroche[1], "Roi : le miroir décroche", "Le présent ne tient plus la promesse du passé : convoquer le conseil, geler toute montée en charge")
 alertcondition(srBest > 0 and srBest[1] <= 0, "Roi : une savane redevient grasse", "Au moins un territoire surveillé repasse au-dessus de son propre seuil")
 alertcondition(freinOn and freinReel < 1.0 and freinReel[1] >= 1.0, "Roi : le frein réel mord", "Le facteur de profit réalisé est passé sous 1 : la colonie est bridée. Vérifiez la commission réglée dans Propriétés.")
-alertcondition(desertOn and not desertOn[1], "Roi : le Bip-Bip entre dans le désert", "La savane est stérile : la meute se couche, le Bip-Bip chasse seul")
-alertcondition(not desertOn and desertOn[1], "Roi : le Bip-Bip rentre au clan", "La savane redevient chassable : la meute reprend la chasse")
+alertcondition(desertOn and not desertOn[1], "Roi : la meute entre dans le désert", "Savane jugée stérile : la meute chasse quand même, à exposition réduite")
+alertcondition(not desertOn and desertOn[1], "Roi : la meute sort du désert", "La savane redevient grasse : la meute reprend sa pleine exposition")
 
 // ============================================================================
 // CORRECTIONS DE POUSSÉE (les 2 seules lignes indentées, fin du fichier)

@@ -68,35 +68,37 @@ les retoucher.
 
 ---
 
-## 3. Le Bip-Bip : l'espèce du désert
+## 3. Le désert : chasser quand même
 
-Les seize autres espèces refusent de chasser quand le territoire est déclaré
-stérile. **Ce refus était le premier verrou des 5 000 € en seize ans** : sur le
-forex, le score de savane passe rarement le seuil, donc l'exposition tombait à
-zéro et y restait.
+Le score de savane mesure la **tendance de l'année**. Un actif qui fait des
+allers-retours toute l'année score près de zéro — et c'est exactement le
+terrain où les espèces **contrariennes** se nourrissent le mieux. Fermer le
+territoire sur ce critère revient à interdire la chasse là où la proie abonde.
 
-Le Bip-Bip n'a pas ce scrupule. Ça monte il achète, ça descend il vend, et le
-**gain de réactivité** (×3 à ×3,5) le fait saturer à ±1 dès un tiers
-d'écart-type : il ne dose pas, il s'engage. Il a deux rôles :
+Le test EURUSD 1D l'a montré noir sur blanc : savane déclarée « stérile » à
+0,12, et pourtant le **Renard à +2,6 pb par bougie avec 74 % de la meute**, les
+contrariennes collées à leur plafond de 85 %. Toutes les espèces de tendance en
+négatif, toutes les contrariennes en positif. La proie était là ; c'est la jauge
+de tendance qui regardait ailleurs.
 
-1. **Membre de la meute** quand la savane est grasse — il concourt, se
-   reproduit, meurt de faim et mute comme les autres.
-2. **Chasseur solitaire du désert** — quand le score passe sous le seuil, la
-   meute se couche et lui seul continue, à `bipDesert` % de l'exposition, sans
-   proie minimale et (par défaut) sans filtre de tendance de fond.
+**Donc : dans le désert, la MEUTE chasse**, avec ses poids du moment — ceux qui
+se nourrissent vraiment — à une fraction réglable de son exposition (100 % en
+forex, 75 % en métaux). Aucune espèce n'est désignée d'avance. Si personne ne se
+nourrit, les poids sont nuls, `dir` vaut zéro et la colonie s'abrite d'elle-même :
+la sélection décide, pas le code.
 
-Ce qui le tient malgré tout : **torpeur** (réduction progressive jusqu'à la
-borne mortelle de 50 %), **bouclier immunitaire**, **plancher d'extinction
-définitive** à 50 % du capital, **ordre souverain**. « Sans restriction » n'a
-jamais voulu dire immortel — il s'agit de la survie de l'espèce.
+### Ce que faisait la première mouture, et pourquoi elle a perdu 52 %
 
-**Désarmé, le Bip-Bip n'existe pas du tout** : il ne pèse ni dans l'écosystème
-(`pEco` redevient une moyenne sur 16), ni dans la meute, ni dans le classement
-de l'alpha. Le moteur est alors rigoureusement celui des seize espèces — c'est
-pourquoi le profil NVIDIA, qui le laisse au repos, est identique à ce qu'il
-était.
+Elle confiait **toute** la colonie au Bip-Bip dès que la savane se fermait. Sur
+l'EURUSD la savane est stérile en permanence : il a donc chassé seul dix ans, à
+×15 de levier — un momentum 3 bougies, c'est-à-dire la seule famille dont
+*toutes* les espèces sont en négatif sur cet actif. La meute qui savait chasser
+regardait, bridée.
 
----
+Le Bip-Bip reste dans le jeu comme **17e espèce** (génome de momentum
+ultra-court, gain ×3 à ×3,5 : il ne dose pas, il s'engage). Il ne reçoit du
+capital que si sa forme est positive, comme tout le monde. Désarmé il n'existe
+pas du tout et le moteur redevient rigoureusement celui des seize espèces.
 
 ## 4. Bugs corrigés (hérités du diagnostic de la G9)
 
