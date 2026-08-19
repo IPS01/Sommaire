@@ -4,58 +4,72 @@
 // ============================================================================
 //
 //   LE ROI DE LA SAVANE — Écosystème Darwinien Complet, Génération 10
-//   Seize espèces, vingt savanes INDÉPENDANTES, l'essaim, l'eau, le miroir.
+//   Dix-sept espèces, vingt savanes indépendantes, l'essaim, l'eau, le miroir.
+//
+//   LES RÉGLAGES PAR DÉFAUT SONT LE PROFIL NVIDIA DE PRODUCTION : contrariennes
+//   80 %, lion ^4, proie 0,35, savane 0,99, volatilité cible 100 %, levier x10,
+//   borne mortelle 50 %, convalescence 1 bougie, abeilles armées, backtest
+//   depuis 2016, pyramidage 150, levier courtier 50x (marge 2 %), slippage 1.
+//
+//   LE PROFIL DE CHASSE (liste déroulante)
+//   Un profil est un jeu de réglages VERROUILLÉ, calibré pour un terrain.
+//   AUTOMATIQUE (défaut) détecte la classe et applique le bon : NVIDIA prend
+//   actions, l'or prend métaux, l'EURUSD prend forex. Trois choix forcent un
+//   profil. MANUEL débranche tout : vos réglages commandent, sans exception.
+//   Les valeurs effectives du profil actif sont affichées en clair dans le
+//   tableau, ligne « Profil de chasse » — lisez-les, recopiez-les en Manuel.
+//
+//   LE BIP-BIP — L'ESPÈCE DU DÉSERT
+//   Les seize autres refusent de chasser quand le territoire est stérile. Ce
+//   refus était le premier verrou des 5 000 € en seize ans : sur le forex,
+//   l'exposition tombait à zéro et y restait. Le Bip-Bip n'a pas ce scrupule :
+//   ça monte il achète, ça descend il vend, et son gain de réactivité le fait
+//   saturer dès un tiers d'écart-type — il ne dose pas, il s'engage. Deux
+//   rôles : membre de la meute en savane grasse, chasseur solitaire quand elle
+//   se ferme. Les bornes de SURVIE le tiennent malgré tout — torpeur, bouclier,
+//   plancher d'extinction, ordre souverain. Désarmé il n'existe pas du tout :
+//   le moteur redevient rigoureusement celui des seize espèces.
 //
 //   CE QUE LA G10 CORRIGE (bugs réels de la G9)
-//   1. Les vingt savanes étaient jaugées avec un momentum de 252 BOUGIES
-//      divisé par une volatilité annualisée en √252, quelle que soit l'unité
-//      de temps. En hebdomadaire, 252 bougies = 4,8 ans : le score était
-//      gonflé ~2,2×, tous les territoires paraissaient gras. La G10 mesure un
-//      vrai t-statistique : |log(close/close[N])| / (bruit × √N), avec N = 252
-//      en journalier, 52 en hebdomadaire, 12 en mensuel.
-//   2. La part des contrariennes affichée oubliait la Hyène, le Serpent et le
+//   1. Les savanes étaient jaugées avec un momentum de 252 BOUGIES divisé par
+//      une volatilité annualisée en √252, quelle que soit l'unité de temps. En
+//      hebdomadaire, 252 bougies = 4,8 ans : score gonflé ~2,2x. La G10 mesure
+//      un vrai t-statistique sur une fenêtre d'un an réelle (252/52/12).
+//   2. La volatilité du levier était annualisée en jours CALENDAIRES (√365)
+//      sur des bougies de BOURSE : levier sous-dimensionné de ~23 % en
+//      permanence. La G10 annualise en jours de bourse (√252).
+//   3. La part des contrariennes affichée oubliait la Hyène, le Serpent et le
 //      Vautour : le tableau annonçait 20 % là où le plafond en voyait 45 %.
-//   3. La tendance de fond était figée à 252 bougies, elle suit maintenant
-//      l'unité de temps.
-//   4. La volatilité servant au levier était annualisée en jours CALENDAIRES
-//      (√365) : le levier était systématiquement sous-dimensionné de ~23 %.
-//      La G10 annualise en jours de bourse (√252).
+//   4. La tendance de fond était figée à 252 bougies : suit l'unité de temps.
 //   5. Une savane éteinte restait classée dans la migration conseillée.
+//   6. bestFit recalculait la chaîne de max déjà tenue par bestRef.
+//   7. Les 20 request.security évaluaient trois fois le même ta.stdev.
 //
-//   CE QUE LA G10 AJOUTE
-//   • VINGT SAVANES INDÉPENDANTES : chaque territoire a sa propre case
-//     d'activation, son propre symbole et son propre seuil de score. Un seuil
-//     à 0 hérite du seuil de la classe. La migration classe les savanes par
-//     EXCÉDENT au-dessus de leur propre seuil, pas par score brut.
-//   • CALIBRATION PAR CLASSE D'ACTIF : le forex et les métaux ne se chassent
-//     pas comme le Nasdaq. La classe est détectée automatiquement et chaque
-//     classe porte ses dix paramètres vitaux (seuil de savane, entropie, vol
-//     cible, levier max, proie minimale, frais de sélection, filtre de fond,
-//     plafond contrarien, normalisation de conviction, eau).
-//   • NORMALISATION DE LA CONVICTION : la cause arithmétique des +5 000 € en
-//     16 ans. La conviction collective vaut typiquement 0,30 ; l'exposition
-//     valait donc 0,30 × levier, soit 30 % du budget de risque autorisé.
-//     Normalisée par sa propre amplitude moyenne, la meute utilise enfin le
-//     budget que l'homéostasie lui accorde — sans jamais le dépasser (borne
-//     ±1 conservée, le ciblage de volatilité reste maître).
+//   VINGT SAVANES INDÉPENDANTES : chaque territoire a sa case d'activation,
+//   son symbole et son seuil propre (0 = hérite du profil). La migration
+//   classe par EXCÉDENT au-dessus du seuil propre, pas par score brut.
 //
-//   MODE HÉRITAGE G9 : une seule case rend au moteur son comportement exact
-//   de la G9 (annualisation calendaire, savanes en 252 bougies, aucune
-//   calibration de classe, conviction brute). Les résultats mesurés (or 1D
-//   +89,7 % PF 2,27 ; or 1W +230 % PF 6,5 ; NVDA 1W +590 % PF 19,45) se
-//   reproduisent en cochant cette seule case.
+//   MODE HÉRITAGE G9 : une seule case rend au moteur les mathématiques de la
+//   G9 (annualisation calendaire, savanes en 252 bougies, conviction brute,
+//   Bip-Bip désarmé) et force le profil en Manuel. C'est le témoin de contrôle.
 //
-//   AVERTISSEMENT FRAIS : commission_value ci-dessous doit être une constante
-//   Pine, elle ne peut pas être un paramètre. 0,05 % convient aux CFD indices
-//   et métaux. Pour le forex comptant, descendez-la à 0,01 et slippage à 1,
-//   sinon le backtest facture ~5 pips aller-retour et aucune stratégie forex
-//   ne survit à ça.
+//   AVERTISSEMENTS
+//   • commission_value doit être une CONSTANTE Pine : impossible d'en faire un
+//     paramètre. Elle est à 0,05 % (vos captures). Pour le forex comptant,
+//     éditez-la à 0.01 — à 0,05 % avec respiration 3 et levier x15, les frais
+//     mangent tout.
+//   • Volatilité cible 100 % et levier x10 à x15, c'est un régime de risque
+//     extrême. Le plancher d'extinction à 50 % est DÉFINITIF. Regardez le
+//     drawdown maximum du rapport de stratégie avant de porter ça en réel.
+//   • L'eau (swap) est de la comptabilité pure : affichée, jamais facturée aux
+//     ordres. À x10 de levier, 3 %/an de swap coûtent ~30 %/an du capital :
+//     lisez la ligne « profit après eau », pas seulement le profit net.
 //
 //   STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur —
 //   les 2 seules lignes indentées sont les 2 dernières du fichier.
 // ============================================================================
 
-strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane G10", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 150, margin_long = 2, margin_short = 2, max_bars_back = 1000)
+strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane G10", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 1, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 150, margin_long = 2, margin_short = 2, max_bars_back = 1000)
 
 // ============================================================================
 // PARAMÈTRES
@@ -70,21 +84,21 @@ enableShorts = input.bool(true, "Autoriser les ventes (short)", group = "Directi
 
 // ------------------------------------------------------ Sélection naturelle
 fitMem = input.int(63, "Mémoire de la forme (demi-vie, bougies)", minval = 10, maxval = 500, group = "Sélection naturelle", tooltip = "La forme d'une espèce est la moyenne exponentielle de ses gains. Court = sélection nerveuse, long = sélection patiente.")
-frais = input.float(0.1, "Frais par unité d'exposition retournée (%)", minval = 0.0, maxval = 1.0, step = 0.01, group = "Sélection naturelle", tooltip = "Chaque espèce paie ses frais virtuels sur ses changements de position : la sélection intègre le coût du réel. Valeur utilisée pour les classes NON calibrées (actions, indices, crypto, énergie) — le forex et les métaux ont la leur.")
+frais = input.float(0.1, "Frais par unité d'exposition retournée (%)", minval = 0.0, maxval = 1.0, step = 0.01, group = "Sélection naturelle", tooltip = "Chaque espèce paie ses frais virtuels sur ses changements de position : la sélection intègre le coût du réel. 0,1 % est juste pour une action ; c'est dix fois le spread réel sur l'EURUSD, où ce tarif virtuel affame toutes les espèces rapides. Les profils Or et Forex le ramènent au spread réel.")
 divBonus = input.float(0.5, "Bonus de niche (récompense de la différence)", minval = 0.0, maxval = 1.0, step = 0.1, group = "Sélection naturelle", tooltip = "Les espèces décorrélées de la meute reçoivent jusqu'à ce bonus de nourriture en plus : chasser ailleurs protège la colonie.")
 contMax = input.float(80.0, "Part maximale des contrariennes (%)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Sélection naturelle", tooltip = "Les contrariennes ne peuvent jamais détenir plus que cette part du capital. Sans ce plafond, elles finissent par vendre à découvert une hausse historique — la colonie meurt en chassant l'éléphant à mains nues.")
-respectFond = input.bool(true, "Ne jamais chasser contre la tendance de fond", group = "Sélection naturelle", tooltip = "Interdit toute exposition opposée à la tendance longue de l'actif (252 bougies en journalier, 52 en hebdomadaire, 12 en mensuel). Les actions ont une dérive haussière structurelle : la combattre est mortel. Le forex n'a AUCUNE dérive structurelle : l'y appliquer supprime la moitié des occasions — c'est pourquoi la calibration forex le désactive.")
+respectFond = input.bool(true, "Ne jamais chasser contre la tendance de fond", group = "Sélection naturelle", tooltip = "Interdit toute exposition opposée à la tendance longue de l'actif (252 bougies en journalier, 52 en hebdomadaire, 12 en mensuel). Les actions ont une dérive haussière structurelle : la combattre est mortel. Une devise n'en a aucune, et l'or a passé 2013-2015 en baisse de 40 % : l'y appliquer supprime la moitié des occasions — les profils Or et Forex le libèrent donc.")
 
 // ------------------------------------------------------ La meute (le lion)
 hierarchie = input.float(4.0, "Part du lion (hiérarchie de la meute)", minval = 1.0, maxval = 4.0, step = 0.5, group = "La meute (le lion)", tooltip = "1 = démocratie : nourriture proportionnelle à la forme. 2 = meute : l'alpha mange une part disproportionnée (forme au carré). 4 = tyrannie de l'alpha.")
 proieMin = input.float(0.35, "Proie minimale (conviction requise pour charger)", minval = 0.0, maxval = 0.8, step = 0.05, group = "La meute (le lion)", tooltip = "Le lion ne grignote pas : en dessous de cette conviction collective, la meute reste à l'affût sans dépenser un centime de frais. 0 = désactivé.")
-convNorm = input.bool(false, "Normaliser la conviction (utiliser tout le budget de risque)", group = "La meute (le lion)", tooltip = "LA CORRECTION DES +5 000 € EN 16 ANS. La conviction collective vaut typiquement 0,30 : l'exposition réelle valait 0,30 × levier, soit 30 % du budget de risque que l'homéostasie autorisait. Normalisée par sa propre amplitude moyenne, la conviction couvre enfin toute la plage ±1, et le ciblage de volatilité redevient le vrai maître de la taille. La borne ±1 est conservée : jamais plus que le levier autorisé. Valeur utilisée pour les classes non calibrées.")
+convNorm = input.bool(false, "Normaliser la conviction (utiliser tout le budget de risque)", group = "La meute (le lion)", tooltip = "LA CORRECTION DES +5 000 € EN 16 ANS. La conviction collective vaut typiquement 0,30 : l'exposition réelle valait 0,30 × levier, soit 30 % du budget de risque que l'homéostasie autorisait. Normalisée par sa propre amplitude moyenne, la conviction couvre enfin toute la plage ±1, et le ciblage de volatilité redevient le vrai maître de la taille. La borne ±1 est conservée : jamais plus que le levier autorisé. Les profils Or et Forex l'activent.")
 
 // ------------------------------------------- La savane locale (le territoire)
-savaneMin = input.float(0.99, "Savane propice à partir d'un score de", minval = 0.0, maxval = 3.0, step = 0.05, group = "La savane (le territoire)", tooltip = "Score = |tendance sur un an| / bruit sur un an (un vrai t-statistique). En dessous, la savane locale est déclarée stérile : aucune chasse. 0 = jauge désactivée. Valeur utilisée pour les classes non calibrées.")
+savaneMin = input.float(0.99, "Savane propice à partir d'un score de", minval = 0.0, maxval = 3.0, step = 0.05, group = "La savane (le territoire)", tooltip = "Score = |tendance sur un an| / bruit sur un an (un vrai t-statistique). En dessous, la savane locale est déclarée stérile : la meute ne chasse plus — et si le Bip-Bip est armé, lui continue seul. 0 = jauge désactivée.")
 savaneMinLoc = input.float(0.0, "Seuil propre à la savane locale (0 = hérite de la classe)", minval = 0.0, maxval = 3.0, step = 0.05, group = "La savane (le territoire)", tooltip = "Le territoire sur lequel vous êtes réellement posé peut avoir son seuil à lui, indépendant des vingt savanes surveillées.")
 wEnt = input.int(96, "Fenêtre d'entropie de Shannon (bougies)", minval = 40, maxval = 300, group = "La savane (le territoire)")
-entMax = input.float(0.995, "Entropie maximale tolérée (1 = jauge désactivée)", minval = 0.80, maxval = 1.0, step = 0.005, group = "La savane (le territoire)", tooltip = "Désordre de la séquence des hausses/baisses. Le hasard pur mesure ~0.982 sur 96 bougies. Le forex est structurellement proche du hasard sur ce test : l'y appliquer ferme le territoire en permanence — la calibration forex met donc la jauge à 1. Valeur utilisée pour les classes non calibrées.")
+entMax = input.float(0.995, "Entropie maximale tolérée (1 = jauge désactivée)", minval = 0.80, maxval = 1.0, step = 0.005, group = "La savane (le territoire)", tooltip = "Désordre de la séquence des hausses/baisses. Le hasard pur mesure ~0.982 sur 96 bougies. Le forex et les métaux sont structurellement proches du hasard sur ce test : l'y appliquer ferme le territoire en permanence — leurs profils mettent donc la jauge à 1.")
 
 // ================= LE PROFIL DE CHASSE (LISTE DÉROULANTE) =================
 // Un profil est un jeu de réglages verrouillé, calibré pour un terrain. Les
@@ -95,14 +109,14 @@ profil = input.string("Automatique (selon la classe d'actif)", "Profil de chasse
 classeMan = input.string("automatique", "Classe d'actif (forcer si la détection se trompe)", options = ["automatique", "forex", "métaux", "indices", "actions", "crypto", "énergie"], group = "Profil de chasse")
 
 // ================= LE BIP-BIP : L'ESPÈCE DU DÉSERT =================
-// Les quinze autres espèces refusent de chasser quand le territoire est
+// Les seize autres espèces refusent de chasser quand le territoire est
 // déclaré stérile — c'est ce refus qui a fait rendre 5 000 € à seize ans de
 // forex. Le Bip-Bip n'a pas ce scrupule : ça monte il achète, ça descend il
 // vend, et il s'engage à fond dès le premier tiers d'écart-type. Quand la
 // savane se ferme, la meute se couche et lui seul continue à courir.
 // Les bornes de survie (torpeur, bouclier, plancher, ordre souverain) le
 // tiennent malgré tout : « sans restriction » n'a jamais voulu dire immortel.
-bipOn = input.bool(false, "Le Bip-Bip : chasser aussi quand la savane est stérile", group = "Le Bip-Bip (le désert)", tooltip = "Armé, le Bip-Bip devient la seizième-et-unième espèce de la meute ET le chasseur solitaire du désert : quand le score de la savane passe sous son seuil, au lieu de tout arrêter, la colonie le laisse courir seul. Désarmé, il n'existe pas du tout — le moteur est alors rigoureusement celui des seize espèces. Les profils Forex et Or l'arment ; le profil NVIDIA le laisse au repos.")
+bipOn = input.bool(false, "Le Bip-Bip : chasser aussi quand la savane est stérile", group = "Le Bip-Bip (le désert)", tooltip = "Armé, le Bip-Bip devient la dix-septième espèce de la meute ET le chasseur solitaire du désert : quand le score de la savane passe sous son seuil, au lieu de tout arrêter, la colonie le laisse courir seul. Désarmé, il n'existe pas du tout — le moteur est alors rigoureusement celui des seize espèces. Les profils Forex et Or l'arment ; le profil NVIDIA le laisse au repos.")
 bipDesert = input.float(75.0, "Part d'exposition du Bip-Bip dans le désert (%)", minval = 0.0, maxval = 150.0, step = 5.0, group = "Le Bip-Bip (le désert)", tooltip = "100 % = il court dans le désert avec toute la force que l'homéostasie autorise. En dessous, il y va prudemment. Au-dessus de 100 %, il charge plus fort dans le désert que la meute en savane grasse — c'est possible, ce n'est pas conseillé.")
 bipGain = input.float(3.0, "Gain du Bip-Bip (réactivité)", minval = 1.0, maxval = 8.0, step = 0.5, group = "Le Bip-Bip (le désert)", tooltip = "Le multiplicateur de conviction avant saturation. À 3, le Bip-Bip est à fond dès que le mouvement atteint un tiers d'écart-type : il ne dose pas, il s'engage. Plus haut = plus nerveux, plus de frais, plus d'allers-retours.")
 bipLibre = input.bool(true, "Le Bip-Bip ignore le filtre de tendance de fond", group = "Le Bip-Bip (le désert)", tooltip = "Dans le désert, le Bip-Bip prend les deux sens quoi qu'en dise la tendance de l'année. C'est le sens de « sans restriction ».")
@@ -112,9 +126,9 @@ starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minva
 soinParent = input.float(25.0, "Soin parental (% de la vigueur du champion héritée)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Évolution (croisement + mutation)")
 
 // -------------------------------------------------------------- Homéostasie
-targetVol = input.float(100.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 300, step = 1, group = "Homéostasie", tooltip = "15 % = prudent, 25 % = conquérant. Valeur utilisée pour les classes non calibrées.")
+targetVol = input.float(100.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 300, step = 1, group = "Homéostasie", tooltip = "15 % = prudent, 25 % = conquérant, 100 % = le régime de vos captures. Le ciblage divise cette cible par la volatilité réalisée de l’actif pour obtenir le levier.")
 volWin = input.int(63, "Fenêtre de mesure de volatilité (bougies)", minval = 20, group = "Homéostasie")
-expoMax = input.float(10.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 18, step = 0.5, group = "Homéostasie", tooltip = "Valeur utilisée pour les classes non calibrées.")
+expoMax = input.float(10.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 18, step = 0.5, group = "Homéostasie", tooltip = "Le plafond dur du ciblage de volatilité. Doit rester compatible avec le levier du courtier réglé dans Propriétés (50x = marge 2 %).")
 rebalPct = input.float(25.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
 respire = input.int(5, "Respiration : rééquilibrage toutes les X bougies", minval = 1, maxval = 21, group = "Homéostasie", tooltip = "5 = hebdomadaire en journalier. Entre deux respirations, l'organisme tient sa position : les frais ne paient que les vraies décisions.")
 
@@ -134,7 +148,7 @@ pacteAbri = input.bool(false, "ORDRE SOUVERAIN : toute la colonie à l'abri, imm
 tabCompact = input.bool(false, "Tableau compact : replier le détail des 20 savanes (petits écrans)", group = "Affichage", tooltip = "Les seize espèces et tous les organes restent affichés. Seules les vingt lignes de détail des savanes sont repliées ; la ligne de migration conseillée reste visible.")
 
 // ----------------------------------------------- Les organes de la G9
-swapAnnuel = input.float(3.0, "L'eau : coût de financement du levier (% par an)", minval = 0.0, maxval = 20.0, step = 0.5, group = "Les organes vivants", tooltip = "Le loyer de la force empruntée. Comptabilisé et affiché pour rendre le profit honnête — ne modifie pas les ordres. Valeur utilisée pour les classes non calibrées.")
+swapAnnuel = input.float(3.0, "L'eau : coût de financement du levier (% par an)", minval = 0.0, maxval = 20.0, step = 0.5, group = "Les organes vivants", tooltip = "Le loyer de la force empruntée. Comptabilisé et affiché pour rendre le profit honnête — ne modifie pas les ordres. À x10 de levier, 3 %/an coûtent ~30 %/an du capital.")
 fourmisOn = input.bool(false, "Armer les fourmis : réduire l'exposition quand l'orage micro approche", group = "Les organes vivants", tooltip = "Quand le bruit des 10 dernières bougies dépasse 1,5 fois le bruit de fond des 100 dernières, un choc approche statistiquement. Armées, elles réduisent l'exposition de 30 %. Décochées, elles observent et alertent seulement.")
 abeillesOn = input.bool(true, "Armer les abeilles : réduire l'exposition en tempête systémique", group = "Les organes vivants", tooltip = "Quand la volatilité moyenne des 20 savanes dépasse 1,4 fois sa normale annuelle, la tempête est mondiale et la diversification meurt (2008, 2020). Armées, elles réduisent l'exposition de 30 %.")
 immAcqOn = input.bool(false, "Armer l'immunité acquise : prudence durable après une série de chocs", group = "Les organes vivants", tooltip = "Chaque choc laisse un anticorps qui s'estompe à demi-vie d'un an. Armée, l'immunité divise l'exposition jusqu'à 2 au maximum. Décochée, elle observe.")
