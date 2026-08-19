@@ -134,7 +134,9 @@ respire = input.int(5, "Respiration : rééquilibrage toutes les X bougies", min
 
 // --------------------------------------------- Régulation thermique (survie)
 ddMax = input.float(50.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)")
-guerJours = input.int(500, "Guérison : demi-vie de la mémoire du sommet (jours)", minval = 30, maxval = 3000, group = "Régulation thermique (survie)", tooltip = "ATTENTION : une valeur trop courte débranche la protection — la perte n'est jamais enregistrée et la torpeur ne se déclenche jamais (leçon du test NVIDIA).")
+oubliSommet = input.bool(false, "Autoriser l'oubli du sommet (DANGEREUX — débranche le frein)", group = "Régulation thermique (survie)", tooltip = "DÉCOCHÉE (défaut) : la perte est mesurée depuis le PLUS HAUT ABSOLU. Le frein voit tout, y compris une saignée lente. COCHÉE : le sommet s'efface à la demi-vie ci-dessous — et c'est un piège mortel. À 500 jours en journalier, le sommet mémorisé perd 29 % PAR AN : toute colonie qui saigne moins vite que ça affiche éternellement « 0 % de perte depuis le sommet », le frein ne se déclenche jamais, et elle meurt au plancher sans qu'aucune alerte n'ait sonné. C'est exactement ce qui est arrivé au test EURUSD : -52 % de capital avec un tableau affichant 0 % de perte et « métabolisme normal ».")
+guerJours = input.int(500, "Demi-vie de l'oubli du sommet (jours, si l'oubli est autorisé)", minval = 30, maxval = 3000, group = "Régulation thermique (survie)", tooltip = "Sans effet tant que la case ci-dessus est décochée.")
+freinOn = input.bool(true, "Frein réel : brider la colonie quand elle perd VRAIMENT de l'argent", group = "Régulation thermique (survie)", tooltip = "La sélection naturelle juge les espèces sur des frais VIRTUELS. Elle ne voit pas la commission réelle de votre courtier, ni le slippage, ni le swap. Une espèce peut donc paraître en pleine forme pendant que la colonie se vide. Ce frein regarde le seul chiffre honnête — le facteur de profit réalisé : sous 1,0 après 30 trades, l'exposition est divisée par deux ; sous 0,7, elle est coupée jusqu'à ce que la colonie reprenne des couleurs. C'est le garde-fou qui manquait au test EURUSD, qui a chassé dix ans avec un facteur de profit de 0,57.")
 plancher = input.float(50.0, "Plancher de survie : extinction définitive sous (% du capital initial)", minval = 10.0, maxval = 95.0, step = 5.0, group = "Régulation thermique (survie)", tooltip = "Sous ce niveau, plus aucune exposition, définitivement.")
 
 // ------------------------------------------------------ Système immunitaire
@@ -267,8 +269,8 @@ pFx = prof == "Forex"
 // ============================================================================
 savaneMinE = pFx ? 0.25 : pMet ? 0.45 : pAct ? 0.99 : savaneMin
 entMaxE = pFx ? 1.0 : pMet ? 1.0 : pAct ? 0.995 : entMax
-targetVolE = pFx ? 100.0 : pMet ? 100.0 : pAct ? 100.0 : targetVol
-expoMaxE = pFx ? 15.0 : pMet ? 12.0 : pAct ? 10.0 : expoMax
+targetVolE = pFx ? 60.0 : pMet ? 100.0 : pAct ? 100.0 : targetVol
+expoMaxE = pFx ? 10.0 : pMet ? 12.0 : pAct ? 10.0 : expoMax
 proieMinE = pFx ? 0.12 : pMet ? 0.20 : pAct ? 0.35 : proieMin
 fraisE = pFx ? 0.015 : pMet ? 0.04 : pAct ? 0.1 : frais
 respectFondE = pFx ? false : pMet ? false : pAct ? true : respectFond
@@ -276,7 +278,7 @@ contMaxE = pFx ? 85.0 : pMet ? 80.0 : pAct ? 80.0 : contMax
 hierarchieE = pFx ? 3.0 : pMet ? 3.5 : pAct ? 4.0 : hierarchie
 convNormE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : convNorm
 swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : swapAnnuel
-respireE = pFx ? 3 : pMet ? 4 : pAct ? 5 : respire
+respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : respire
 ddMaxE = pFx ? 50.0 : pMet ? 50.0 : pAct ? 50.0 : ddMax
 chocDureeE = pFx ? 1 : pMet ? 1 : pAct ? 1 : chocDuree
 bipOnE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : bipOn
@@ -736,10 +738,21 @@ levVol = sigA > 0 ? math.min(expoMaxE, (targetVolE / 100) / sigA) : 0.0
 // ============================================================================
 // RÉGULATION THERMIQUE : TORPEUR, HIBERNATION, GUÉRISON, PLANCHER DE SURVIE
 // ============================================================================
+// CORRECTION MAJEURE : la perte se mesure depuis le PLUS HAUT ABSOLU.
+// La G10 première mouture faisait décroître le sommet mémorisé à demi-vie de
+// 500 jours, soit -29 % PAR AN. Une colonie qui saigne plus lentement que ça
+// voit son « sommet » descendre avec elle : le frein n'enregistre jamais la
+// moindre perte. Le test EURUSD a perdu 52 % du capital en affichant « 0 % de
+// perte depuis le sommet · métabolisme normal » jusqu'à l'extinction.
+// Le sommet absolu ne ment pas, et la remontée du capital rouvre le frein
+// d'elle-même : l'oubli n'a jamais servi à rien d'autre qu'à aveugler.
+var float eqMax = na
+eqMax := math.max(nz(eqMax, strategy.equity), strategy.equity)
 var float eqPeak = na
 guerison = math.pow(0.5, timeframe.in_seconds() / (guerJours * 86400.0))
 eqPeak := math.max(nz(eqPeak, strategy.equity) * guerison, strategy.equity)
-dd = eqPeak > 0 ? 1.0 - strategy.equity / eqPeak : 0.0
+sommet = oubliSommet ? eqPeak : eqMax
+dd = sommet > 0 ? 1.0 - strategy.equity / sommet : 0.0
 torpeur = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMaxE / 100)))
 
 // PLANCHER DE SURVIE : le point de non-retour. Pas de perte mortelle.
@@ -914,6 +927,12 @@ fond = close > nz(close[lbAn], close) ? 1 : -1
 // l'échelle change — et on reborne à ±1 : le ciblage de volatilité reste le
 // seul maître de la taille finale.
 // ============================================================================
+// LE FREIN RÉEL : le seul juge qui voit la commission du courtier.
+pfReel = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : 1.0
+// Jamais zéro : à exposition nulle, plus aucun trade ne se clôture, le
+// facteur de profit se fige et la colonie resterait bridée pour l'éternité.
+// On lui laisse le quart : de quoi se racheter, pas de quoi se ruiner.
+freinReel = not freinOn or strategy.closedtrades < 30 ? 1.0 : pfReel >= 1.0 ? 1.0 : pfReel >= 0.7 ? 0.5 : 0.25
 dirS = ta.sma(dir, respireE)
 convRef = math.max(nz(ta.sma(math.abs(dirS), lbSav), 0.3), 0.05)
 dirN = math.max(-1.0, math.min(1.0, dirS / convRef))
@@ -925,7 +944,14 @@ dirChasse = math.abs(dirUse) >= proieMinE ? dirUse : 0.0
 // désert était le premier verrou des 5 000 € en seize ans ; c'est ce verrou-là
 // que le Bip-Bip fait sauter. Les bornes de SURVIE, elles, tiennent toujours :
 // torpeur, bouclier immunitaire, plancher d'extinction, ordre souverain.
-desertOn = bipOnE and ready and not savaneOk
+// LE DÉSERT SE MÉRITE. Première mouture : il suffisait que le Bip-Bip soit
+// armé pour qu'on lui confie toute la colonie dès que la savane se fermait.
+// Sur l'EURUSD, la savane est stérile en permanence (score 0,12 contre un
+// seuil de 0,25) : il a donc chassé seul pendant dix ans, à x15 de levier,
+// sans jamais avoir eu à prouver qu'il savait chasser. Désormais il ne prend
+// le relais que si SA PROPRE FORME est positive — la même règle que pour
+// toutes les autres espèces. Pas de preuve, pas de capital.
+desertOn = bipOnE and ready and not savaneOk and fit17 > 0
 dirEff = desertOn ? sig17 : dirChasse
 mulDesert = desertOn ? bipDesertE : 1.0
 fCible = ready and inDate and not eteint ? dirEff * levVol * torpeur * bouclier * mulDesert : 0.0
@@ -938,6 +964,7 @@ fCible := pacteAbri ? 0.0 : fCible
 fCible := fourmisOn and fourmisAlerte ? fCible * 0.7 : fCible
 fCible := abeillesOn and abeillesAlerte ? fCible * 0.7 : fCible
 fCible := immAcqOn ? fCible * immAcqF : fCible
+fCible := freinReel * fCible
 
 // ============================================================================
 // CORRECTION : RÉÉQUILIBRAGE AVEC ZONE MORTE ET RESPIRATION
@@ -984,7 +1011,7 @@ meteoTxt = "score " + str.tostring(scoreLocal, "#.##") + " (seuil " + str.tostri
 meteoCol = savaneOk ? color.new(color.teal, 70) : color.new(color.orange, 70)
 profTxt = prof + " · classe " + classe + (legacy ? " · HÉRITAGE G9" : "") + " · seuil " + str.tostring(savaneMinE, "#.##") + " · entropie max " + str.tostring(entMaxE, "#.###") + " · vol cible " + str.tostring(targetVolE, "#") + " % · levier max ×" + str.tostring(expoMaxE, "#.#") + " · proie " + str.tostring(proieMinE, "#.##") + " · frais sél. " + str.tostring(fraisE, "#.###") + " % · lion ^" + str.tostring(hierarchieE, "#.#") + " · contrariennes " + str.tostring(contMaxE, "#") + " % · fond " + (respectFondE ? "respecté" : "libre") + " · respiration " + str.tostring(respireE) + " · borne " + str.tostring(ddMaxE, "#") + " %"
 profCol = legacy ? color.new(color.gray, 80) : pFx or pMet ? color.new(color.blue, 75) : pAct ? color.new(color.orange, 82) : color.new(color.gray, 85)
-bipTxt = not bipOnE ? "au repos — la meute des seize chasse seule, le désert reste interdit" : "Bip-Bip " + str.tostring(L17) + "b g" + str.tostring(g17) + " gain ×" + str.tostring(bipGainE, "#.#") + " " + (sig17 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit17, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w17 / wTot : 0, "#") + " % de la meute · désert " + str.tostring(100 * bipDesertE, "#") + " %" + (desertOn ? " · IL COURT SEUL DANS LE DÉSERT" : " · savane grasse, il chasse avec la meute")
+bipTxt = not bipOnE ? "au repos — la meute des seize chasse seule, le désert reste interdit" : fit17 <= 0 and not savaneOk ? "affamé (forme " + str.tostring(10000 * fit17, "#.#") + " pb) — le désert lui reste fermé tant qu'il n'a rien prouvé" : "Bip-Bip " + str.tostring(L17) + "b g" + str.tostring(g17) + " gain ×" + str.tostring(bipGainE, "#.#") + " " + (sig17 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit17, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w17 / wTot : 0, "#") + " % de la meute · désert " + str.tostring(100 * bipDesertE, "#") + " %" + (desertOn ? " · IL COURT SEUL DANS LE DÉSERT" : " · savane grasse, il chasse avec la meute")
 bipCol = not bipOnE ? color.new(color.gray, 88) : desertOn ? color.new(color.orange, 68) : color.new(color.teal, 80)
 convTxt = "brute " + str.tostring(100 * dirS, "#.#") + " %" + (convNormE ? " → normalisée " + str.tostring(100 * dirUse, "#.#") + " % (amplitude de référence " + str.tostring(100 * convRef, "#.#") + " %)" : " (normalisation désactivée : la meute n'utilise qu'une fraction du levier autorisé)")
 convCol = convNormE ? color.new(color.teal, 80) : color.new(color.orange, 85)
@@ -1020,7 +1047,7 @@ c13c = fit13 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c14c = fit14 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c15c = fit15 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c16c = fit16 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
-tempTxt = str.tostring(100 * dd, "#.#") + " % de perte depuis le sommet · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION (guérison en cours)")
+tempTxt = str.tostring(100 * dd, "#.#") + " % depuis le sommet " + (oubliSommet ? "(oublieux ⚠)" : "absolu") + " · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION (guérison en cours)")
 tempCol = torpeur >= 0.99 ? color.new(color.teal, 80) : torpeur > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
 s1t = (on1 ? "" : "⏸ ") + str.tostring(100 * nz(mo1, 0), "#") + " % / bruit " + str.tostring(100 * nz(vo1, 0), "#") + " % → " + str.tostring(nz(sc1, 0), "#.##") + " / " + str.tostring(sv1, "#.##") + (not on1 ? " ignorée" : sr1 >= 0 ? " ✓ grasse" : nz(sc1, 0) >= sv1 / 2 ? " ~ maigre" : " ✗ désert")
 s2t = (on2 ? "" : "⏸ ") + str.tostring(100 * nz(mo2, 0), "#") + " % / bruit " + str.tostring(100 * nz(vo2, 0), "#") + " % → " + str.tostring(nz(sc2, 0), "#.##") + " / " + str.tostring(sv2, "#.##") + (not on2 ? " ignorée" : sr2 >= 0 ? " ✓ grasse" : nz(sc2, 0) >= sv2 / 2 ? " ~ maigre" : " ✗ désert")
@@ -1141,8 +1168,8 @@ table.cell(info, 0, 22, "Trades / réussite", text_size = size.small, bgcolor = 
 table.cell(info, 1, 22, str.tostring(strategy.closedtrades) + " / " + str.tostring(winRate, "#.#") + " %", text_size = size.small)
 table.cell(info, 0, 23, "Profit factor", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 23, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
-table.cell(info, 0, 24, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 24, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
+table.cell(info, 0, 24, "Profit net · frein réel", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 24, str.tostring(strategy.netprofit, "#.##") + " · " + (not freinOn ? "frein désarmé" : strategy.closedtrades < 30 ? "frein en attente (" + str.tostring(strategy.closedtrades) + "/30 trades)" : freinReel >= 1.0 ? "✓ la colonie gagne" : freinReel >= 0.5 ? "⚠ BRIDÉE de moitié (PF " + str.tostring(pfReel, "#.##") + ")" : "✗ RÉDUITE AU QUART (PF " + str.tostring(pfReel, "#.##") + ")"), text_size = size.small, bgcolor = freinOn and strategy.closedtrades >= 30 and freinReel < 1.0 ? color.new(color.red, 70) : color.new(color.gray, 85))
 table.cell(info, 0, 25, "Température (perte / borne " + str.tostring(ddMaxE, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 25, tempTxt, text_size = size.small, bgcolor = tempCol)
 table.cell(info, 0, 26, "Tendance de fond", text_size = size.small, bgcolor = color.new(color.gray, 85))
@@ -1230,6 +1257,7 @@ alertcondition(fourmisAlerte and not fourmisAlerte[1], "Roi : les fourmis senten
 alertcondition(abeillesAlerte and not abeillesAlerte[1], "Roi : les abeilles fuient la ruche", "Tempête systémique : les savanes surveillées tremblent ensemble")
 alertcondition(decroche and not decroche[1], "Roi : le miroir décroche", "Le présent ne tient plus la promesse du passé : convoquer le conseil, geler toute montée en charge")
 alertcondition(srBest > 0 and srBest[1] <= 0, "Roi : une savane redevient grasse", "Au moins un territoire surveillé repasse au-dessus de son propre seuil")
+alertcondition(freinOn and freinReel < 1.0 and freinReel[1] >= 1.0, "Roi : le frein réel mord", "Le facteur de profit réalisé est passé sous 1 : la colonie est bridée. Vérifiez la commission réglée dans Propriétés.")
 alertcondition(desertOn and not desertOn[1], "Roi : le Bip-Bip entre dans le désert", "La savane est stérile : la meute se couche, le Bip-Bip chasse seul")
 alertcondition(not desertOn and desertOn[1], "Roi : le Bip-Bip rentre au clan", "La savane redevient chassable : la meute reprend la chasse")
 
