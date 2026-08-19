@@ -782,9 +782,10 @@ savaneOk = (seuLoc <= 0 or scoreLocal >= seuLoc) and ordreOk
 
 // ============================================================================
 // LES VINGT SAVANES : CHACUNE JAUGÉE SELON SON PROPRE SEUIL
-// Chaque appel renvoie [tendance, bruit annuel, score]. Le score est le même
-// t-statistique que celui de la savane locale : les vingt territoires et celui
-// sous les pattes du roi sont enfin comparables entre eux.
+// Chaque appel renvoie [tendance sur un an, bruit sur un an] ; le score en est
+// le rapport, calculé juste après. C'est le même t-statistique que celui de la
+// savane locale : les vingt territoires et celui sous les pattes du roi sont
+// enfin comparables entre eux.
 // ============================================================================
 [mo1, vo1] = request.security(sym1, timeframe.period, [legacy ? close / nz(close[252], close) - 1 : math.log(close / nz(close[lbSav], close)), ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(lbSav)])
 [mo2, vo2] = request.security(sym2, timeframe.period, [legacy ? close / nz(close[252], close) - 1 : math.log(close / nz(close[lbSav], close)), ta.stdev(math.log(close / nz(close[1], close)), 63) * math.sqrt(lbSav)])
@@ -951,7 +952,7 @@ doMoins = barstate.isconfirmed and souffle and -diffQty > seuilQty
 // ============================================================================
 // AFFICHAGE SUR LE GRAPHIQUE
 // ============================================================================
-bgcolor(not ready ? na : not savaneOk ? color.new(color.orange, 92) : vivantes == 0 ? color.new(color.red, 90) : dir > 0.2 ? color.new(color.teal, 94) : dir < -0.2 ? color.new(color.red, 94) : na)
+bgcolor(not ready ? na : desertOn ? color.new(color.yellow, 90) : not savaneOk ? color.new(color.orange, 92) : vivantes == 0 ? color.new(color.red, 90) : dir > 0.2 ? color.new(color.teal, 94) : dir < -0.2 ? color.new(color.red, 94) : na)
 plotshape(doPlus, "Poussée haussière", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.tiny)
 plotshape(doMoins, "Poussée baissière", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.tiny)
 plotshape(naissance, "Naissance d'une espèce", shape.diamond, location.bottom, color.new(color.purple, 0), size = size.tiny)
@@ -972,7 +973,7 @@ pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.n
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
-diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : desertOn ? "🏜 DÉSERT : la meute se couche, le Bip-Bip court seul (" + str.tostring(100 * bipDesertE, "#") + " % d\'exposition)" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirUse) < proieMinE ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirUse), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : desertOn ? "🏜 DÉSERT : la meute se couche, le Bip-Bip court seul (" + str.tostring(100 * bipDesertE, "#") + " % d'exposition)" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirUse) < proieMinE ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirUse), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = eteint ? color.new(color.red, 60) : ready and not desert and (savaneOk or desertOn) and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
 alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle " + str.tostring(lbAn) : bestFit == fit10 ? "Crocodile 55" : bestFit == fit11 ? "Hyène 20" : bestFit == fit12 ? "Panthère " + str.tostring(L12) : bestFit == fit13 ? "Lynx " + str.tostring(L13) : bestFit == fit14 ? "Bison " + str.tostring(L14) : bestFit == fit15 ? "Serpent " + str.tostring(L15) : bipOnE and bestFit == fit17 ? "Bip-Bip " + str.tostring(L17) : "Vautour 40") + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
 partCont = wTot > 0 ? 100 * (w6 + w7 + w8 + w11 + w15 + w16) / wTot : 0
@@ -1146,7 +1147,7 @@ table.cell(info, 0, 25, "Température (perte / borne " + str.tostring(ddMaxE, "#
 table.cell(info, 1, 25, tempTxt, text_size = size.small, bgcolor = tempCol)
 table.cell(info, 0, 26, "Tendance de fond", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 26, fondTxt, text_size = size.small, bgcolor = color.new(color.blue, 85))
-table.cell(info, 0, 27, "Le lion (alpha, part ^" + str.tostring(hierarchie, "#.#") + ")", text_size = size.small, bgcolor = color.new(color.orange, 75))
+table.cell(info, 0, 27, "Le lion (alpha, part ^" + str.tostring(hierarchieE, "#.#") + ")", text_size = size.small, bgcolor = color.new(color.orange, 75))
 table.cell(info, 1, 27, alphaNom, text_size = size.small, bgcolor = color.new(color.orange, 85))
 table.cell(info, 0, 28, "Météo de la savane locale", text_size = size.small, bgcolor = color.new(color.orange, 75))
 table.cell(info, 1, 28, meteoTxt, text_size = size.small, bgcolor = meteoCol)
