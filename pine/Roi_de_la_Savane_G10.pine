@@ -950,18 +950,14 @@ convRef = math.max(nz(ta.sma(math.abs(dirS), lbSav), 0.3), 0.05)
 dirN = math.max(-1.0, math.min(1.0, dirS / convRef))
 dirUse = convNormE ? dirN : dirS
 dirChasse = math.abs(dirUse) >= proieMinE ? dirUse : 0.0
-// LE RÉGIME DÉSERT : la savane est stérile, la meute se couche — et le Bip-Bip
-// continue à courir, seul, sur son propre instinct, sans proie minimale et
-// (s'il est libre) sans filtre de tendance de fond. Le refus de chasser dans le
-// désert était le premier verrou des 5 000 € en seize ans ; c'est ce verrou-là
-// que le Bip-Bip fait sauter. Les bornes de SURVIE, elles, tiennent toujours :
-// torpeur, bouclier immunitaire, plancher d'extinction, ordre souverain.
 // LE RÉGIME DÉSERT : la savane est déclarée stérile, et la meute chasse
 // quand même — réduite, mais c'est bien ELLE, avec ses poids du moment.
 // Aucune espèce n'est désignée d'avance : celles qui se nourrissent tiennent
 // la barre, celles qui jeûnent ont un poids nul. Si personne ne mange, dir
 // vaut zéro tout seul et la colonie reste à l'abri sans qu'on ait à
 // l'interdire. C'est la sélection qui décide, pas le code.
+// Les bornes de SURVIE, elles, tiennent dans tous les cas : torpeur, bouclier
+// immunitaire, frein réel, plancher d'extinction, ordre souverain.
 desertOn = chasseDesertE and ready and not savaneOk
 dirEff = dirChasse
 mulDesert = desertOn ? bipDesertE : 1.0
