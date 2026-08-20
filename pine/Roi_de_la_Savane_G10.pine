@@ -100,6 +100,7 @@ respectFond = input.bool(true, "Ne jamais chasser contre la tendance de fond", g
 // ------------------------------------------------------ La meute (le lion)
 hierarchie = input.float(4.0, "Part du lion (hiérarchie de la meute)", minval = 1.0, maxval = 4.0, step = 0.5, group = "La meute (le lion)", tooltip = "1 = démocratie : nourriture proportionnelle à la forme. 2 = meute : l'alpha mange une part disproportionnée (forme au carré). 4 = tyrannie de l'alpha.")
 proieMin = input.float(0.35, "Proie minimale (conviction requise pour charger)", minval = 0.0, maxval = 0.8, step = 0.05, group = "La meute (le lion)", tooltip = "Le lion ne grignote pas : en dessous de cette conviction collective, la meute reste à l'affût sans dépenser un centime de frais. 0 = désactivé.")
+quorumMin = input.float(20.0, "Quorum de la meute : écart minimal entre les deux camps (%)", minval = 0.0, maxval = 90.0, step = 5.0, group = "La meute (le lion)", tooltip = "La conviction collective est une MOYENNE PONDÉRÉE : quand la moitié de la meute pousse vers le haut et l'autre moitié vers le bas, elle vaut presque zéro — mais son SIGNE, lui, est tiré au sort. Test EURJPY : camp haussier 50 %, camp baissier 51 %, écart 1 % — et une exposition cible de -41 % du capital sur un marché qui montait. Un pile ou face devenu une position. Le quorum exige un vrai écart entre les deux camps avant toute charge : à 20 %, il faut au moins 60 contre 40. En dessous, la meute reste à l'affût — non pas parce que la proie est maigre, mais parce qu'elle n'est d'accord sur rien. 0 = quorum désactivé.")
 convNorm = input.bool(false, "Normaliser la conviction (utiliser tout le budget de risque)", group = "La meute (le lion)", tooltip = "LA CORRECTION DES +5 000 € EN 16 ANS. La conviction collective vaut typiquement 0,30 : l'exposition réelle valait 0,30 × levier, soit 30 % du budget de risque que l'homéostasie autorisait. Normalisée par sa propre amplitude moyenne, la conviction couvre enfin toute la plage ±1, et le ciblage de volatilité redevient le vrai maître de la taille. La borne ±1 est conservée : jamais plus que le levier autorisé. Les profils Or et Forex l'activent.")
 
 // ------------------------------------------- La savane locale (le territoire)
@@ -298,6 +299,7 @@ swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : swapAnnuel
 respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : respire
 ddMaxE = pFx ? 50.0 : pMet ? 50.0 : pAct ? 50.0 : ddMax
 chocDureeE = pFx ? 1 : pMet ? 1 : pAct ? 1 : chocDuree
+quorumMinE = legacy ? 0.0 : pFx ? 25.0 : pMet ? 20.0 : pAct ? 20.0 : quorumMin
 chasseDesertE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : chasseDesert
 bipOnE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : bipOn
 bipDesertE = (pFx ? 100.0 : pMet ? 75.0 : pAct ? 0.0 : bipDesert) / 100
@@ -557,6 +559,16 @@ w16 = w16r * scaleC
 wTot = wT + w6 + w7 + w8 + w11 + w15 + w16
 dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6 * sig6 + w7 * sig7 + w8 * sig8 + w9 * sig9 + w10 * sig10 + w11 * sig11 + w12 * sig12 + w13 * sig13 + w14 * sig14 + w15 * sig15 + w16 * sig16 + w17 * sig17) / wTot : 0.0
 vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0) + (w9 > 0 ? 1 : 0) + (w10 > 0 ? 1 : 0) + (w11 > 0 ? 1 : 0) + (w12 > 0 ? 1 : 0) + (w13 > 0 ? 1 : 0) + (w14 > 0 ? 1 : 0) + (w15 > 0 ? 1 : 0) + (w16 > 0 ? 1 : 0) + (w17 > 0 ? 1 : 0)
+
+// LE QUORUM : la meute est-elle D'ACCORD, ou seulement moyennée ?
+// La direction collective est une moyenne pondérée. Cinquante pour cent de la
+// meute qui pousse vers le haut et cinquante-et-un vers le bas donnent une
+// moyenne quasi nulle — dont le SIGNE est un pile ou face. On mesure donc
+// l'écart réel entre les deux camps, et la meute ne charge que s'il est franc.
+wPour = (sig1 > 0 ? w1 : 0.0) + (sig2 > 0 ? w2 : 0.0) + (sig3 > 0 ? w3 : 0.0) + (sig4 > 0 ? w4 : 0.0) + (sig5 > 0 ? w5 : 0.0) + (sig6 > 0 ? w6 : 0.0) + (sig7 > 0 ? w7 : 0.0) + (sig8 > 0 ? w8 : 0.0) + (sig9 > 0 ? w9 : 0.0) + (sig10 > 0 ? w10 : 0.0) + (sig11 > 0 ? w11 : 0.0) + (sig12 > 0 ? w12 : 0.0) + (sig13 > 0 ? w13 : 0.0) + (sig14 > 0 ? w14 : 0.0) + (sig15 > 0 ? w15 : 0.0) + (sig16 > 0 ? w16 : 0.0) + (sig17 > 0 ? w17 : 0.0)
+wContre = (sig1 < 0 ? w1 : 0.0) + (sig2 < 0 ? w2 : 0.0) + (sig3 < 0 ? w3 : 0.0) + (sig4 < 0 ? w4 : 0.0) + (sig5 < 0 ? w5 : 0.0) + (sig6 < 0 ? w6 : 0.0) + (sig7 < 0 ? w7 : 0.0) + (sig8 < 0 ? w8 : 0.0) + (sig9 < 0 ? w9 : 0.0) + (sig10 < 0 ? w10 : 0.0) + (sig11 < 0 ? w11 : 0.0) + (sig12 < 0 ? w12 : 0.0) + (sig13 < 0 ? w13 : 0.0) + (sig14 < 0 ? w14 : 0.0) + (sig15 < 0 ? w15 : 0.0) + (sig16 < 0 ? w16 : 0.0) + (sig17 < 0 ? w17 : 0.0)
+quorum = wTot > 0 ? math.abs(wPour - wContre) / wTot : 0.0
+quorumOk = quorumMinE <= 0 or 100 * quorum >= quorumMinE
 
 // ============================================================================
 // ÉVOLUTION : FAMINE, MORT, CROISEMENT DES 2 MEILLEURES, MUTATION
@@ -957,7 +969,14 @@ dirS = ta.sma(dir, respireE)
 convRef = math.max(nz(ta.sma(math.abs(dirS), lbSav), 0.3), 0.05)
 dirN = math.max(-1.0, math.min(1.0, dirS / convRef))
 dirUse = convNormE ? dirN : dirS
-dirChasse = math.abs(dirUse) >= proieMinE ? dirUse : 0.0
+// LA PROIE MINIMALE SE JUGE SUR LA CONVICTION BRUTE, PAS SUR LA NORMALISÉE.
+// La normalisation divise la conviction par son amplitude habituelle : un jour
+// de désaccord total (conviction brute 4 %) ressort à 14 % après division, ce
+// qui suffisait à franchir la proie minimale du profil forex (12 %). Le seuil
+// censé dire « ne chasse pas sur une conviction faible » était donc franchi
+// PAR la faiblesse elle-même. On teste le brut, on dimensionne avec le
+// normalisé : la normalisation règle la TAILLE, elle ne crée pas la DÉCISION.
+dirChasse = math.abs(dirS) >= proieMinE and quorumOk ? dirUse : 0.0
 // LE RÉGIME DÉSERT : la savane est déclarée stérile, et la meute chasse
 // quand même — réduite, mais c'est bien ELLE, avec ses poids du moment.
 // Aucune espèce n'est désignée d'avance : celles qui se nourrissent tiennent
@@ -1015,7 +1034,7 @@ pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.n
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
-diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : desertOn ? "🏜 DÉSERT : savane jugée stérile, la meute chasse quand même à " + str.tostring(100 * bipDesertE, "#") + " % — " + str.tostring(vivantes) + " espèces se nourrissent" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirUse) < proieMinE ? "meute à l'affût : proie trop maigre (conviction " + str.tostring(100 * math.abs(dirUse), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : desertOn ? "🏜 DÉSERT : savane jugée stérile, la meute chasse quand même à " + str.tostring(100 * bipDesertE, "#") + " % — " + str.tostring(vivantes) + " espèces se nourrissent" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : vivantes == 0 ? "extinction : tout le monde à l'abri" : not quorumOk ? "meute DIVISÉE : " + str.tostring(100 * wPour / math.max(wTot, 1e-12), "#") + " % pour / " + str.tostring(100 * wContre / math.max(wTot, 1e-12), "#") + " % contre — écart " + str.tostring(100 * quorum, "#") + " % < quorum " + str.tostring(quorumMinE, "#") + " %, elle ne charge pas sur un pile ou face" : math.abs(dirS) < proieMinE ? "meute à l'affût : proie trop maigre (conviction brute " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = eteint ? color.new(color.red, 60) : ready and not desert and (savaneOk or desertOn) and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
 alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle " + str.tostring(lbAn) : bestFit == fit10 ? "Crocodile 55" : bestFit == fit11 ? "Hyène 20" : bestFit == fit12 ? "Panthère " + str.tostring(L12) : bestFit == fit13 ? "Lynx " + str.tostring(L13) : bestFit == fit14 ? "Bison " + str.tostring(L14) : bestFit == fit15 ? "Serpent " + str.tostring(L15) : bipOnE and bestFit == fit17 ? "Bip-Bip " + str.tostring(L17) : "Vautour 40") + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
 partCont = wTot > 0 ? 100 * (w6 + w7 + w8 + w11 + w15 + w16) / wTot : 0
@@ -1028,8 +1047,8 @@ profTxt = prof + " · classe " + classe + (legacy ? " · HÉRITAGE G9" : "") + "
 profCol = legacy ? color.new(color.gray, 80) : pFx or pMet ? color.new(color.blue, 75) : pAct ? color.new(color.orange, 82) : color.new(color.gray, 85)
 bipTxt = (chasseDesertE ? "désert : la meute chasse à " + str.tostring(100 * bipDesertE, "#") + " %" + (desertOn ? " — EN COURS" : " — savane grasse, pleine puissance") : "désert : chasse interdite, la colonie s'abrite") + " · Bip-Bip " + (not bipOnE ? "désarmé (16 espèces)" : str.tostring(L17) + "b g" + str.tostring(g17) + " " + (sig17 > 0 ? "▲" : "▼") + " " + str.tostring(10000 * fit17, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w17 / wTot : 0, "#") + " % de la meute")
 bipCol = desertOn ? color.new(color.orange, 68) : chasseDesertE ? color.new(color.teal, 80) : color.new(color.gray, 88)
-convTxt = "brute " + str.tostring(100 * dirS, "#.#") + " %" + (convNormE ? " → normalisée " + str.tostring(100 * dirUse, "#.#") + " % (amplitude de référence " + str.tostring(100 * convRef, "#.#") + " %)" : " (normalisation désactivée : la meute n'utilise qu'une fraction du levier autorisé)")
-convCol = convNormE ? color.new(color.teal, 80) : color.new(color.orange, 85)
+convTxt = "quorum " + str.tostring(100 * quorum, "#") + " % (min " + str.tostring(quorumMinE, "#") + " %) — " + str.tostring(100 * wPour / math.max(wTot, 1e-12), "#") + " % pour / " + str.tostring(100 * wContre / math.max(wTot, 1e-12), "#") + " % contre" + (quorumOk ? " ✓" : " ✗ DIVISÉE") + " · brute " + str.tostring(100 * dirS, "#.#") + " %" + (convNormE ? " → normalisée " + str.tostring(100 * dirUse, "#.#") + " % (amplitude de référence " + str.tostring(100 * convRef, "#.#") + " %)" : " (normalisation désactivée : la meute n'utilise qu'une fraction du levier autorisé)")
+convCol = not quorumOk ? color.new(color.orange, 70) : convNormE ? color.new(color.teal, 80) : color.new(color.gray, 85)
 e1 = "Guépard " + str.tostring(L1) + "b g" + str.tostring(g1) + " " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
 e2 = "Loup " + str.tostring(L2) + "b g" + str.tostring(g2) + " " + (sig2 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit2, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w2 / wTot : 0, "#") + " %"
 e3 = "Ours " + str.tostring(L3) + "b g" + str.tostring(g3) + " " + (sig3 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit3, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w3 / wTot : 0, "#") + " %"
@@ -1264,8 +1283,9 @@ alertcondition(not savaneOk and savaneOk[1], "Roi : la savane devient stérile",
 alertcondition(torpeur < 0.5 and torpeur[1] >= 0.5, "Roi : torpeur profonde", "La perte depuis le sommet dépasse la moitié de la borne mortelle")
 alertcondition(torpeur <= 0 and torpeur[1] > 0, "Roi : hibernation", "Borne mortelle atteinte : toute la colonie à l'abri, guérison en cours")
 alertcondition(eteint and not eteint[1], "Roi : EXTINCTION DÉFINITIVE", "Plancher de survie franchi : plus aucune exposition, pour toujours")
-alertcondition(math.abs(dirUse) >= proieMinE and math.abs(dirUse[1]) < proieMinE, "Roi : la meute charge", "La conviction collective vient de dépasser la proie minimale")
-alertcondition(math.abs(dirUse) < proieMinE and math.abs(dirUse[1]) >= proieMinE, "Roi : retour à l'affût", "La conviction collective est repassée sous la proie minimale")
+alertcondition(dirChasse != 0 and dirChasse[1] == 0, "Roi : la meute charge", "Quorum atteint et proie suffisante : la meute charge")
+alertcondition(dirChasse == 0 and dirChasse[1] != 0, "Roi : retour à l'affût", "Quorum perdu ou proie trop maigre : la meute cesse de chasser")
+alertcondition(not quorumOk and quorumOk[1], "Roi : la meute se divise", "Les deux camps s'équilibrent : plus aucun avis collectif, la chasse s'arrête")
 alertcondition(sig11 > 0 and sig11[1] <= 0, "Roi : festin de la Hyène", "Capitulation détectée : la Hyène entre sur la carcasse")
 alertcondition(sig16 > 0 and sig16[1] <= 0, "Roi : le Vautour descend", "Effondrement profond : le Vautour descend sur le grand charnier")
 alertcondition(fourmisAlerte and not fourmisAlerte[1], "Roi : les fourmis sentent l'orage", "Le bruit court dépasse 1,5 fois le bruit de fond : un choc approche statistiquement")
