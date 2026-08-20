@@ -361,7 +361,29 @@ bipLibreE = pFx or pMet ? true : pAct ? false : bipLibre
 // calendaires. Deux erreurs opposées qui se compensaient mal.
 // ============================================================================
 lbAn = timeframe.ismonthly ? 12 : timeframe.isweekly ? 52 : 252
-lbSav = legacy ? 252 : lbAn
+// ============================================================================
+// LA FENÊTRE LONGUE : MÊME NOMBRE, AUTRE GRANDEUR — ET C'EST LE TROU DE NVDA.
+// La G9 comptait 252 bougies quelle que soit l'unité de temps. La G10 ramène
+// la fenêtre à une année RÉELLE (52 en hebdomadaire) pour que le score soit un
+// vrai t-statistique, comparable d'une unité de temps à l'autre. En soi c'est
+// plus juste. Mais ça change l'ÉCHELLE du score, donc le SENS de votre seuil.
+//
+//   NVIDIA 1W, fenêtre G9 (252 bougies = 5 ans de hausse) :
+//     tendance ~ +2000 %, bruit ~ 1,1  ->  score ~ 18
+//     seuil 0,99 : franchi en permanence, la meute chasse tout le temps.
+//   NVIDIA 1W, fenêtre G10 (52 bougies = 1 an) :
+//     tendance ~ log(2) = 0,69, bruit ~ 0,50  ->  score ~ 1,4
+//     seuil 0,99 : une vraie porte, qui se referme une semaine sur deux.
+//     Votre capture le montre en clair : score 0,72 < 0,99, savane STÉRILE,
+//     exposition +0 % — sur NVIDIA, en pleine tendance haussière.
+//
+// Votre 0,99 a été validé sur l'échelle de la G9. Je l'ai laissé tel quel en
+// changeant l'échelle sous lui : le nombre est resté, le réglage a disparu.
+// Le profil actions garde donc la fenêtre G9. Le forex et les métaux gardent
+// le t-statistique, parce que leurs seuils (0,25 et 0,45) ont été posés sur
+// CETTE échelle-là. Un seuil ne veut rien dire sans la grandeur qu'il mesure.
+lbSav = legacy or pAct ? 252 : lbAn
+lbFond = legacy or pAct ? 252 : lbAn
 barsAn = timeframe.ismonthly ? 12.0 : timeframe.isweekly ? 52.0 : timeframe.isdaily ? 252.0 : 252.0 * 86400.0 / math.max(60.0, timeframe.in_seconds())
 annuF = legacy ? 31536000.0 / math.max(60.0, timeframe.in_seconds()) : barsAn
 
@@ -458,8 +480,8 @@ sig8 = d8 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L8], clo
 cAigle = request.security(sym10, timeframe.period, close)
 vAigle = math.log(cAigle / nz(cAigle[1], cAigle))
 sdAigle = ta.stdev(vAigle, 50)
-dAigle = sdAigle * math.sqrt(lbAn)
-sig9 = dAigle > 0 ? -math.max(-1.0, math.min(1.0, math.log(cAigle / nz(cAigle[lbAn], cAigle)) / dAigle)) : 0.0
+dAigle = sdAigle * math.sqrt(lbFond)
+sig9 = dAigle > 0 ? -math.max(-1.0, math.min(1.0, math.log(cAigle / nz(cAigle[lbFond], cAigle)) / dAigle)) : 0.0
 hCroco = ta.highest(close, 55)
 lCroco = ta.lowest(close, 55)
 sig10 = (hCroco - lCroco) > 0 ? math.max(-1.0, math.min(1.0, (close - (hCroco + lCroco) / 2) / ((hCroco - lCroco) / 2))) : 0.0
@@ -630,7 +652,7 @@ dirVote = wTot > 0 ? (wPour - wContre) / wTot : 0.0
 // ÉVOLUTION : FAMINE, MORT, CROISEMENT DES 2 MEILLEURES, MUTATION
 // ============================================================================
 bestFit = bestRef
-bestL = bestFit == fit1 ? L1 : bestFit == fit2 ? L2 : bestFit == fit3 ? L3 : bestFit == fit4 ? L4 : bestFit == fit5 ? L5 : bestFit == fit6 ? L6 : bestFit == fit7 ? L7 : bestFit == fit8 ? L8 : bestFit == fit9 ? lbAn : bestFit == fit10 ? 55 : bestFit == fit11 ? 20 : bestFit == fit12 ? L12 : bestFit == fit13 ? L13 : bestFit == fit14 ? L14 : bestFit == fit15 ? L15 : bipOnE and bestFit == fit17 ? L17 : 40
+bestL = bestFit == fit1 ? L1 : bestFit == fit2 ? L2 : bestFit == fit3 ? L3 : bestFit == fit4 ? L4 : bestFit == fit5 ? L5 : bestFit == fit6 ? L6 : bestFit == fit7 ? L7 : bestFit == fit8 ? L8 : bestFit == fit9 ? lbFond : bestFit == fit10 ? 55 : bestFit == fit11 ? 20 : bestFit == fit12 ? L12 : bestFit == fit13 ? L13 : bestFit == fit14 ? L14 : bestFit == fit15 ? L15 : bipOnE and bestFit == fit17 ? L17 : 40
 m2f1 = bestFit == fit1 ? -1e9 : fit1
 m2f2 = bestFit == fit2 ? -1e9 : fit2
 m2f3 = bestFit == fit3 ? -1e9 : fit3
@@ -649,7 +671,7 @@ m2f15 = bestFit == fit15 ? -1e9 : fit15
 m2f16 = bestFit == fit16 ? -1e9 : fit16
 m2f17 = bestFit == fit17 or not bipOnE ? -1e9 : fit17
 scndFit = math.max(m2f17, math.max(m2f1, math.max(m2f2, math.max(m2f3, math.max(m2f4, math.max(m2f5, math.max(m2f6, math.max(m2f7, math.max(m2f8, math.max(m2f9, math.max(m2f10, math.max(m2f11, math.max(m2f12, math.max(m2f13, math.max(m2f14, math.max(m2f15, m2f16))))))))))))))))
-scndL = scndFit == m2f1 ? L1 : scndFit == m2f2 ? L2 : scndFit == m2f3 ? L3 : scndFit == m2f4 ? L4 : scndFit == m2f5 ? L5 : scndFit == m2f6 ? L6 : scndFit == m2f7 ? L7 : scndFit == m2f8 ? L8 : scndFit == m2f9 ? lbAn : scndFit == m2f10 ? 55 : scndFit == m2f11 ? 20 : scndFit == m2f12 ? L12 : scndFit == m2f13 ? L13 : scndFit == m2f14 ? L14 : scndFit == m2f15 ? L15 : scndFit == m2f17 ? L17 : 40
+scndL = scndFit == m2f1 ? L1 : scndFit == m2f2 ? L2 : scndFit == m2f3 ? L3 : scndFit == m2f4 ? L4 : scndFit == m2f5 ? L5 : scndFit == m2f6 ? L6 : scndFit == m2f7 ? L7 : scndFit == m2f8 ? L8 : scndFit == m2f9 ? lbFond : scndFit == m2f10 ? 55 : scndFit == m2f11 ? 20 : scndFit == m2f12 ? L12 : scndFit == m2f13 ? L13 : scndFit == m2f14 ? L14 : scndFit == m2f15 ? L15 : scndFit == m2f17 ? L17 : 40
 croise = math.sqrt(math.max(2, bestL) * math.max(2, scndL))
 heritage = math.max(bestFit, 0.0) * soinParent / 100
 stv1 := barstate.isconfirmed ? (fit1 <= 0 ? stv1 + 1 : 0.0) : stv1
@@ -1025,7 +1047,7 @@ solTraitre = meches > 0.55
 // ============================================================================
 // TENDANCE DE FOND : suit l'unité de temps (bug G9 : figée à 252 bougies)
 // ============================================================================
-fond = close > nz(close[lbAn], close) ? 1 : -1
+fond = close > nz(close[lbFond], close) ? 1 : -1
 
 // ============================================================================
 // LA CHARGE DU LION : DÉCISION FINALE
@@ -1130,12 +1152,12 @@ pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
 diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : vivantes == 0 ? "extinction : tout le monde à l'abri" : not quorumOk ? "meute DIVISÉE : " + str.tostring(100 * wPour / math.max(wTot, 1e-12), "#") + " % pour / " + str.tostring(100 * wContre / math.max(wTot, 1e-12), "#") + " % contre — écart " + str.tostring(100 * quorum, "#") + " % < quorum " + str.tostring(quorumMinE, "#") + " %, elle ne charge pas sur un pile ou face" : math.abs(dirJuge) < proieMinE ? "meute à l'affût : " + (voixE ? "partage des camps trop serré (" : "proie trop maigre (conviction brute ") + str.tostring(100 * math.abs(dirJuge), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : desertOn ? "🏜 DÉSERT : savane stérile, la meute chasse quand même à " + str.tostring(100 * bipDesertE, "#") + " % — " + str.tostring(vivantes) + " espèces se nourrissent, écart " + str.tostring(100 * quorum, "#") + " %" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = eteint ? color.new(color.red, 60) : ready and not desert and (savaneOk or desertOn) and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
-alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle " + str.tostring(lbAn) : bestFit == fit10 ? "Crocodile 55" : bestFit == fit11 ? "Hyène 20" : bestFit == fit12 ? "Panthère " + str.tostring(L12) : bestFit == fit13 ? "Lynx " + str.tostring(L13) : bestFit == fit14 ? "Bison " + str.tostring(L14) : bestFit == fit15 ? "Serpent " + str.tostring(L15) : bipOnE and bestFit == fit17 ? "Bip-Bip " + str.tostring(L17) : "Vautour 40") + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
+alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle " + str.tostring(lbFond) : bestFit == fit10 ? "Crocodile 55" : bestFit == fit11 ? "Hyène 20" : bestFit == fit12 ? "Panthère " + str.tostring(L12) : bestFit == fit13 ? "Lynx " + str.tostring(L13) : bestFit == fit14 ? "Bison " + str.tostring(L14) : bestFit == fit15 ? "Serpent " + str.tostring(L15) : bipOnE and bestFit == fit17 ? "Bip-Bip " + str.tostring(L17) : "Vautour 40") + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
 partCont = wTot > 0 ? 100 * (w6 + w7 + w8 + w11 + w15 + w16) / wTot : 0
-fondTxt = (fond > 0 ? "haussière ▲" : "baissière ▼") + " sur " + str.tostring(lbAn) + " bougies" + (respectFondE ? " · " + (fond > 0 ? "shorts interdits" : "longs interdits") : " · filtre désactivé") + " · contrariennes " + str.tostring(partCont, "#") + " % (max " + str.tostring(contMaxE, "#") + " %)"
+fondTxt = (fond > 0 ? "haussière ▲" : "baissière ▼") + " sur " + str.tostring(lbFond) + " bougies" + (respectFondE ? " · " + (fond > 0 ? "shorts interdits" : "longs interdits") : " · filtre désactivé") + " · contrariennes " + str.tostring(partCont, "#") + " % (max " + str.tostring(contMaxE, "#") + " %)"
 immTxt = immun > 0 ? "BOUCLIER : convalescence " + str.tostring(immun, "#") + " bougies" : "au repos, seuil " + str.tostring(chocSeuil, "#.#") + " écarts-types"
 immCol = immun > 0 ? color.new(color.red, 70) : color.new(color.gray, 85)
-meteoTxt = "score " + str.tostring(scoreLocal, "#.##") + " (seuil " + str.tostring(seuLoc, "#.##") + ") · entropie " + str.tostring(100 * entropie, "#.#") + " % (max " + str.tostring(100 * entMaxE, "#.#") + " %)" + (savaneOk ? " ✓ propice" : " ✗ stérile")
+meteoTxt = "score " + str.tostring(scoreLocal, "#.##") + " (seuil " + str.tostring(seuLoc, "#.##") + " · fenêtre " + str.tostring(lbSav) + " bougies) · entropie " + str.tostring(100 * entropie, "#.#") + " % (max " + str.tostring(100 * entMaxE, "#.#") + " %)" + (savaneOk ? " ✓ propice" : " ✗ stérile")
 meteoCol = savaneOk ? color.new(color.teal, 70) : color.new(color.orange, 70)
 profTxt = prof + " · classe " + classe + (legacy ? " · HÉRITAGE G9" : "") + " · seuil " + str.tostring(savaneMinE, "#.##") + " · entropie max " + str.tostring(entMaxE, "#.###") + " · vol cible " + str.tostring(targetVolE, "#") + " % · levier max ×" + str.tostring(expoMaxE, "#.#") + " · proie " + str.tostring(proieMinE, "#.##") + " · frais sél. " + str.tostring(fraisE, "#.###") + " % · lion ^" + str.tostring(hierarchieE, "#.#") + " · contrariennes " + str.tostring(contMaxE, "#") + " % · fond " + (respectFondE ? "respecté" : "libre") + " · respiration " + str.tostring(respireE) + " · borne " + str.tostring(ddMaxE, "#") + " %"
 profCol = legacy ? color.new(color.gray, 80) : pFx or pMet ? color.new(color.blue, 75) : pAct ? color.new(color.orange, 82) : color.new(color.gray, 85)
@@ -1151,7 +1173,7 @@ e5 = "Baleine " + str.tostring(L5) + "b g" + str.tostring(g5) + " " + (sig5 > 0 
 e6 = "Colibri " + str.tostring(L6) + "b g" + str.tostring(g6) + " " + (sig6 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit6, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w6 / wTot : 0, "#") + " %"
 e7 = "Renard " + str.tostring(L7) + "b g" + str.tostring(g7) + " " + (sig7 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit7, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w7 / wTot : 0, "#") + " %"
 e8 = "Chouette " + str.tostring(L8) + "b g" + str.tostring(g8) + " " + (sig8 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit8, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w8 / wTot : 0, "#") + " %"
-e9 = "Aigle " + str.tostring(lbAn) + "b (dollar inversé) " + (sig9 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit9, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w9 / wTot : 0, "#") + " %"
+e9 = "Aigle " + str.tostring(lbFond) + "b (dollar inversé) " + (sig9 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit9, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w9 / wTot : 0, "#") + " %"
 e10 = "Crocodile 55b (embuscade) " + (sig10 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit10, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w10 / wTot : 0, "#") + " %"
 e11 = "Hyène 20b (charognard) " + (sig11 > 0 ? "▲ festin" : "— rôde") + " · " + str.tostring(10000 * fit11, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w11 / wTot : 0, "#") + " %"
 e12 = "Panthère " + str.tostring(L12) + "b g" + str.tostring(g12) + " " + (sig12 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit12, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w12 / wTot : 0, "#") + " %"
