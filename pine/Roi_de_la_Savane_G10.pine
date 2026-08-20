@@ -1077,9 +1077,21 @@ pfReel = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : 1.
 // composé sans rien protéger.
 freinReel = not freinOnE or strategy.closedtrades < 30 or strategy.netprofit >= 0 ? 1.0 : pfReel >= 1.0 ? 1.0 : pfReel >= 0.7 ? 0.5 : 0.25
 dirS = ta.sma(dir, respireE)
+// J'AI REFAIT LA MÊME ERREUR UN CRAN PLUS HAUT, ET LA CAPTURE EURUSD LE MONTRE.
+// La voix de la meute vaut 22 % sur la bougie — 61 contre 39. Je la passais
+// dans une moyenne de 5 bougies avant de la juger, et il en sortait 5 %.
+// L'alpha du terrain est le Renard, un retour à la moyenne sur 7 bougies : il
+// change d'avis tous les deux jours, par construction. Moyenner son vote sur
+// cinq jours, c'est exactement moyenner un contrarien avec un suiveur — le
+// désaccord est écrasé au lieu d'être mesuré. J'avais écrit la règle deux
+// paragraphes plus bas et je venais de la violer moi-même.
+// Le lissage était en plus REDONDANT : la respiration interdit déjà d'agir
+// ailleurs que toutes les respireE bougies. Filtrer le signal sur la même
+// fenêtre que la fréquence d'action, c'est filtrer deux fois.
+// La voix se juge donc telle qu'elle est. dirS, lui, garde son lissage : il
+// vient de la G9 et le profil actions en dépend.
 dirVoteS = ta.sma(dirVote, respireE)
-// dirJuge est ce qui DÉCIDE : moyenne des signaux, ou partage des camps.
-dirJuge = voixE ? dirVoteS : dirS
+dirJuge = voixE ? dirVote : dirS
 convRef = math.max(nz(ta.sma(math.abs(dirJuge), lbSav), 0.3), 0.05)
 dirN = math.max(-1.0, math.min(1.0, dirJuge / convRef))
 dirUse = convNormE ? dirN : dirJuge
@@ -1168,7 +1180,7 @@ profTxt = prof + " · classe " + classe + (legacy ? " · HÉRITAGE G9" : "") + "
 profCol = legacy ? color.new(color.gray, 80) : pFx or pMet ? color.new(color.blue, 75) : pAct ? color.new(color.orange, 82) : color.new(color.gray, 85)
 bipTxt = (chasseDesertE ? "désert : la meute chasse à " + str.tostring(100 * bipDesertE, "#") + " %" + (desertOn ? " — EN COURS" : " — savane grasse, pleine puissance") : "désert : chasse interdite, la colonie s'abrite") + " · Bip-Bip " + (not bipOnE ? "désarmé (16 espèces)" : str.tostring(L17) + "b g" + str.tostring(g17) + " " + (sig17 > 0 ? "▲" : "▼") + " " + str.tostring(10000 * fit17, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w17 / wTot : 0, "#") + " % de la meute")
 bipCol = desertOn ? color.new(color.orange, 68) : chasseDesertE ? color.new(color.teal, 80) : color.new(color.gray, 88)
-convTxt = "quorum " + str.tostring(100 * quorum, "#") + " % (min " + str.tostring(quorumMinE, "#") + " %) — " + str.tostring(100 * wPour / math.max(wTot, 1e-12), "#") + " % pour / " + str.tostring(100 * wContre / math.max(wTot, 1e-12), "#") + " % contre" + (quorumOk ? " ✓" : " ✗ DIVISÉE") + " · " + (voixE ? "VOIX DE LA MEUTE " + str.tostring(100 * dirVoteS, "#.#") + " % (moyenne des signaux " + str.tostring(100 * dirS, "#.#") + " %, écartée)" : "brute " + str.tostring(100 * dirS, "#.#") + " %") + (convNormE ? " → normalisée " + str.tostring(100 * dirUse, "#.#") + " % (amplitude de référence " + str.tostring(100 * convRef, "#.#") + " %)" : " (normalisation désactivée : la meute n'utilise qu'une fraction du levier autorisé)")
+convTxt = "quorum " + str.tostring(100 * quorum, "#") + " % (min " + str.tostring(quorumMinE, "#") + " %) — " + str.tostring(100 * wPour / math.max(wTot, 1e-12), "#") + " % pour / " + str.tostring(100 * wContre / math.max(wTot, 1e-12), "#") + " % contre" + (quorumOk ? " ✓" : " ✗ DIVISÉE") + " · " + (voixE ? "VOIX DE LA MEUTE " + str.tostring(100 * dirVote, "#.#") + " % sur la bougie (lissée 5 b : " + str.tostring(100 * dirVoteS, "#.#") + " % — non utilisée pour décider) · moyenne des signaux " + str.tostring(100 * dirS, "#.#") + " %, écartée" : "brute " + str.tostring(100 * dirS, "#.#") + " %") + (convNormE ? " → normalisée " + str.tostring(100 * dirUse, "#.#") + " % (amplitude de référence " + str.tostring(100 * convRef, "#.#") + " %)" : " (normalisation désactivée : la meute n'utilise qu'une fraction du levier autorisé)")
 convCol = not quorumOk ? color.new(color.orange, 70) : convNormE ? color.new(color.teal, 80) : color.new(color.gray, 85)
 e1 = "Guépard " + str.tostring(L1) + "b g" + str.tostring(g1) + " " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
 e2 = "Loup " + str.tostring(L2) + "b g" + str.tostring(g2) + " " + (sig2 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit2, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w2 / wTot : 0, "#") + " %"
