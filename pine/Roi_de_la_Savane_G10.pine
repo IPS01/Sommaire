@@ -51,9 +51,13 @@
 //      en EUR par un prix en JPY sur l'EURJPY : chaque position sortait 185
 //      fois trop petite. currency.NONE tient le compte dans la devise de
 //      cotation — les deux termes sont enfin homogènes.
-//   2. Le frein de perte était aveugle aux saignées lentes : le sommet
-//      mémorisé s'effaçait de 29 % par an. La perte se mesure désormais depuis
-//      le PLUS HAUT ABSOLU, et l'oubli du sommet a été SUPPRIMÉ.
+//   2. La perte se mesure depuis le PLUS HAUT ABSOLU (le sommet mémorisé de la
+//      G9 s'effaçait de 29 % par an et cachait les saignées lentes). MAIS le
+//      frein qui en découle a un PLANCHER : à 0,15, jamais à 0. Sans plancher,
+//      la borne atteinte coupait l'exposition, l'équité se figeait, le sommet
+//      restait haut, et la torpeur ne pouvait plus jamais se rouvrir : mort
+//      définitive à la première perte de 50 %. C'est ce qui a transformé le
+//      NVIDIA de la G9 en -15 000. Le frein freine, il ne condamne pas.
 //   3. Score des savanes : t-statistique sur une fenêtre d'un an réelle
 //      (252/52/12) au lieu de 252 bougies quelle que soit l'unité de temps.
 //   4. Volatilité annualisée en jours de bourse et non calendaires.
@@ -167,8 +171,8 @@ rebalPct = input.float(25.0, "Zone morte de rééquilibrage (% d'écart)", minva
 respire = input.int(5, "Respiration : rééquilibrage toutes les X bougies", minval = 1, maxval = 21, group = "Homéostasie", tooltip = "5 = hebdomadaire en journalier. Entre deux respirations, l'organisme tient sa position : les frais ne paient que les vraies décisions.")
 
 // --------------------------------------------- Régulation thermique (survie)
-ddMax = input.float(50.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)")
-freinOn = input.bool(true, "Frein réel : brider la colonie quand elle perd VRAIMENT de l'argent", group = "Régulation thermique (survie)", tooltip = "La sélection naturelle juge les espèces sur des frais VIRTUELS. Elle ne voit pas la commission réelle de votre courtier, ni le slippage, ni le swap. Une espèce peut donc paraître en pleine forme pendant que la colonie se vide. Ce frein regarde le seul chiffre honnête — le facteur de profit réalisé : sous 1,0 après 30 trades, l'exposition est divisée par deux ; sous 0,7, elle est coupée jusqu'à ce que la colonie reprenne des couleurs. C'est le garde-fou qui manquait au test EURUSD, qui a chassé dix ans avec un facteur de profit de 0,57.")
+ddMax = input.float(50.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)", tooltip = "L'exposition décroît linéairement à mesure que la perte depuis le plus haut ABSOLU s'approche de cette borne. Atteinte, elle ne coupe pas tout : la chasse tombe à son plancher de 15 %. Une coupure totale serait sans retour — à exposition nulle l'équité se fige, le sommet reste haut, la perte reste mesurée à 50 % et la colonie ne peut plus jamais se refaire. Pour un arrêt DÉFINITIF, c'est le plancher de survie ci-dessous qui sert, et lui seul.")
+freinOn = input.bool(true, "Frein réel : brider la colonie quand elle perd VRAIMENT de l'argent", group = "Régulation thermique (survie)", tooltip = "La sélection naturelle juge les espèces sur des frais VIRTUELS. Elle ne voit pas la commission réelle de votre courtier, ni le slippage, ni le swap. Une espèce peut donc paraître en pleine forme pendant que la colonie se vide. Ce frein regarde le seul chiffre honnête — le facteur de profit réalisé : sous 1,0 après 30 trades ET avec un profit net NÉGATIF, l'exposition est divisée par deux ; sous 0,7, réduite au quart. La condition de profit net négatif est essentielle : un facteur de profit sous 1 avec un profit net positif décrit une colonie qui gagne gros et rarement, exactement le profil d'un suiveur de tendance sur une action à forte dérive. La brider là revenait à casser le composé sans rien protéger. C'est le garde-fou qui manquait au test EURUSD, qui a chassé dix ans avec un facteur de profit de 0,57.")
 plancher = input.float(50.0, "Plancher de survie : extinction définitive sous (% du capital initial)", minval = 10.0, maxval = 95.0, step = 5.0, group = "Régulation thermique (survie)", tooltip = "Sous ce niveau, plus aucune exposition, définitivement.")
 
 // ------------------------------------------------------ Système immunitaire
@@ -807,7 +811,27 @@ levVol = sigA > 0 ? math.min(expoMaxE, (targetVolE / 100) / sigA) : 0.0
 var float eqMax = na
 eqMax := math.max(nz(eqMax, strategy.equity), strategy.equity)
 dd = eqMax > 0 ? 1.0 - strategy.equity / eqMax : 0.0
-torpeur = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMaxE / 100)))
+// LE VERROU MORTEL DE LA G10, ET LA RAISON DES -15 000 SUR NVIDIA.
+// La chaîne est mécanique, elle ne demande aucun backtest pour être vue :
+//   perte >= borne (50 %)  ->  torpeur = 0
+//   torpeur = 0            ->  fCible = 0  (ligne de la charge du lion)
+//   fCible = 0             ->  la position se solde, l'équité devient du cash
+//   équité figée           ->  eqMax figé, donc dd figé à 50 %
+//   dd figé                ->  torpeur reste 0. POUR TOUJOURS.
+// La G9 s'en sortait parce que son sommet mémorisé S'EFFAÇAIT : eqMax
+// redescendait vers l'équité, dd fondait, la torpeur se rouvrait toute seule.
+// J'ai supprimé cet oubli en le traitant comme un bug, et j'ai écrit dans
+// l'en-tête que « la remontée du capital rouvre le frein d'elle-même ». C'est
+// faux : le capital ne peut pas remonter à exposition nulle. J'avais pourtant
+// identifié EXACTEMENT ce piège pour le frein réel quelques lignes plus bas,
+// où j'ai posé un plancher à 0,25 — et je ne l'ai pas appliqué ici.
+// Sur NVIDIA à levier x10 et 100 % de volatilité cible, une perte de 50 %
+// depuis le sommet arrive forcément une fois en dix ans. La première fois
+// qu'elle arrive, la colonie meurt définitivement.
+// Le sommet absolu reste (il ne ment pas). Mais le frein garde un plancher :
+// il freine, il ne condamne pas.
+torpeurLibre = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMaxE / 100)))
+torpeur = math.max(0.15, torpeurLibre)
 
 // PLANCHER DE SURVIE : le point de non-retour. Pas de perte mortelle.
 var bool eteint = false
@@ -986,7 +1010,12 @@ pfReel = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : 1.
 // Jamais zéro : à exposition nulle, plus aucun trade ne se clôture, le
 // facteur de profit se fige et la colonie resterait bridée pour l'éternité.
 // On lui laisse le quart : de quoi se racheter, pas de quoi se ruiner.
-freinReel = not freinOn or strategy.closedtrades < 30 ? 1.0 : pfReel >= 1.0 ? 1.0 : pfReel >= 0.7 ? 0.5 : 0.25
+// Second organe absent de la G9, et second frein sur le composé de NVIDIA.
+// Il ne doit mordre que si la colonie perd VRAIMENT de l'argent — c'est son
+// intitulé même. Un facteur de profit sous 1 alors que le profit net est
+// POSITIF décrit une colonie qui gagne gros et rarement : la brider divise le
+// composé sans rien protéger.
+freinReel = not freinOn or strategy.closedtrades < 30 or strategy.netprofit >= 0 ? 1.0 : pfReel >= 1.0 ? 1.0 : pfReel >= 0.7 ? 0.5 : 0.25
 dirS = ta.sma(dir, respireE)
 convRef = math.max(nz(ta.sma(math.abs(dirS), lbSav), 0.3), 0.05)
 dirN = math.max(-1.0, math.min(1.0, dirS / convRef))
@@ -1110,8 +1139,8 @@ c13c = fit13 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c14c = fit14 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c15c = fit15 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c16c = fit16 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
-tempTxt = str.tostring(100 * dd, "#.#") + " % depuis le sommet absolu · " + (torpeur >= 0.99 ? "métabolisme normal" : torpeur > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeur > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "HIBERNATION (guérison en cours)")
-tempCol = torpeur >= 0.99 ? color.new(color.teal, 80) : torpeur > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
+tempTxt = str.tostring(100 * dd, "#.#") + " % depuis le sommet absolu · " + (torpeurLibre >= 0.99 ? "métabolisme normal" : torpeurLibre > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeurLibre > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "BORNE FRANCHIE : plancher de chasse " + str.tostring(100 * torpeur, "#") + " % — la colonie peut encore se refaire")
+tempCol = torpeurLibre >= 0.99 ? color.new(color.teal, 80) : torpeurLibre > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
 s1t = (on1 ? "" : "⏸ ") + str.tostring(100 * nz(mo1, 0), "#") + " % / bruit " + str.tostring(100 * nz(vo1, 0), "#") + " % → " + str.tostring(nz(sc1, 0), "#.##") + " / " + str.tostring(sv1, "#.##") + (not on1 ? " ignorée" : sr1 >= 0 ? " ✓ grasse" : nz(sc1, 0) >= sv1 / 2 ? " ~ maigre" : " ✗ désert")
 s2t = (on2 ? "" : "⏸ ") + str.tostring(100 * nz(mo2, 0), "#") + " % / bruit " + str.tostring(100 * nz(vo2, 0), "#") + " % → " + str.tostring(nz(sc2, 0), "#.##") + " / " + str.tostring(sv2, "#.##") + (not on2 ? " ignorée" : sr2 >= 0 ? " ✓ grasse" : nz(sc2, 0) >= sv2 / 2 ? " ~ maigre" : " ✗ désert")
 s3t = (on3 ? "" : "⏸ ") + str.tostring(100 * nz(mo3, 0), "#") + " % / bruit " + str.tostring(100 * nz(vo3, 0), "#") + " % → " + str.tostring(nz(sc3, 0), "#.##") + " / " + str.tostring(sv3, "#.##") + (not on3 ? " ignorée" : sr3 >= 0 ? " ✓ grasse" : nz(sc3, 0) >= sv3 / 2 ? " ~ maigre" : " ✗ désert")
@@ -1309,8 +1338,8 @@ alertcondition(naissance, "Roi : naissance d'une espèce", "Une espèce est mort
 alertcondition(choc, "Roi : choc immunitaire", "Mouvement anormal détecté, bouclier levé, exposition réduite de moitié")
 alertcondition(savaneOk and not savaneOk[1], "Roi : la savane redevient propice", "Le territoire local redevient chassable")
 alertcondition(not savaneOk and savaneOk[1], "Roi : la savane devient stérile", "Le territoire local se referme, migration conseillée dans le tableau")
-alertcondition(torpeur < 0.5 and torpeur[1] >= 0.5, "Roi : torpeur profonde", "La perte depuis le sommet dépasse la moitié de la borne mortelle")
-alertcondition(torpeur <= 0 and torpeur[1] > 0, "Roi : hibernation", "Borne mortelle atteinte : toute la colonie à l'abri, guérison en cours")
+alertcondition(torpeurLibre < 0.5 and torpeurLibre[1] >= 0.5, "Roi : torpeur profonde", "La perte depuis le sommet dépasse la moitié de la borne mortelle")
+alertcondition(torpeurLibre <= 0 and torpeurLibre[1] > 0, "Roi : borne mortelle franchie", "Perte maximale atteinte : la chasse tombe à son plancher, elle ne s'arrête pas — sinon le capital ne pourrait plus jamais remonter")
 alertcondition(eteint and not eteint[1], "Roi : EXTINCTION DÉFINITIVE", "Plancher de survie franchi : plus aucune exposition, pour toujours")
 alertcondition(dirChasse != 0 and dirChasse[1] == 0, "Roi : la meute charge", "Quorum atteint et proie suffisante : la meute charge")
 alertcondition(dirChasse == 0 and dirChasse[1] != 0, "Roi : retour à l'affût", "Quorum perdu ou proie trop maigre : la meute cesse de chasser")
