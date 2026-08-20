@@ -13,64 +13,75 @@
 //
 //   LE PROFIL DE CHASSE (liste déroulante)
 //   Un profil est un jeu de réglages VERROUILLÉ, calibré pour un terrain.
-//   AUTOMATIQUE (défaut) détecte la classe et applique le bon : NVIDIA prend
-//   actions, l'or prend métaux, l'EURUSD prend forex. Trois choix forcent un
-//   profil. MANUEL débranche tout : vos réglages commandent, sans exception.
-//   Les valeurs effectives du profil actif sont affichées en clair dans le
-//   tableau, ligne « Profil de chasse » — lisez-les, recopiez-les en Manuel.
+//   AUTOMATIQUE (défaut) détecte la classe et applique le bon. MANUEL débranche
+//   tout : vos réglages commandent, sans exception. Les valeurs effectives sont
+//   affichées en clair dans le tableau, ligne « Profil de chasse ».
 //
-//   LE BIP-BIP — L'ESPÈCE DU DÉSERT
-//   Les seize autres refusent de chasser quand le territoire est stérile. Ce
-//   refus était le premier verrou des 5 000 € en seize ans : sur le forex,
-//   l'exposition tombait à zéro et y restait. Le Bip-Bip n'a pas ce scrupule :
-//   ça monte il achète, ça descend il vend, et son gain de réactivité le fait
-//   saturer dès un tiers d'écart-type — il ne dose pas, il s'engage. Deux
-//   rôles : membre de la meute en savane grasse, chasseur solitaire quand elle
-//   se ferme. Les bornes de SURVIE le tiennent malgré tout — torpeur, bouclier,
-//   plancher d'extinction, ordre souverain. Désarmé il n'existe pas du tout :
-//   le moteur redevient rigoureusement celui des seize espèces.
+//                        Actions (NVIDIA)   Or & métaux   Forex
+//     seuil de savane         0,99             0,45        0,25
+//     entropie maximale       0,995            coupée      coupée
+//     volatilité cible        100 %            40 %        25 %
+//     levier plafond          x10              x5          x4
+//     proie minimale          0,35             0,20        0,12
+//     frais de sélection      0,10 %           0,04 %      0,015 %
+//     filtre de fond          respecté         libre       libre
+//     plafond contrarien      80 %             70 %        65 %
+//     quorum de la meute      20 %             20 %        25 %
+//     chasse dans le désert   non              75 %        100 %
 //
-//   CE QUE LA G10 CORRIGE (bugs réels de la G9)
-//   1. Les savanes étaient jaugées avec un momentum de 252 BOUGIES divisé par
-//      une volatilité annualisée en √252, quelle que soit l'unité de temps. En
-//      hebdomadaire, 252 bougies = 4,8 ans : score gonflé ~2,2x. La G10 mesure
-//      un vrai t-statistique sur une fenêtre d'un an réelle (252/52/12).
-//   2. La volatilité du levier était annualisée en jours CALENDAIRES (√365)
-//      sur des bougies de BOURSE : levier sous-dimensionné de ~23 % en
-//      permanence. La G10 annualise en jours de bourse (√252).
-//   3. La part des contrariennes affichée oubliait la Hyène, le Serpent et le
-//      Vautour : le tableau annonçait 20 % là où le plafond en voyait 45 %.
-//   4. La tendance de fond était figée à 252 bougies : suit l'unité de temps.
-//   5. Une savane éteinte restait classée dans la migration conseillée.
-//   6. bestFit recalculait la chaîne de max déjà tenue par bestRef.
-//   7. Les 20 request.security évaluaient trois fois le même ta.stdev.
+//   LE QUORUM — la meute ne charge pas sur un pile ou face
+//   La direction collective est une MOYENNE PONDÉRÉE : quand la moitié de la
+//   meute pousse vers le haut et l'autre vers le bas, elle vaut presque zéro,
+//   mais son SIGNE est tiré au sort. Test EURJPY : camp haussier 50 %, camp
+//   baissier 51 %, écart 1 % — et une cible de -41 % du capital sur un marché
+//   qui montait. Le quorum exige un écart franc entre les deux camps avant
+//   toute charge. Et la proie minimale se juge sur la conviction BRUTE, pas
+//   sur la normalisée : la normalisation règle la TAILLE, jamais la DÉCISION.
 //
-//   VINGT SAVANES INDÉPENDANTES : chaque territoire a sa case d'activation,
-//   son symbole et son seuil propre (0 = hérite du profil). La migration
-//   classe par EXCÉDENT au-dessus du seuil propre, pas par score brut.
+//   LE DÉSERT — chasser quand même
+//   Le score de savane mesure la TENDANCE de l'année. Un actif qui fait des
+//   allers-retours score près de zéro : c'est le terrain des contrariennes.
+//   Dans le désert, c'est la MEUTE qui chasse, avec ses poids du moment, à une
+//   fraction réglable de son exposition. Si personne ne se nourrit, les poids
+//   sont nuls et la colonie s'abrite d'elle-même. Le Bip-Bip est une espèce
+//   parmi les autres — momentum ultra-court, aucun privilège.
 //
-//   MODE HÉRITAGE G9 : une seule case rend au moteur les mathématiques de la
-//   G9 (annualisation calendaire, savanes en 252 bougies, conviction brute,
+//   CE QUE LA G10 CORRIGE
+//   1. BUG DE DEVISE. qtyCible = fCible * equity / close divisait un capital
+//      en EUR par un prix en JPY sur l'EURJPY : chaque position sortait 185
+//      fois trop petite. currency.NONE tient le compte dans la devise de
+//      cotation — les deux termes sont enfin homogènes.
+//   2. Le frein de perte était aveugle aux saignées lentes : le sommet
+//      mémorisé s'effaçait de 29 % par an. La perte se mesure désormais depuis
+//      le PLUS HAUT ABSOLU, et l'oubli du sommet a été SUPPRIMÉ.
+//   3. Score des savanes : t-statistique sur une fenêtre d'un an réelle
+//      (252/52/12) au lieu de 252 bougies quelle que soit l'unité de temps.
+//   4. Volatilité annualisée en jours de bourse et non calendaires.
+//   5. Part des contrariennes affichée : la Hyène, le Serpent et le Vautour
+//      étaient oubliés du calcul alors que le plafond les comptait.
+//   6. Tendance de fond : suit l'unité de temps au lieu de 252 bougies fixes.
+//   7. Une savane décochée restait proposée en migration.
+//   8. Frein réel sur le facteur de profit : la sélection juge les espèces sur
+//      des frais VIRTUELS et ne voit ni commission, ni slippage, ni swap.
+//
+//   MODE HÉRITAGE G9 : rétablit les mathématiques de la G9 (annualisation
+//   calendaire, savanes en 252 bougies, conviction brute, quorum désactivé,
 //   Bip-Bip désarmé) et force le profil en Manuel. C'est le témoin de contrôle.
 //
 //   AVERTISSEMENTS
 //   • commission_value doit être une CONSTANTE Pine : impossible d'en faire un
-//     paramètre. Elle est à 0,05 % (vos captures). Pour le forex comptant,
-//     éditez-la à 0.01 — à 0,05 % avec respiration 3 et levier x15, les frais
-//     mangent tout.
-//   • Volatilité cible 100 % et levier x10 à x15, c'est un régime de risque
-//     extrême. Le plancher d'extinction à 50 % est DÉFINITIF. Regardez le
-//     drawdown maximum du rapport de stratégie avant de porter ça en réel.
+//     paramètre. Elle est à 0,05 %, ce qui convient aux CFD et aux actions.
+//     POUR LE FOREX, éditez-la à 0.005 — sinon les frais mangent tout.
+//   • Le profil actions vise 100 % de volatilité annuelle avec un plancher
+//     d'extinction DÉFINITIF à 50 % du capital. C'est un régime de risque
+//     extrême, demandé et assumé. Lisez le drawdown maximum du rapport de
+//     stratégie avant de porter ça en réel.
 //   • L'eau (swap) est de la comptabilité pure : affichée, jamais facturée aux
-//     ordres. À x10 de levier, 3 %/an de swap coûtent ~30 %/an du capital :
-//     lisez la ligne « profit après eau », pas seulement le profit net.
+//     ordres. Lisez la ligne « profit après eau », pas seulement le profit net.
 //
 //   STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur, et
 //   UNE SEULE ligne indentée dans tout le fichier — la toute dernière. Rien ne
-//   la suit, donc rien ne peut s'y imbriquer par accident de collage. La
-//   version à deux blocs « if » a coûté un compte : collée depuis un
-//   téléphone, le second s'est imbriqué dans le premier et la colonie ne
-//   pouvait plus qu'acheter, jamais vendre.
+//   la suit, donc rien ne peut s'y imbriquer par accident de collage.
 //
 //   APRÈS TOUT COLLAGE, VÉRIFIEZ LA DERNIÈRE LIGNE : elle doit être indentée,
 //   et ce doit être la SEULE du fichier. Si vous en voyez deux, le collage a
