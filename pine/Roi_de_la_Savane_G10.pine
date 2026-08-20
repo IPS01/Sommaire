@@ -29,6 +29,7 @@
 //     quorum de la meute      désactivé        15 %        15 %
 //     voix de la meute        non              oui         oui
 //     frein réel              désarmé          armé        armé
+//     mémoire du sommet       500 b (G9)       absolu      absolu
 //     chasse dans le désert   non              75 %        100 %
 //
 //   LE QUORUM — la meute ne charge pas sur un pile ou face
@@ -180,6 +181,7 @@ respire = input.int(5, "Respiration : rééquilibrage toutes les X bougies", min
 
 // --------------------------------------------- Régulation thermique (survie)
 ddMax = input.float(50.0, "Borne mortelle : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Régulation thermique (survie)", tooltip = "L'exposition décroît linéairement à mesure que la perte depuis le plus haut ABSOLU s'approche de cette borne. Atteinte, elle ne coupe pas tout : la chasse tombe à son plancher de 15 %. Une coupure totale serait sans retour — à exposition nulle l'équité se fige, le sommet reste haut, la perte reste mesurée à 50 % et la colonie ne peut plus jamais se refaire. Pour un arrêt DÉFINITIF, c'est le plancher de survie ci-dessous qui sert, et lui seul.")
+memSommet = input.int(0, "Mémoire du sommet (bougies, 0 = sommet absolu)", minval = 0, maxval = 2000, group = "Régulation thermique (survie)", tooltip = "DEUX RÉGIMES, ET CHACUN A RAISON SUR SON TERRAIN. Sommet ABSOLU (0) : la perte se mesure depuis le plus haut jamais atteint. Il ne ment jamais, il attrape les saignées lentes — c'est lui qui manquait au test EURUSD, où la colonie a perdu 52 % en affichant « métabolisme normal ». Sommet qui S'EFFACE (la G9, demi-vie 500 bougies) : le sommet mémorisé redescend doucement vers l'équité, si bien qu'une vieille perte finit par être pardonnée. Sur une action à forte dérive, dix ans de composé traversent forcément plusieurs grosses corrections : les mesurer éternellement depuis le plus haut historique bride la poussée à chaque fois et coupe le composé. Le profil actions prend l'oubli (c'est le régime de vos 9 M), le forex et les métaux prennent le sommet absolu (c'est là que la saignée lente a eu lieu).")
 freinOn = input.bool(true, "Frein réel : brider la colonie quand elle perd VRAIMENT de l'argent", group = "Régulation thermique (survie)", tooltip = "La sélection naturelle juge les espèces sur des frais VIRTUELS. Elle ne voit pas la commission réelle de votre courtier, ni le slippage, ni le swap. Une espèce peut donc paraître en pleine forme pendant que la colonie se vide. Ce frein regarde le seul chiffre honnête — le facteur de profit réalisé : sous 1,0 après 30 trades ET avec un profit net NÉGATIF, l'exposition est divisée par deux ; sous 0,7, réduite au quart. La condition de profit net négatif est essentielle : un facteur de profit sous 1 avec un profit net positif décrit une colonie qui gagne gros et rarement, exactement le profil d'un suiveur de tendance sur une action à forte dérive. La brider là revenait à casser le composé sans rien protéger. C'est le garde-fou qui manquait au test EURUSD, qui a chassé dix ans avec un facteur de profit de 0,57.")
 plancher = input.float(50.0, "Plancher de survie : extinction définitive sous (% du capital initial)", minval = 10.0, maxval = 95.0, step = 5.0, group = "Régulation thermique (survie)", tooltip = "Sous ce niveau, plus aucune exposition, définitivement.")
 
@@ -339,6 +341,7 @@ hierarchieE = pFx ? 3.0 : pMet ? 3.5 : pAct ? 4.0 : hierarchie
 // et les métaux. Sur actions, à vous de les cocher si vous le voulez.
 voixE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : voixMeute
 freinOnE = legacy ? false : pAct ? false : freinOn
+memSommetE = legacy ? 500 : pAct ? 500 : pFx or pMet ? 0 : memSommet
 convNormE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : convNorm
 swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : swapAnnuel
 respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : respire
@@ -862,9 +865,11 @@ levVol = sigA > 0 ? math.min(expoMaxE, (targetVolE / 100) / sigA) : 0.0
 // l'équité, la perte fondait, le frein se rouvrait. Un témoin de contrôle qui
 // ne restitue pas ça n'est pas un témoin — il ne peut pas reproduire les
 // backtests de la G9, donc il ne peut rien prouver. Il le restitue maintenant.
-lamPic = math.pow(0.5, 1.0 / 500)
+// Une seule formule pour les deux régimes : à mémoire nulle lamPic vaut 1 et
+// l'expression redevient exactement le sommet absolu, sans branche séparée.
+lamPic = memSommetE > 0 ? math.pow(0.5, 1.0 / memSommetE) : 1.0
 var float eqMax = na
-eqMax := legacy ? math.max(strategy.equity, nz(eqMax, strategy.equity) * lamPic) : math.max(nz(eqMax, strategy.equity), strategy.equity)
+eqMax := math.max(strategy.equity, nz(eqMax, strategy.equity) * lamPic)
 dd = eqMax > 0 ? 1.0 - strategy.equity / eqMax : 0.0
 // LE VERROU MORTEL DE LA G10, ET LA RAISON DES -15 000 SUR NVIDIA.
 // La chaîne est mécanique, elle ne demande aucun backtest pour être vue :
@@ -1197,7 +1202,7 @@ c13c = fit13 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c14c = fit14 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c15c = fit15 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c16c = fit16 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
-tempTxt = str.tostring(100 * dd, "#.#") + " % depuis le sommet absolu · " + (torpeurLibre >= 0.99 ? "métabolisme normal" : torpeurLibre > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeurLibre > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "BORNE FRANCHIE : plancher de chasse " + str.tostring(100 * torpeur, "#") + " % — la colonie peut encore se refaire")
+tempTxt = str.tostring(100 * dd, "#.#") + (memSommetE > 0 ? " % depuis le sommet (mémoire " + str.tostring(memSommetE) + " b) · " : " % depuis le sommet absolu · ") + (torpeurLibre >= 0.99 ? "métabolisme normal" : torpeurLibre > 0.5 ? "fièvre : poussée réduite à " + str.tostring(100 * torpeur, "#") + " %" : torpeurLibre > 0 ? "torpeur profonde : " + str.tostring(100 * torpeur, "#") + " %" : "BORNE FRANCHIE : plancher de chasse " + str.tostring(100 * torpeur, "#") + " % — la colonie peut encore se refaire")
 tempCol = torpeurLibre >= 0.99 ? color.new(color.teal, 80) : torpeurLibre > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
 s1t = (on1 ? "" : "⏸ ") + str.tostring(100 * nz(mo1, 0), "#") + " % / bruit " + str.tostring(100 * nz(vo1, 0), "#") + " % → " + str.tostring(nz(sc1, 0), "#.##") + " / " + str.tostring(sv1, "#.##") + (not on1 ? " ignorée" : sr1 >= 0 ? " ✓ grasse" : nz(sc1, 0) >= sv1 / 2 ? " ~ maigre" : " ✗ désert")
 s2t = (on2 ? "" : "⏸ ") + str.tostring(100 * nz(mo2, 0), "#") + " % / bruit " + str.tostring(100 * nz(vo2, 0), "#") + " % → " + str.tostring(nz(sc2, 0), "#.##") + " / " + str.tostring(sv2, "#.##") + (not on2 ? " ignorée" : sr2 >= 0 ? " ✓ grasse" : nz(sc2, 0) >= sv2 / 2 ? " ~ maigre" : " ✗ désert")
