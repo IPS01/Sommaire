@@ -65,8 +65,16 @@
 //     ordres. À x10 de levier, 3 %/an de swap coûtent ~30 %/an du capital :
 //     lisez la ligne « profit après eau », pas seulement le profit net.
 //
-//   STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur —
-//   les 2 seules lignes indentées sont les 2 dernières du fichier.
+//   STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur, et
+//   UNE SEULE ligne indentée dans tout le fichier — la toute dernière. Rien ne
+//   la suit, donc rien ne peut s'y imbriquer par accident de collage. La
+//   version à deux blocs « if » a coûté un compte : collée depuis un
+//   téléphone, le second s'est imbriqué dans le premier et la colonie ne
+//   pouvait plus qu'acheter, jamais vendre.
+//
+//   APRÈS TOUT COLLAGE, VÉRIFIEZ LA DERNIÈRE LIGNE : elle doit être indentée,
+//   et ce doit être la SEULE du fichier. Si vous en voyez deux, le collage a
+//   glissé — recollez.
 // ============================================================================
 
 strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane G10", overlay = true, initial_capital = 10000, currency = currency.EUR, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 1, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 150, margin_long = 2, margin_short = 2, max_bars_back = 1000)
@@ -1269,9 +1277,23 @@ alertcondition(desertOn and not desertOn[1], "Roi : la meute entre dans le dése
 alertcondition(not desertOn and desertOn[1], "Roi : la meute sort du désert", "La savane redevient grasse : la meute reprend sa pleine exposition")
 
 // ============================================================================
-// CORRECTIONS DE POUSSÉE (les 2 seules lignes indentées, fin du fichier)
+// LA CORRECTION DE POUSSÉE — UN SEUL BLOC, UNE SEULE LIGNE INDENTÉE
+//
+// POURQUOI UN SEUL : la version précédente avait DEUX blocs « if », l'un pour
+// acheter, l'autre pour vendre. Collée depuis un téléphone, l'indentation du
+// second a glissé et « if doMoins » s'est retrouvé IMBRIQUÉ dans « if doPlus ».
+// Or les deux sont mutuellement exclusifs : imbriqué, l'ordre de vente ne peut
+// JAMAIS s'exécuter. La colonie ne pouvait plus qu'acheter — jamais alléger,
+// jamais sortir, jamais inverser. Test NVIDIA 1W : cinq trades clôturés en dix
+// ans, position jamais réduite, -13 496 € et fonds propres négatifs, pendant
+// que la meute affichait des formes de +90 pb par bougie. La main était
+// paralysée, pas l'écosystème.
+//
+// Désormais : UN bloc, UNE ligne indentée, et c'est la DERNIÈRE du fichier.
+// Il n'y a plus rien après elle qui puisse s'y imbriquer. Le sens de l'ordre
+// est porté par une ternaire à l'intérieur de la ligne, pas par la structure.
+// doPlus et doMoins ne peuvent pas être vrais en même temps (l'un exige
+// diffQty > seuil, l'autre -diffQty > seuil, avec seuil > 0).
 // ============================================================================
-if doPlus
-    strategy.order("Pousse+", strategy.long, qty = diffQty, comment = "cap " + str.tostring(100 * fCible, "#") + "%", alert_message = "RoiSavane HAUSSE exposition vers " + str.tostring(100 * fCible, "#.#") + "% " + syminfo.ticker)
-if doMoins
-    strategy.order("Pousse-", strategy.short, qty = -diffQty, comment = "cap " + str.tostring(100 * fCible, "#") + "%", alert_message = "RoiSavane BAISSE exposition vers " + str.tostring(100 * fCible, "#.#") + "% " + syminfo.ticker)
+if doPlus or doMoins
+    strategy.order(doPlus ? "Pousse+" : "Pousse-", doPlus ? strategy.long : strategy.short, qty = math.abs(diffQty), comment = "cap " + str.tostring(100 * fCible, "#") + "%", alert_message = "RoiSavane " + (doPlus ? "HAUSSE" : "BAISSE") + " exposition vers " + str.tostring(100 * fCible, "#.#") + "% " + syminfo.ticker)
