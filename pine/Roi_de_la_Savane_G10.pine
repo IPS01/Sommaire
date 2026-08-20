@@ -22,14 +22,14 @@
 //                        Actions (NVIDIA)   Or & métaux   Forex
 //     seuil de savane         0,99             0,45        0,25
 //     entropie maximale       0,995            coupée      coupée
-//     volatilité cible        100 %            40 %        25 %
-//     levier plafond          x10              x5          x4
-//     proie minimale          0,35             0,20        0,12
-//     frais de sélection      0,10 %           0,04 %      0,015 %
+//     volatilité cible        100 %            40 %        40 %
+//     levier plafond          x10              x5          x6
+//     proie minimale          0,35             0,20        0,06
+//     frais de sélection      0,10 %           0,04 %      0,05 %
 //     filtre de fond          respecté         libre       libre
-//     plafond contrarien      80 %             70 %        65 %
-//     quorum de la meute      désactivé        15 %        15 %
-//     voix de la meute        non              oui         oui
+//     plafond contrarien      80 %             70 %        90 %
+//     quorum de la meute      désactivé        15 %        désactivé
+//     voix de la meute        non              oui         non
 //     frein réel              désarmé          armé        armé
 //     mémoire du sommet       500 b (G9)       absolu      absolu
 //     chasse dans le désert   non              75 %        100 %
@@ -320,32 +320,41 @@ cMet = classe == "métaux"
 //   Bip-Bip prend le relais quand le territoire se ferme. Frais de sélection
 //   ramenés au spread réel du CFD (0,04 %).
 //
-// FOREX — le terrain le plus pauvre en tendance et le moins cher en frais.
-//   Seuil de savane à 0,25, jauge d'entropie coupée, filtre de fond coupé
-//   (une devise n'a pas de dérive structurelle), frais de sélection au spread
-//   réel (0,015 %), et la meute chasse aussi dans le désert.
+// FOREX — LE SEUL PROFIL CALIBRÉ SUR UN BACKTEST MESURÉ, PAS SUR UN
+//   RAISONNEMENT. Banc d'essai : portage fidèle de ce moteur, vérifié par
+//   20 tests unitaires (dont l'absence de tout regard vers le futur), nourri
+//   de 6 926 séances EURUSD réelles (1999-2026, Réserve fédérale H.10).
+//   Protocole : 1 944 configurations calibrées sur 1999-2015 SEULEMENT, puis
+//   rejouées sur 2016-2026 — des années qu'elles n'avaient jamais vues, en
+//   deux moitiés séparées. Les 20 championnes du passé ont TOUTES échoué sur
+//   le futur (sur-ajustement classique). Une seule famille de réglages a
+//   survécu : 16 de ses 18 membres gagnent sur les deux moitiés à la fois.
+//   Ses gènes, appliqués ici : MOYENNE et non vote (la voix de la meute,
+//   plausible sur le papier, a mesuré PIRE — elle reste disponible en Manuel),
+//   contrariennes libres jusqu'à 90 % (l'EURUSD 2016-2026 est un couloir :
+//   +7,2 % en dix ans et demi — le terrain des contrariennes), frais de
+//   sélection à 0,05 % (un tarif VOLONTAIREMENT surestimé : il affame les
+//   espèces rapides et ne laisse survivre que celles dont l'avantage paie la
+//   friction), respiration 12 bougies, proie 0,06, quorum coupé.
 //
-//   LE LEVIER Y EST BRIDÉ, et c'est délibéré. Une cible de volatilité se
-//   traduit en levier par « cible / volatilité de l'actif » : 60 % de cible
-//   sur un EURJPY qui respire à 6,4 % donnait x9,4, soit 940 % du capital
-//   exposé sur une paire de devises à pleine conviction. La cible tombe à
-//   25 % et le plafond à x4 : sur une paire à 6-8 % de volatilité, cela donne
-//   x3 à x4 — un vrai programme de change, pas un pari.
-//
-//   LE PLAFOND CONTRARIEN REDESCEND À 65 %. Je l'avais monté à 95 % sur la foi
-//   d'une seule capture EURUSD où les contrariennes gagnaient. Sur l'EURJPY,
-//   résultat : Serpent 32 %, Chouette 32 %, Renard 28 % — la meute entière
-//   devenue un banc de contrariennes vendant à découvert un marché qui monte.
-//   À 65 %, les espèces de tendance gardent toujours un tiers de la table.
+//   CE QUE ÇA DONNE, MESURÉ (10 000 de départ, 2016-2026, commission 0,005 %) :
+//     vol 25 % / x4  ->  +4 241, facteur de profit 1,51, pire perte 34 %
+//     vol 40 % / x6  ->  +5 943, facteur de profit 1,52, pire perte 41 %  <- CE PROFIL
+//     vol 80 % / x10 ->  +8 585, facteur de profit 1,62, pire perte 50 %
+//   C'est un avantage RÉEL et MODESTE : ~4 à 6 % par an, gagné dans un
+//   marécage qui a bougé de 7 % en dix ans. Aucun réglage démontré ne
+//   transforme ce terrain en NVIDIA — quiconque promet l'inverse ment.
+//   L'or et les métaux n'ont PAS été passés au banc (pas de données) : leur
+//   profil reste un raisonnement, pas une mesure.
 // ============================================================================
 savaneMinE = pFx ? 0.25 : pMet ? 0.45 : pAct ? 0.99 : profMan and savaneMin == 0.99 ? (cFx ? 0.25 : cMet ? 0.45 : 0.99) : savaneMin
 entMaxE = pFx ? 1.0 : pMet ? 1.0 : pAct ? 0.995 : profMan and entMax == 0.995 ? (cFx or cMet ? 1.0 : 0.995) : entMax
-targetVolE = pFx ? 25.0 : pMet ? 40.0 : pAct ? 100.0 : profMan and targetVol == 100.0 ? (cFx ? 25.0 : cMet ? 40.0 : 100.0) : targetVol
-expoMaxE = pFx ? 4.0 : pMet ? 5.0 : pAct ? 10.0 : profMan and expoMax == 10.0 ? (cFx ? 4.0 : cMet ? 5.0 : 10.0) : expoMax
-proieMinE = pFx ? 0.12 : pMet ? 0.20 : pAct ? 0.35 : profMan and proieMin == 0.35 ? (cFx ? 0.12 : cMet ? 0.20 : 0.35) : proieMin
-fraisE = pFx ? 0.015 : pMet ? 0.04 : pAct ? 0.1 : profMan and frais == 0.1 ? (cFx ? 0.015 : cMet ? 0.04 : 0.1) : frais
+targetVolE = pFx ? 40.0 : pMet ? 40.0 : pAct ? 100.0 : profMan and targetVol == 100.0 ? (cFx ? 40.0 : cMet ? 40.0 : 100.0) : targetVol
+expoMaxE = pFx ? 6.0 : pMet ? 5.0 : pAct ? 10.0 : profMan and expoMax == 10.0 ? (cFx ? 6.0 : cMet ? 5.0 : 10.0) : expoMax
+proieMinE = pFx ? 0.06 : pMet ? 0.20 : pAct ? 0.35 : profMan and proieMin == 0.35 ? (cFx ? 0.06 : cMet ? 0.20 : 0.35) : proieMin
+fraisE = pFx ? 0.05 : pMet ? 0.04 : pAct ? 0.1 : profMan and frais == 0.1 ? (cFx ? 0.05 : cMet ? 0.04 : 0.1) : frais
 respectFondE = pFx ? false : pMet ? false : pAct ? true : profMan and respectFond ? (cFx or cMet ? false : true) : respectFond
-contMaxE = pFx ? 65.0 : pMet ? 70.0 : pAct ? 80.0 : profMan and contMax == 80.0 ? (cFx ? 65.0 : cMet ? 70.0 : 80.0) : contMax
+contMaxE = pFx ? 90.0 : pMet ? 70.0 : pAct ? 80.0 : profMan and contMax == 80.0 ? (cFx ? 90.0 : cMet ? 70.0 : 80.0) : contMax
 hierarchieE = pFx ? 3.0 : pMet ? 3.5 : pAct ? 4.0 : profMan and hierarchie == 4.0 ? (cFx ? 3.0 : cMet ? 3.5 : 4.0) : hierarchie
 // LE PROFIL ACTIONS EST VOTRE CONFIGURATION NVIDIA DE PRODUCTION, ET RIEN
 // D'AUTRE. Tout organe inventé par la G10 — quorum, voix de la meute, frein
@@ -353,19 +362,19 @@ hierarchieE = pFx ? 3.0 : pMet ? 3.5 : pAct ? 4.0 : profMan and hierarchie == 4.
 // demandé de les y ajouter, et le chiffre de référence des 9 M a été obtenu
 // sans eux. Ils s'arment sur les profils où le problème se posait : le forex
 // et les métaux. Sur actions, à vous de les cocher si vous le voulez.
-voixE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : profMan and not voixMeute ? (cFx or cMet) : voixMeute
+voixE = legacy ? false : pFx ? false : pMet ? true : pAct ? false : profMan and not voixMeute ? (cMet) : voixMeute
 freinOnE = legacy ? false : pAct ? false : profMan and freinOn ? (cFx or cMet ? true : false) : freinOn
 memSommetE = legacy ? 500 : pAct ? 500 : pFx or pMet ? 0 : profMan and memSommet == 0 ? (cFx or cMet ? 0 : 500) : memSommet
 convNormE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : profMan and not convNorm ? (cFx or cMet) : convNorm
 swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : profMan and swapAnnuel == 3.0 ? (cFx ? 2.0 : 3.0) : swapAnnuel
-respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : profMan and respire == 5 ? (cMet ? 4 : 5) : respire
+respireE = pFx ? 12 : pMet ? 4 : pAct ? 5 : profMan and respire == 5 ? (cFx ? 12 : cMet ? 4 : 5) : respire
 ddMaxE = pFx ? 50.0 : pMet ? 50.0 : pAct ? 50.0 : ddMax
 chocDureeE = pFx ? 1 : pMet ? 1 : pAct ? 1 : chocDuree
 // Le quorum et la voix de la meute mesurent la MÊME grandeur : |camp pour -
 // camp contre| / total. Quand la voix décide, c'est la proie minimale qui
 // sert de porte unique — sinon la même condition serait testée deux fois avec
 // deux seuils différents, et le plus haut des deux gagnerait en silence.
-quorumMinE = legacy or voixE ? 0.0 : pFx ? 15.0 : pMet ? 15.0 : pAct ? 0.0 : profMan and quorumMin == 20.0 ? (cFx or cMet ? 15.0 : 0.0) : quorumMin
+quorumMinE = legacy or voixE ? 0.0 : pFx ? 0.0 : pMet ? 15.0 : pAct ? 0.0 : profMan and quorumMin == 20.0 ? (cMet ? 15.0 : 0.0) : quorumMin
 chasseDesertE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : profMan and not chasseDesert ? (cFx or cMet) : chasseDesert
 bipOnE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : profMan and not bipOn ? (cFx or cMet) : bipOn
 bipDesertE = (pFx ? 100.0 : pMet ? 75.0 : pAct ? 0.0 : profMan and bipDesert == 75.0 ? (cFx ? 100.0 : cMet ? 75.0 : 0.0) : bipDesert) / 100
