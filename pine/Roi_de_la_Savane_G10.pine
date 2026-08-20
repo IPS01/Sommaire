@@ -26,7 +26,9 @@
 //     frais de sélection      0,10 %           0,04 %      0,015 %
 //     filtre de fond          respecté         libre       libre
 //     plafond contrarien      80 %             70 %        65 %
-//     quorum de la meute      20 %             15 %        15 %
+//     quorum de la meute      désactivé        15 %        15 %
+//     voix de la meute        non              oui         oui
+//     frein réel              désarmé          armé        armé
 //     chasse dans le désert   non              75 %        100 %
 //
 //   LE QUORUM — la meute ne charge pas sur un pile ou face
@@ -68,19 +70,24 @@
 //   8. Frein réel sur le facteur de profit : la sélection juge les espèces sur
 //      des frais VIRTUELS et ne voit ni commission, ni slippage, ni swap.
 //
-//   MODE HÉRITAGE G9 : rétablit les mathématiques de la G9 (annualisation
-//   calendaire, savanes en 252 bougies, conviction brute, quorum désactivé,
-//   Bip-Bip désarmé) et force le profil en Manuel. C'est le témoin de contrôle.
+//   MODE HÉRITAGE G9 : le témoin de contrôle. Il rétablit TOUT le comportement
+//   de la G9 — annualisation calendaire, savanes en 252 bougies, conviction
+//   brute, quorum désactivé, voix de la meute désactivée, Bip-Bip désarmé,
+//   frein réel désarmé, oubli du sommet rétabli (demi-vie 500 bougies) et
+//   torpeur sans plancher — et force le profil en Manuel. Il ne restituait pas
+//   l'oubli du sommet ni le frein réel : il ne pouvait donc pas reproduire les
+//   backtests de la G9, et ne prouvait rien. C'est corrigé.
 //
 //   AVERTISSEMENTS
 //   • commission_value doit être une CONSTANTE Pine : impossible d'en faire un
-//     paramètre. Elle est désormais à 0,005 %, le tarif réel d'un compte forex
-//     ou métaux. Elle était à 0,05 % — un tarif ACTION, dix fois trop cher pour
-//     une devise — et c'est ce que payait le test EURUSD : 229 trades à levier
-//     x4 sur un compte de 10 000 €, la commission seule prélevait ~700 € que
-//     la sélection naturelle ne voyait pas (elle jugeait les espèces sur des
-//     frais virtuels de 0,015 %). Espèces « en forme », colonie qui se vide.
-//     POUR LES ACTIONS ET INDICES, remettez 0,05 dans Propriétés → Commission.
+//     paramètre. Elle est à 0,05 % — VOTRE valeur de production NVIDIA, et
+//     elle y reste. Je l'avais baissée à 0,005 pour le forex : c'était changer
+//     un réglage de votre configuration validée sans vous le demander, sur un
+//     instrument qui n'était même pas celui du problème.
+//     POUR LE FOREX ET LES MÉTAUX, mettez 0.005 dans Propriétés → Commission :
+//     0,05 % est un tarif ACTION, dix fois trop cher pour une devise, et sur
+//     le test EURUSD la commission seule prélevait ~700 € que la sélection
+//     naturelle ne voyait pas. Propriétés écrase le script : rien à recoller.
 //   • Le profil actions vise 100 % de volatilité annuelle avec un plancher
 //     d'extinction DÉFINITIF à 50 % du capital. C'est un régime de risque
 //     extrême, demandé et assumé. Lisez le drawdown maximum du rapport de
@@ -97,7 +104,7 @@
 //   glissé — recollez.
 // ============================================================================
 
-strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane G10", overlay = true, initial_capital = 10000, currency = currency.NONE, commission_type = strategy.commission.percent, commission_value = 0.005, slippage = 1, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 150, margin_long = 2, margin_short = 2, max_bars_back = 1000)
+strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane G10", overlay = true, initial_capital = 10000, currency = currency.NONE, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 1, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 150, margin_long = 2, margin_short = 2, max_bars_back = 1000)
 
 // ============================================================================
 // PARAMÈTRES
@@ -324,7 +331,14 @@ fraisE = pFx ? 0.015 : pMet ? 0.04 : pAct ? 0.1 : frais
 respectFondE = pFx ? false : pMet ? false : pAct ? true : respectFond
 contMaxE = pFx ? 65.0 : pMet ? 70.0 : pAct ? 80.0 : contMax
 hierarchieE = pFx ? 3.0 : pMet ? 3.5 : pAct ? 4.0 : hierarchie
+// LE PROFIL ACTIONS EST VOTRE CONFIGURATION NVIDIA DE PRODUCTION, ET RIEN
+// D'AUTRE. Tout organe inventé par la G10 — quorum, voix de la meute, frein
+// réel, désert, Bip-Bip, normalisation — y est NEUTRE. Vous ne m'avez pas
+// demandé de les y ajouter, et le chiffre de référence des 9 M a été obtenu
+// sans eux. Ils s'arment sur les profils où le problème se posait : le forex
+// et les métaux. Sur actions, à vous de les cocher si vous le voulez.
 voixE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : voixMeute
+freinOnE = legacy ? false : pAct ? false : freinOn
 convNormE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : convNorm
 swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : swapAnnuel
 respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : respire
@@ -334,7 +348,7 @@ chocDureeE = pFx ? 1 : pMet ? 1 : pAct ? 1 : chocDuree
 // camp contre| / total. Quand la voix décide, c'est la proie minimale qui
 // sert de porte unique — sinon la même condition serait testée deux fois avec
 // deux seuils différents, et le plus haut des deux gagnerait en silence.
-quorumMinE = legacy or voixE ? 0.0 : pFx ? 15.0 : pMet ? 15.0 : pAct ? 20.0 : quorumMin
+quorumMinE = legacy or voixE ? 0.0 : pFx ? 15.0 : pMet ? 15.0 : pAct ? 0.0 : quorumMin
 chasseDesertE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : chasseDesert
 bipOnE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : bipOn
 bipDesertE = (pFx ? 100.0 : pMet ? 75.0 : pAct ? 0.0 : bipDesert) / 100
@@ -821,8 +835,14 @@ levVol = sigA > 0 ? math.min(expoMaxE, (targetVolE / 100) / sigA) : 0.0
 // étiquetée « DANGEREUX », il a été coché au test suivant — une case à cocher
 // reste une case à cocher. Le sommet absolu ne ment pas, et la remontée du
 // capital rouvre le frein d'elle-même : c'est la seule guérison nécessaire.
+// MODE HÉRITAGE : la G9 laissait le sommet mémorisé S'EFFACER (demi-vie 500
+// bougies, soit -29 % par an). C'était sa soupape : eqMax redescendait vers
+// l'équité, la perte fondait, le frein se rouvrait. Un témoin de contrôle qui
+// ne restitue pas ça n'est pas un témoin — il ne peut pas reproduire les
+// backtests de la G9, donc il ne peut rien prouver. Il le restitue maintenant.
+lamPic = math.pow(0.5, 1.0 / 500)
 var float eqMax = na
-eqMax := math.max(nz(eqMax, strategy.equity), strategy.equity)
+eqMax := legacy ? math.max(strategy.equity, nz(eqMax, strategy.equity) * lamPic) : math.max(nz(eqMax, strategy.equity), strategy.equity)
 dd = eqMax > 0 ? 1.0 - strategy.equity / eqMax : 0.0
 // LE VERROU MORTEL DE LA G10, ET LA RAISON DES -15 000 SUR NVIDIA.
 // La chaîne est mécanique, elle ne demande aucun backtest pour être vue :
@@ -844,7 +864,7 @@ dd = eqMax > 0 ? 1.0 - strategy.equity / eqMax : 0.0
 // Le sommet absolu reste (il ne ment pas). Mais le frein garde un plancher :
 // il freine, il ne condamne pas.
 torpeurLibre = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMaxE / 100)))
-torpeur = math.max(0.15, torpeurLibre)
+torpeur = math.max(legacy ? 0.0 : 0.15, torpeurLibre)
 
 // PLANCHER DE SURVIE : le point de non-retour. Pas de perte mortelle.
 var bool eteint = false
@@ -1028,7 +1048,7 @@ pfReel = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : 1.
 // intitulé même. Un facteur de profit sous 1 alors que le profit net est
 // POSITIF décrit une colonie qui gagne gros et rarement : la brider divise le
 // composé sans rien protéger.
-freinReel = not freinOn or strategy.closedtrades < 30 or strategy.netprofit >= 0 ? 1.0 : pfReel >= 1.0 ? 1.0 : pfReel >= 0.7 ? 0.5 : 0.25
+freinReel = not freinOnE or strategy.closedtrades < 30 or strategy.netprofit >= 0 ? 1.0 : pfReel >= 1.0 ? 1.0 : pfReel >= 0.7 ? 0.5 : 0.25
 dirS = ta.sma(dir, respireE)
 dirVoteS = ta.sma(dirVote, respireE)
 // dirJuge est ce qui DÉCIDE : moyenne des signaux, ou partage des camps.
@@ -1277,7 +1297,7 @@ table.cell(info, 1, 22, str.tostring(strategy.closedtrades) + " / " + str.tostri
 table.cell(info, 0, 23, "Profit factor", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 23, na(pf) ? "—" : str.tostring(pf, "#.##"), text_size = size.small)
 table.cell(info, 0, 24, "Profit net · frein réel", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 24, str.tostring(strategy.netprofit, "#.##") + " · " + (not freinOn ? "frein désarmé" : strategy.closedtrades < 30 ? "frein en attente (" + str.tostring(strategy.closedtrades) + "/30 trades)" : freinReel >= 1.0 ? "✓ la colonie gagne" : freinReel >= 0.5 ? "⚠ BRIDÉE de moitié (PF " + str.tostring(pfReel, "#.##") + ")" : "✗ RÉDUITE AU QUART (PF " + str.tostring(pfReel, "#.##") + ")"), text_size = size.small, bgcolor = freinOn and strategy.closedtrades >= 30 and freinReel < 1.0 ? color.new(color.red, 70) : color.new(color.gray, 85))
+table.cell(info, 1, 24, str.tostring(strategy.netprofit, "#.##") + " · " + (not freinOnE ? "frein désarmé" : strategy.closedtrades < 30 ? "frein en attente (" + str.tostring(strategy.closedtrades) + "/30 trades)" : freinReel >= 1.0 ? "✓ la colonie gagne" : freinReel >= 0.5 ? "⚠ BRIDÉE de moitié (PF " + str.tostring(pfReel, "#.##") + ")" : "✗ RÉDUITE AU QUART (PF " + str.tostring(pfReel, "#.##") + ")"), text_size = size.small, bgcolor = freinOnE and strategy.closedtrades >= 30 and freinReel < 1.0 ? color.new(color.red, 70) : color.new(color.gray, 85))
 table.cell(info, 0, 25, "Température (perte / borne " + str.tostring(ddMaxE, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
 table.cell(info, 1, 25, tempTxt, text_size = size.small, bgcolor = tempCol)
 table.cell(info, 0, 26, "Tendance de fond", text_size = size.small, bgcolor = color.new(color.gray, 85))
@@ -1366,7 +1386,7 @@ alertcondition(fourmisAlerte and not fourmisAlerte[1], "Roi : les fourmis senten
 alertcondition(abeillesAlerte and not abeillesAlerte[1], "Roi : les abeilles fuient la ruche", "Tempête systémique : les savanes surveillées tremblent ensemble")
 alertcondition(decroche and not decroche[1], "Roi : le miroir décroche", "Le présent ne tient plus la promesse du passé : convoquer le conseil, geler toute montée en charge")
 alertcondition(srBest > 0 and srBest[1] <= 0, "Roi : une savane redevient grasse", "Au moins un territoire surveillé repasse au-dessus de son propre seuil")
-alertcondition(freinOn and freinReel < 1.0 and freinReel[1] >= 1.0, "Roi : le frein réel mord", "Le facteur de profit réalisé est passé sous 1 : la colonie est bridée. Vérifiez la commission réglée dans Propriétés.")
+alertcondition(freinOnE and freinReel < 1.0 and freinReel[1] >= 1.0, "Roi : le frein réel mord", "Le facteur de profit réalisé est passé sous 1 : la colonie est bridée. Vérifiez la commission réglée dans Propriétés.")
 alertcondition(desertOn and not desertOn[1], "Roi : la meute entre dans le désert", "Savane jugée stérile : la meute chasse quand même, à exposition réduite")
 alertcondition(not desertOn and desertOn[1], "Roi : la meute sort du désert", "La savane redevient grasse : la meute reprend sa pleine exposition")
 
