@@ -26,7 +26,7 @@
 //     frais de sélection      0,10 %           0,04 %      0,015 %
 //     filtre de fond          respecté         libre       libre
 //     plafond contrarien      80 %             70 %        65 %
-//     quorum de la meute      20 %             20 %        25 %
+//     quorum de la meute      20 %             15 %        15 %
 //     chasse dans le désert   non              75 %        100 %
 //
 //   LE QUORUM — la meute ne charge pas sur un pile ou face
@@ -70,8 +70,13 @@
 //
 //   AVERTISSEMENTS
 //   • commission_value doit être une CONSTANTE Pine : impossible d'en faire un
-//     paramètre. Elle est à 0,05 %, ce qui convient aux CFD et aux actions.
-//     POUR LE FOREX, éditez-la à 0.005 — sinon les frais mangent tout.
+//     paramètre. Elle est désormais à 0,005 %, le tarif réel d'un compte forex
+//     ou métaux. Elle était à 0,05 % — un tarif ACTION, dix fois trop cher pour
+//     une devise — et c'est ce que payait le test EURUSD : 229 trades à levier
+//     x4 sur un compte de 10 000 €, la commission seule prélevait ~700 € que
+//     la sélection naturelle ne voyait pas (elle jugeait les espèces sur des
+//     frais virtuels de 0,015 %). Espèces « en forme », colonie qui se vide.
+//     POUR LES ACTIONS ET INDICES, remettez 0,05 dans Propriétés → Commission.
 //   • Le profil actions vise 100 % de volatilité annuelle avec un plancher
 //     d'extinction DÉFINITIF à 50 % du capital. C'est un régime de risque
 //     extrême, demandé et assumé. Lisez le drawdown maximum du rapport de
@@ -88,7 +93,7 @@
 //   glissé — recollez.
 // ============================================================================
 
-strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane G10", overlay = true, initial_capital = 10000, currency = currency.NONE, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 1, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 150, margin_long = 2, margin_short = 2, max_bars_back = 1000)
+strategy("Le Roi de la Savane [écosystème darwinien complet + migration]", shorttitle = "Roi de la Savane G10", overlay = true, initial_capital = 10000, currency = currency.NONE, commission_type = strategy.commission.percent, commission_value = 0.005, slippage = 1, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 150, margin_long = 2, margin_short = 2, max_bars_back = 1000)
 
 // ============================================================================
 // PARAMÈTRES
@@ -319,7 +324,7 @@ swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : swapAnnuel
 respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : respire
 ddMaxE = pFx ? 50.0 : pMet ? 50.0 : pAct ? 50.0 : ddMax
 chocDureeE = pFx ? 1 : pMet ? 1 : pAct ? 1 : chocDuree
-quorumMinE = legacy ? 0.0 : pFx ? 25.0 : pMet ? 20.0 : pAct ? 20.0 : quorumMin
+quorumMinE = legacy ? 0.0 : pFx ? 15.0 : pMet ? 15.0 : pAct ? 20.0 : quorumMin
 chasseDesertE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : chasseDesert
 bipOnE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : bipOn
 bipDesertE = (pFx ? 100.0 : pMet ? 75.0 : pAct ? 0.0 : bipDesert) / 100
@@ -1058,7 +1063,7 @@ pousseCol = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.n
 winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
 pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
 desert = timeframe.in_seconds() < 14400
-diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : desertOn ? "🏜 DÉSERT : savane jugée stérile, la meute chasse quand même à " + str.tostring(100 * bipDesertE, "#") + " % — " + str.tostring(vivantes) + " espèces se nourrissent" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : vivantes == 0 ? "extinction : tout le monde à l'abri" : not quorumOk ? "meute DIVISÉE : " + str.tostring(100 * wPour / math.max(wTot, 1e-12), "#") + " % pour / " + str.tostring(100 * wContre / math.max(wTot, 1e-12), "#") + " % contre — écart " + str.tostring(100 * quorum, "#") + " % < quorum " + str.tostring(quorumMinE, "#") + " %, elle ne charge pas sur un pile ou face" : math.abs(dirS) < proieMinE ? "meute à l'affût : proie trop maigre (conviction brute " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi, plus aucune exposition" : pacteAbri ? "l'Homme a ordonné l'abri — la savane attend son retour" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : desert ? "⚠ DÉSERT : frais > proies sur cette unité de temps — passez en 1D" : vivantes == 0 ? "extinction : tout le monde à l'abri" : not quorumOk ? "meute DIVISÉE : " + str.tostring(100 * wPour / math.max(wTot, 1e-12), "#") + " % pour / " + str.tostring(100 * wContre / math.max(wTot, 1e-12), "#") + " % contre — écart " + str.tostring(100 * quorum, "#") + " % < quorum " + str.tostring(quorumMinE, "#") + " %, elle ne charge pas sur un pile ou face" : math.abs(dirS) < proieMinE ? "meute à l'affût : proie trop maigre (conviction brute " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMinE, "#") + " %)" : desertOn ? "🏜 DÉSERT : savane stérile, la meute chasse quand même à " + str.tostring(100 * bipDesertE, "#") + " % — " + str.tostring(vivantes) + " espèces se nourrissent, écart " + str.tostring(100 * quorum, "#") + " %" : not savaneOk ? "savane locale stérile — migration conseillée : " + migrTxt : str.tostring(vivantes) + "/" + str.tostring(bipOnE ? 17 : 16) + " vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
 diagCol = eteint ? color.new(color.red, 60) : ready and not desert and (savaneOk or desertOn) and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
 alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle " + str.tostring(lbAn) : bestFit == fit10 ? "Crocodile 55" : bestFit == fit11 ? "Hyène 20" : bestFit == fit12 ? "Panthère " + str.tostring(L12) : bestFit == fit13 ? "Lynx " + str.tostring(L13) : bestFit == fit14 ? "Bison " + str.tostring(L14) : bestFit == fit15 ? "Serpent " + str.tostring(L15) : bipOnE and bestFit == fit17 ? "Bip-Bip " + str.tostring(L17) : "Vautour 40") + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb" + (bestFit > 0 ? " — il mange le premier" : " — toute la meute a faim")
 partCont = wTot > 0 ? 100 * (w6 + w7 + w8 + w11 + w15 + w16) / wTot : 0
