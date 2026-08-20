@@ -13,8 +13,10 @@
 //
 //   LE PROFIL DE CHASSE (liste déroulante)
 //   Un profil est un jeu de réglages VERROUILLÉ, calibré pour un terrain.
-//   AUTOMATIQUE (défaut) détecte la classe et applique le bon. MANUEL débranche
-//   tout : vos réglages commandent, sans exception. Les valeurs effectives sont
+//   AUTOMATIQUE (défaut) détecte la classe et applique le bon. MANUEL : chaque
+//   réglage MODIFIÉ commande ; un réglage laissé à sa valeur d'usine hérite
+//   du profil de la classe détectée — plus jamais de réglage d'action posé
+//   d'office sur une devise. Les valeurs effectives sont
 //   affichées en clair dans le tableau, ligne « Profil de chasse ».
 //
 //                        Actions (NVIDIA)   Or & métaux   Forex
@@ -143,7 +145,7 @@ entMax = input.float(0.995, "Entropie maximale tolérée (1 = jauge désactivée
 // valeurs exactes de chaque profil sont dans le tableau du poste de
 // commandement, ligne « Profil de chasse » : lisez-les, puis passez en
 // « Manuel » pour les modifier une par une.
-profil = input.string("Automatique (selon la classe d'actif)", "Profil de chasse", options = ["Automatique (selon la classe d'actif)", "Actions & indices (réglage NVIDIA)", "Or & métaux", "Forex", "Manuel (mes réglages ci-dessous)"], group = "Profil de chasse", tooltip = "AUTOMATIQUE : la classe de l'actif est détectée et le profil correspondant s'applique — NVIDIA prend le profil actions, l'or le profil métaux, l'EURUSD le profil forex. Les trois autres choix forcent un profil quelle que soit la classe. MANUEL : plus aucun profil, ce sont vos réglages des groupes ci-dessous qui commandent, tous sans exception. Les réglages livrés par défaut dans ces groupes SONT le profil NVIDIA : en passant en Manuel vous partez donc de NVIDIA et vous modifiez ce que vous voulez.")
+profil = input.string("Automatique (selon la classe d'actif)", "Profil de chasse", options = ["Automatique (selon la classe d'actif)", "Actions & indices (réglage NVIDIA)", "Or & métaux", "Forex", "Manuel (mes réglages ci-dessous)"], group = "Profil de chasse", tooltip = "AUTOMATIQUE : la classe de l'actif est détectée et le profil correspondant s'applique — NVIDIA prend le profil actions, l'or le profil métaux, l'EURUSD le profil forex. Les trois autres choix forcent un profil quelle que soit la classe. MANUEL : chaque réglage que vous avez MODIFIÉ commande, sans exception. Un réglage laissé à sa valeur d'usine hérite du profil de la classe détectée — sur l'EURUSD, un seuil de savane resté à 0,99 vaut donc 0,25, comme en profil Forex. Avant, les valeurs d'usine (qui sont le réglage NVIDIA) s'appliquaient telles quelles : passer en Manuel sur une devise posait d'office 100 % de volatilité cible et l'interdiction de vendre sur un marché qui monte — c'est le -3 194 du test EURUSD.")
 classeMan = input.string("automatique", "Classe d'actif (forcer si la détection se trompe)", options = ["automatique", "forex", "métaux", "indices", "actions", "crypto", "énergie"], group = "Profil de chasse")
 
 // ================= LE DÉSERT : CHASSER QUAND MÊME =================
@@ -291,6 +293,18 @@ prof = legacy ? "Manuel (mes réglages ci-dessous)" : profil == "Automatique (se
 pAct = prof == "Actions & indices (réglage NVIDIA)"
 pMet = prof == "Or & métaux"
 pFx = prof == "Forex"
+// LE MODE MANUEL NE DOIT PLUS JAMAIS POSER DES RÉGLAGES D'ACTION SUR UNE
+// DEVISE. Pine ne sait pas changer la valeur d'usine d'un input selon l'actif,
+// et les valeurs d'usine sont le profil NVIDIA : avant, choisir « Manuel » sur
+// l'EURUSD appliquait donc d'office 100 % de volatilité cible, un seuil de
+// savane à 0,99 et l'interdiction de vendre — le piège constaté : -3 194.
+// Désormais, en Manuel, un réglage laissé À SA VALEUR D'USINE hérite du profil
+// de la CLASSE DÉTECTÉE, et seul un réglage que vous avez MODIFIÉ commande.
+// Vous gardez la main sur tout ce que vous touchez ; le reste suit l'actif.
+profManuel = prof == "Manuel (mes réglages ci-dessous)"
+profMan = profManuel and not legacy
+cFx = classe == "forex"
+cMet = classe == "métaux"
 
 // ============================================================================
 // LES TROIS PROFILS
@@ -324,39 +338,39 @@ pFx = prof == "Forex"
 //   devenue un banc de contrariennes vendant à découvert un marché qui monte.
 //   À 65 %, les espèces de tendance gardent toujours un tiers de la table.
 // ============================================================================
-savaneMinE = pFx ? 0.25 : pMet ? 0.45 : pAct ? 0.99 : savaneMin
-entMaxE = pFx ? 1.0 : pMet ? 1.0 : pAct ? 0.995 : entMax
-targetVolE = pFx ? 25.0 : pMet ? 40.0 : pAct ? 100.0 : targetVol
-expoMaxE = pFx ? 4.0 : pMet ? 5.0 : pAct ? 10.0 : expoMax
-proieMinE = pFx ? 0.12 : pMet ? 0.20 : pAct ? 0.35 : proieMin
-fraisE = pFx ? 0.015 : pMet ? 0.04 : pAct ? 0.1 : frais
-respectFondE = pFx ? false : pMet ? false : pAct ? true : respectFond
-contMaxE = pFx ? 65.0 : pMet ? 70.0 : pAct ? 80.0 : contMax
-hierarchieE = pFx ? 3.0 : pMet ? 3.5 : pAct ? 4.0 : hierarchie
+savaneMinE = pFx ? 0.25 : pMet ? 0.45 : pAct ? 0.99 : profMan and savaneMin == 0.99 ? (cFx ? 0.25 : cMet ? 0.45 : 0.99) : savaneMin
+entMaxE = pFx ? 1.0 : pMet ? 1.0 : pAct ? 0.995 : profMan and entMax == 0.995 ? (cFx or cMet ? 1.0 : 0.995) : entMax
+targetVolE = pFx ? 25.0 : pMet ? 40.0 : pAct ? 100.0 : profMan and targetVol == 100.0 ? (cFx ? 25.0 : cMet ? 40.0 : 100.0) : targetVol
+expoMaxE = pFx ? 4.0 : pMet ? 5.0 : pAct ? 10.0 : profMan and expoMax == 10.0 ? (cFx ? 4.0 : cMet ? 5.0 : 10.0) : expoMax
+proieMinE = pFx ? 0.12 : pMet ? 0.20 : pAct ? 0.35 : profMan and proieMin == 0.35 ? (cFx ? 0.12 : cMet ? 0.20 : 0.35) : proieMin
+fraisE = pFx ? 0.015 : pMet ? 0.04 : pAct ? 0.1 : profMan and frais == 0.1 ? (cFx ? 0.015 : cMet ? 0.04 : 0.1) : frais
+respectFondE = pFx ? false : pMet ? false : pAct ? true : profMan and respectFond ? (cFx or cMet ? false : true) : respectFond
+contMaxE = pFx ? 65.0 : pMet ? 70.0 : pAct ? 80.0 : profMan and contMax == 80.0 ? (cFx ? 65.0 : cMet ? 70.0 : 80.0) : contMax
+hierarchieE = pFx ? 3.0 : pMet ? 3.5 : pAct ? 4.0 : profMan and hierarchie == 4.0 ? (cFx ? 3.0 : cMet ? 3.5 : 4.0) : hierarchie
 // LE PROFIL ACTIONS EST VOTRE CONFIGURATION NVIDIA DE PRODUCTION, ET RIEN
 // D'AUTRE. Tout organe inventé par la G10 — quorum, voix de la meute, frein
 // réel, désert, Bip-Bip, normalisation — y est NEUTRE. Vous ne m'avez pas
 // demandé de les y ajouter, et le chiffre de référence des 9 M a été obtenu
 // sans eux. Ils s'arment sur les profils où le problème se posait : le forex
 // et les métaux. Sur actions, à vous de les cocher si vous le voulez.
-voixE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : voixMeute
-freinOnE = legacy ? false : pAct ? false : freinOn
-memSommetE = legacy ? 500 : pAct ? 500 : pFx or pMet ? 0 : memSommet
-convNormE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : convNorm
-swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : swapAnnuel
-respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : respire
+voixE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : profMan and not voixMeute ? (cFx or cMet) : voixMeute
+freinOnE = legacy ? false : pAct ? false : profMan and freinOn ? (cFx or cMet ? true : false) : freinOn
+memSommetE = legacy ? 500 : pAct ? 500 : pFx or pMet ? 0 : profMan and memSommet == 0 ? (cFx or cMet ? 0 : 500) : memSommet
+convNormE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : profMan and not convNorm ? (cFx or cMet) : convNorm
+swapE = pFx ? 2.0 : pMet ? 3.0 : pAct ? 3.0 : profMan and swapAnnuel == 3.0 ? (cFx ? 2.0 : 3.0) : swapAnnuel
+respireE = pFx ? 5 : pMet ? 4 : pAct ? 5 : profMan and respire == 5 ? (cMet ? 4 : 5) : respire
 ddMaxE = pFx ? 50.0 : pMet ? 50.0 : pAct ? 50.0 : ddMax
 chocDureeE = pFx ? 1 : pMet ? 1 : pAct ? 1 : chocDuree
 // Le quorum et la voix de la meute mesurent la MÊME grandeur : |camp pour -
 // camp contre| / total. Quand la voix décide, c'est la proie minimale qui
 // sert de porte unique — sinon la même condition serait testée deux fois avec
 // deux seuils différents, et le plus haut des deux gagnerait en silence.
-quorumMinE = legacy or voixE ? 0.0 : pFx ? 15.0 : pMet ? 15.0 : pAct ? 0.0 : quorumMin
-chasseDesertE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : chasseDesert
-bipOnE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : bipOn
-bipDesertE = (pFx ? 100.0 : pMet ? 75.0 : pAct ? 0.0 : bipDesert) / 100
-bipGainE = pFx ? 3.5 : pMet ? 3.0 : pAct ? 3.0 : bipGain
-bipLibreE = pFx or pMet ? true : pAct ? false : bipLibre
+quorumMinE = legacy or voixE ? 0.0 : pFx ? 15.0 : pMet ? 15.0 : pAct ? 0.0 : profMan and quorumMin == 20.0 ? (cFx or cMet ? 15.0 : 0.0) : quorumMin
+chasseDesertE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : profMan and not chasseDesert ? (cFx or cMet) : chasseDesert
+bipOnE = legacy ? false : pFx ? true : pMet ? true : pAct ? false : profMan and not bipOn ? (cFx or cMet) : bipOn
+bipDesertE = (pFx ? 100.0 : pMet ? 75.0 : pAct ? 0.0 : profMan and bipDesert == 75.0 ? (cFx ? 100.0 : cMet ? 75.0 : 0.0) : bipDesert) / 100
+bipGainE = pFx ? 3.5 : pMet ? 3.0 : pAct ? 3.0 : profMan and bipGain == 3.0 ? (cFx ? 3.5 : 3.0) : bipGain
+bipLibreE = pFx or pMet ? true : pAct ? false : profMan and bipLibre ? (cFx or cMet ? true : false) : bipLibre
 
 // ============================================================================
 // LE CALENDRIER : COMBIEN DE BOUGIES DANS UNE ANNÉE ?
@@ -385,8 +399,8 @@ lbAn = timeframe.ismonthly ? 12 : timeframe.isweekly ? 52 : 252
 // Le profil actions garde donc la fenêtre G9. Le forex et les métaux gardent
 // le t-statistique, parce que leurs seuils (0,25 et 0,45) ont été posés sur
 // CETTE échelle-là. Un seuil ne veut rien dire sans la grandeur qu'il mesure.
-lbSav = legacy or pAct ? 252 : lbAn
-lbFond = legacy or pAct ? 252 : lbAn
+lbSav = legacy or pAct or (profMan and not cFx and not cMet) ? 252 : lbAn
+lbFond = legacy or pAct or (profMan and not cFx and not cMet) ? 252 : lbAn
 barsAn = timeframe.ismonthly ? 12.0 : timeframe.isweekly ? 52.0 : timeframe.isdaily ? 252.0 : 252.0 * 86400.0 / math.max(60.0, timeframe.in_seconds())
 annuF = legacy ? 31536000.0 / math.max(60.0, timeframe.in_seconds()) : barsAn
 
@@ -1184,9 +1198,9 @@ desert = timeframe.in_seconds() < 14400
 // piège qui ne se voit que dans une infobulle, sur un téléphone, n'est pas un
 // avertissement : c'est un piège. Il se voit donc maintenant en rouge, en haut
 // du tableau, avec le nom du profil qu'il faut prendre.
-classeAct = classe == "actions" or classe == "indices"
-profManuel = prof == "Manuel (mes réglages ci-dessous)"
-alarmeProfil = not legacy and profManuel and not classeAct
+// Depuis que le Manuel hérite de la classe, l'alarme ne se déclenche plus que
+// si un réglage d'action a été FORCÉ à la main sur une devise ou un métal.
+alarmeProfil = profMan and (cFx or cMet) and (savaneMinE >= 0.98 or targetVolE >= 99.0 or respectFondE)
 alarmeLev = alarmeProfil and levVol >= expoMaxE - 0.01
 alarmeSav = alarmeProfil and ready and scoreLocal < seuLoc / 3
 alarmeFond = alarmeProfil and respectFondE
