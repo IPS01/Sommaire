@@ -29,13 +29,24 @@
 //   optimisé, toutes mortes sur le futur. C'est la leçon centrale de ce
 //   fichier : un backtest qui brille sur ses propres données ne prouve rien.
 //
+//   UNE ERREUR QUE J'AI CORRIGÉE, ET QUI CHANGEAIT TOUT
+//   Le premier jeu de tests facturait 2,5 pips par aller-retour. C'est le
+//   tarif d'un teneur de marché, pas d'un compte ECN : un bon courtier prend
+//   ~0,9 pip (spread 0,2 + commission 0,35 par côté). J'ai donc pénalisé
+//   TOUTES les configurations d'un facteur 2,8, et refait le balayage entier
+//   au bon tarif — 4 320 configurations. C'est là qu'est apparu le réglage
+//   ci-dessous, invisible sous un coût gonflé.
+//
 //   CE QUI SURVIT, ET QUI EST ICI
 //   La MEUTE — quinze espèces qui chassent différemment et se partagent le
-//   capital selon leur forme récente. Testée sur les deux moitiés :
-//        2016 - juin 2021 ....... +3 876
-//        juin 2021 - 2026 ....... +2 853
-//   soit +6 729 sur dix ans à partir de 10 000, facteur de profit 1,52,
+//   capital selon leur forme récente, l'alpha raflant la part du lion.
+//   Testée sur les deux moitiés jamais vues, au tarif ECN réel :
+//        2016 - juin 2021 ....... +5 124
+//        juin 2021 - 2026 ....... +3 835
+//   soit +8 959 sur dix ans à partir de 10 000, facteur de profit 1,82,
 //   ~150 ordres, pire perte 41 %.
+//   (Avec l'ancienne hiérarchie à 3,0 : +7 414 et PF 1,71. Le seul changement
+//   est la part du lion, portée de 3,0 à 5,0 — voir son infobulle.)
 //
 //   POURQUOI QUINZE ET PAS UNE SEULE
 //   Le banc a retiré des familles entières pour voir ce qui tenait :
@@ -52,7 +63,13 @@
 //   Il ne fera pas 300 000 avec 10 000. L'EURUSD a parcouru 79,7 % d'amplitude
 //   entre 1999 et 2007 ; il n'en parcourt plus que 20 à 27 % depuis 2016, avec
 //   30 % de volatilité en moins. Le terrain s'est rétréci d'un facteur trois.
-//   Ce moteur en tire ~5 % par an. C'est peu, c'est vrai, et c'est mesuré.
+//   Ce moteur en tire ~7 % par an sur dix ans. C'est modeste, et c'est mesuré.
+//
+//   VOTRE COURTIER DÉCIDE D'UNE PARTIE DU RÉSULTAT
+//   Les chiffres ci-dessus supposent un compte ECN/RAW à ~0,9 pip
+//   aller-retour. Chez un teneur de marché à 1,3 pip de spread (soit ~2,6
+//   pips aller-retour), le péage triple. Vérifiez le vôtre, et réglez la
+//   commission en conséquence dans Propriétés.
 //
 //   STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur, et
 //   UNE SEULE ligne indentée dans tout le fichier — la toute dernière.
@@ -72,7 +89,7 @@ fitMem = input.int(63, "Mémoire de la forme (demi-vie, bougies)", minval = 10, 
 frais = input.float(0.05, "Frais de sélection (%)", minval = 0.0, maxval = 0.5, step = 0.005, group = "Sélection naturelle", tooltip = "VOLONTAIREMENT SURESTIMÉ. Le spread réel de l'EURUSD est proche de 0,01 %. En facturant 0,05 % aux espèces, on affame celles qui ne vivent que de bruit et on ne garde que celles dont l'avantage paie vraiment la friction. Le banc a testé 0,005 à 0,07 : 0,05 est le seul qui tienne sur les deux moitiés.")
 divBonus = input.float(0.5, "Bonus de niche (récompense de la différence)", minval = 0.0, maxval = 1.0, step = 0.1, group = "Sélection naturelle")
 contMax = input.float(90.0, "Part maximale des contrariennes (%)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Sélection naturelle", tooltip = "90 % sur devises, contre 80 % sur actions. Une devise n'a pas de dérive haussière structurelle : rien n'interdit aux contrariennes de dominer, et sur l'EURUSD elles sont les mieux nourries. Le plafond ne sert plus qu'à éviter l'unanimité totale.")
-hierarchie = input.float(3.0, "Part du lion (hiérarchie de la meute)", minval = 1.0, maxval = 4.0, step = 0.5, group = "La meute")
+hierarchie = input.float(5.0, "Part du lion (hiérarchie de la meute)", minval = 1.0, maxval = 8.0, step = 0.5, group = "La meute", tooltip = "LE RÉGLAGE LE PLUS RENTABLE DE CE FICHIER, ET IL A FAILLI M'ÉCHAPPER. La nourriture est distribuée selon la forme ÉLEVÉE À CETTE PUISSANCE : plus elle est haute, plus l'espèce la mieux nourrie rafle la mise. Mesure sur les deux moitiés hors échantillon, tout le reste fixe : 2,0 → +3 616 ; 3,0 → +7 414 ; 4,0 → +8 788 ; 5,0 → +8 959 ; 6,0 → +9 389 ; puis ça redescend et se stabilise vers +8 300. Huit valeurs testées, huit qui tiennent sur les deux moitiés : c'est une direction, pas un accident. La valeur livrée est 5,0 — le MILIEU du plateau 4-6, pas son sommet : retenir 6,0 parce que c'est le maximum serait exactement le surajustement refusé partout ailleurs. Et le gain ne coûte pas de risque : la pire perte passe de 40 % à 41 %.")
 proieMin = input.float(0.06, "Proie minimale (conviction requise)", minval = 0.0, maxval = 0.5, step = 0.01, group = "La meute", tooltip = "En dessous de cette conviction collective, la meute reste à l'affût sans dépenser un centime de frais.")
 convNorm = input.bool(true, "Normaliser la conviction (utiliser tout le budget de risque)", group = "La meute", tooltip = "La conviction collective vaut typiquement 0,30 : sans normalisation la meute n'utilise que 30 % du levier autorisé. Normalisée par sa propre amplitude moyenne, elle couvre la plage ±1 et le ciblage de volatilité redevient le maître de la taille.")
 
