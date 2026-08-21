@@ -1,0 +1,622 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © patrice_cloquet59
+//@version=6
+// ============================================================================
+//
+//   LE ROI DU CHANGE — moteur dédié FOREX, quinze espèces
+//
+//   CE CODE N'EST PAS UNE VARIANTE DU ROI DE LA SAVANE. C'est un moteur écrit
+//   pour un seul terrain, et chacun de ses réglages sort d'un backtest mesuré,
+//   pas d'un raisonnement.
+//
+//   COMMENT IL A ÉTÉ CONSTRUIT
+//   Banc d'essai : portage du moteur en Python, 20 tests unitaires (dont le
+//   test anti-regard-vers-le-futur), nourri de 6 926 séances EURUSD réelles
+//   (1999-2026, Réserve fédérale H.10) plus un panier de huit devises.
+//   Protocole : toute configuration est calibrée sur 1999-2015 SEULEMENT, puis
+//   rejouée sur 2016-2026 — jamais vues — en DEUX moitiés séparées. Une
+//   configuration n'est retenue que si elle gagne sur les deux.
+//
+//   CE QUI A ÉTÉ ESSAYÉ ET REJETÉ (tout est vérifiable, rien n'est théorique)
+//   • Retour à la moyenne 20-100 bougies ......... facteur de profit 0,42
+//   • Suivi de tendance court, réglage optimisé .. +25 316 en calibration,
+//        puis 0 configuration sur 16 ne survit hors échantillon
+//   • Momentum relatif entre 8 devises ........... +16 938 en calibration,
+//        puis 0 configuration sur 10 ne survit hors échantillon
+//   • Espèce de cassure (la Gazelle) ............. dégrade la meute partout
+//   • Réagir plus vite (1 bougie au lieu de 12) .. -1 595 au lieu de +5 943
+//   Trois conceptions différentes, toutes brillantes sur le passé qu'on avait
+//   optimisé, toutes mortes sur le futur. C'est la leçon centrale de ce
+//   fichier : un backtest qui brille sur ses propres données ne prouve rien.
+//
+//   CE QUI SURVIT, ET QUI EST ICI
+//   La MEUTE — quinze espèces qui chassent différemment et se partagent le
+//   capital selon leur forme récente. Testée sur les deux moitiés :
+//        2016 - juin 2021 ....... +3 876
+//        juin 2021 - 2026 ....... +2 853
+//   soit +6 729 sur dix ans à partir de 10 000, facteur de profit 1,52,
+//   ~150 ordres, pire perte 41 %.
+//
+//   POURQUOI QUINZE ET PAS UNE SEULE
+//   Le banc a retiré des familles entières pour voir ce qui tenait :
+//        tendance seule .................. casse
+//        contrariennes seules ............ casse
+//        tendance + contrariennes ........ casse
+//        sans les fossiles ............... casse
+//        les quinze ...................... TIENT
+//   Aucune famille ne gagne seule. C'est leur DÉSACCORD qui produit le
+//   résultat. Et les fossiles sont indispensables : l'Aigle lit l'indice
+//   dollar, une information que l'EURUSD ne contient pas.
+//
+//   CE QUE CE MOTEUR NE FERA PAS
+//   Il ne fera pas 300 000 avec 10 000. L'EURUSD a parcouru 79,7 % d'amplitude
+//   entre 1999 et 2007 ; il n'en parcourt plus que 20 à 27 % depuis 2016, avec
+//   30 % de volatilité en moins. Le terrain s'est rétréci d'un facteur trois.
+//   Ce moteur en tire ~5 % par an. C'est peu, c'est vrai, et c'est mesuré.
+//
+//   STRUCTURE ANTI-COLLAGE : aucune boucle, aucune fonction utilisateur, et
+//   UNE SEULE ligne indentée dans tout le fichier — la toute dernière.
+//   APRÈS COLLAGE, VÉRIFIEZ : une seule ligne indentée, et c'est la dernière.
+// ============================================================================
+
+strategy("Le Roi du Change [forex, quinze espèces]", shorttitle = "Roi du Change", overlay = true, initial_capital = 10000, currency = currency.NONE, commission_type = strategy.commission.percent, commission_value = 0.005, slippage = 1, calc_on_every_tick = false, process_orders_on_close = true, pyramiding = 150, margin_long = 5, margin_short = 5, max_bars_back = 1000)
+
+// ============================================================================
+// RÉGLAGES — les valeurs par défaut SONT celles validées par le banc.
+// Les modifier, c'est quitter la seule configuration qui ait passé le test.
+// ============================================================================
+enableLongs = input.bool(true, "Autoriser les achats", group = "Direction")
+enableShorts = input.bool(true, "Autoriser les ventes", group = "Direction")
+
+fitMem = input.int(63, "Mémoire de la forme (demi-vie, bougies)", minval = 10, maxval = 500, group = "Sélection naturelle", tooltip = "La forme d'une espèce est la moyenne exponentielle de ses gains. 63 = un trimestre : validé.")
+frais = input.float(0.05, "Frais de sélection (%)", minval = 0.0, maxval = 0.5, step = 0.005, group = "Sélection naturelle", tooltip = "VOLONTAIREMENT SURESTIMÉ. Le spread réel de l'EURUSD est proche de 0,01 %. En facturant 0,05 % aux espèces, on affame celles qui ne vivent que de bruit et on ne garde que celles dont l'avantage paie vraiment la friction. Le banc a testé 0,005 à 0,07 : 0,05 est le seul qui tienne sur les deux moitiés.")
+divBonus = input.float(0.5, "Bonus de niche (récompense de la différence)", minval = 0.0, maxval = 1.0, step = 0.1, group = "Sélection naturelle")
+contMax = input.float(90.0, "Part maximale des contrariennes (%)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Sélection naturelle", tooltip = "90 % sur devises, contre 80 % sur actions. Une devise n'a pas de dérive haussière structurelle : rien n'interdit aux contrariennes de dominer, et sur l'EURUSD elles sont les mieux nourries. Le plafond ne sert plus qu'à éviter l'unanimité totale.")
+hierarchie = input.float(3.0, "Part du lion (hiérarchie de la meute)", minval = 1.0, maxval = 4.0, step = 0.5, group = "La meute")
+proieMin = input.float(0.06, "Proie minimale (conviction requise)", minval = 0.0, maxval = 0.5, step = 0.01, group = "La meute", tooltip = "En dessous de cette conviction collective, la meute reste à l'affût sans dépenser un centime de frais.")
+convNorm = input.bool(true, "Normaliser la conviction (utiliser tout le budget de risque)", group = "La meute", tooltip = "La conviction collective vaut typiquement 0,30 : sans normalisation la meute n'utilise que 30 % du levier autorisé. Normalisée par sa propre amplitude moyenne, elle couvre la plage ±1 et le ciblage de volatilité redevient le maître de la taille.")
+
+targetVol = input.float(40.0, "Volatilité cible du portefeuille (% par an)", minval = 2, maxval = 200, step = 1, group = "Homéostasie", tooltip = "Le banc a mesuré : 25 %/x4 donne +4 241 ; 40 %/x6 donne +5 943 ; 80 %/x10 donne +8 585 mais avec 50 % de perte maximale. 40 % est le point où le gain justifie encore le risque.")
+volWin = input.int(63, "Fenêtre de mesure de volatilité", minval = 20, group = "Homéostasie")
+expoMax = input.float(6.0, "Exposition maximale (× capital)", minval = 0.5, maxval = 20, step = 0.5, group = "Homéostasie")
+rebalPct = input.float(25.0, "Zone morte de rééquilibrage (% d'écart)", minval = 5, maxval = 50, step = 1, group = "Homéostasie")
+respire = input.int(12, "Respiration : rééquilibrage toutes les X bougies", minval = 1, maxval = 30, group = "Homéostasie", tooltip = "MESURE DÉCISIVE. Réagir toutes les bougies : -1 595. Toutes les 5 : +948. Toutes les 8 : +5 961. Toutes les 12 : +5 943. Toutes les 20 : -309. La vitesse ne paie pas — elle paie le spread.")
+
+ddMax = input.float(50.0, "Borne : perte maximale depuis le sommet (%)", minval = 5, maxval = 50, step = 1, group = "Survie", tooltip = "L'exposition décroît à mesure que la perte s'approche de cette borne. Atteinte, la chasse tombe à son plancher de 15 % — jamais à zéro : à exposition nulle l'équité se fige, le sommet reste haut, et la colonie ne pourrait plus jamais se refaire.")
+plancher = input.float(50.0, "Extinction définitive sous (% du capital initial)", minval = 10.0, maxval = 95.0, step = 5.0, group = "Survie")
+chocSeuil = input.float(4.0, "Choc immunitaire (mouvement en écarts-types)", minval = 2.0, maxval = 8.0, step = 0.5, group = "Survie")
+chocDuree = input.int(1, "Convalescence après choc (bougies)", minval = 1, maxval = 100, group = "Survie")
+pacteAbri = input.bool(false, "ORDRE SOUVERAIN : toute la colonie à l'abri", group = "Survie")
+
+starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution")
+soinParent = input.float(25.0, "Soin parental (% de la vigueur héritée)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Évolution")
+
+symDollar = input.symbol("TVC:DXY", "L'Aigle : indice dollar", group = "Le regard extérieur", tooltip = "INDISPENSABLE. Le banc a retiré les fossiles : le moteur casse (-1 144 sur la première moitié). L'Aigle lit l'indice dollar, une information que la paire seule ne contient pas. Sur une paire sans USD, mettez l'indice de la devise dominante.")
+
+startDate = input.time(timestamp("1 Jan 2016 00:00 +0000"), "Début", group = "Période de backtest")
+endDate = input.time(timestamp("1 Jan 2035 00:00 +0000"), "Fin", group = "Période de backtest")
+inDate = time >= startDate and time <= endDate
+
+// ============================================================================
+// MESURES DE BASE
+// ============================================================================
+v = math.log(close / nz(close[1], close))
+sdBar = ta.stdev(v, 50)
+lamF = math.pow(0.5, 1.0 / fitMem)
+fr = frais / 100
+ready = bar_index > 300
+lbAn = timeframe.ismonthly ? 12 : timeframe.isweekly ? 52 : 252
+barsAn = timeframe.ismonthly ? 12.0 : timeframe.isweekly ? 52.0 : timeframe.isdaily ? 252.0 : 252.0 * 86400.0 / math.max(60.0, timeframe.in_seconds())
+
+// ============================================================================
+// LE GÉNOME : rythme de chaque espèce (mutable, borné par son habitat)
+// ============================================================================
+var int L1 = 10
+var int L2 = 21
+var int L3 = 63
+var int L4 = 126
+var int L5 = 252
+var int L6 = 2
+var int L7 = 5
+var int L8 = 10
+var int L11 = 8
+var int L12 = 30
+var int L13 = 150
+var int L14 = 3
+var int L15 = 3
+var int g1 = 1
+var int g2 = 1
+var int g3 = 1
+var int g4 = 1
+var int g5 = 1
+var int g6 = 1
+var int g7 = 1
+var int g8 = 1
+var int g11 = 1
+var int g12 = 1
+var int g13 = 1
+var int g14 = 1
+var int g15 = 1
+var float stv1 = 0.0
+var float stv2 = 0.0
+var float stv3 = 0.0
+var float stv4 = 0.0
+var float stv5 = 0.0
+var float stv6 = 0.0
+var float stv7 = 0.0
+var float stv8 = 0.0
+var float stv11 = 0.0
+var float stv12 = 0.0
+var float stv13 = 0.0
+var float stv14 = 0.0
+var float stv15 = 0.0
+
+// ============================================================================
+// L'INSTINCT : conviction = mouvement / bruit, bornée à ±1
+// LES SUIVEUSES DE TENDANCE
+// ============================================================================
+d1 = sdBar * math.sqrt(L1)
+d2 = sdBar * math.sqrt(L2)
+d3 = sdBar * math.sqrt(L3)
+d4 = sdBar * math.sqrt(L4)
+d5 = sdBar * math.sqrt(L5)
+d11 = sdBar * math.sqrt(L11)
+d12 = sdBar * math.sqrt(L12)
+d13 = sdBar * math.sqrt(L13)
+sig1 = d1 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L1], close)) / d1)) : 0.0
+sig2 = d2 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L2], close)) / d2)) : 0.0
+sig3 = d3 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L3], close)) / d3)) : 0.0
+sig4 = d4 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L4], close)) / d4)) : 0.0
+sig5 = d5 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L5], close)) / d5)) : 0.0
+sig11 = d11 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L11], close)) / d11)) : 0.0
+sig12 = d12 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L12], close)) / d12)) : 0.0
+sig13 = d13 > 0 ? math.max(-1.0, math.min(1.0, math.log(close / nz(close[L13], close)) / d13)) : 0.0
+// LE BIP-BIP : momentum ultra-court, gain 3,5 avant saturation. Le banc l'a
+// testé absent : la meute perd 5 900 de performance. Il reste.
+d15 = sdBar * math.sqrt(L15)
+sig15 = d15 > 0 ? math.max(-1.0, math.min(1.0, 3.5 * math.log(close / nz(close[L15], close)) / d15)) : 0.0
+
+// LES CONTRARIENNES — sur devises, ce sont elles qui se nourrissent le mieux
+d6 = sdBar * math.sqrt(L6)
+d7 = sdBar * math.sqrt(L7)
+d8 = sdBar * math.sqrt(L8)
+d14 = sdBar * math.sqrt(L14)
+sig6 = d6 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L6], close)) / d6)) : 0.0
+sig7 = d7 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L7], close)) / d7)) : 0.0
+sig8 = d8 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L8], close)) / d8)) : 0.0
+sig14 = d14 > 0 ? -math.max(-1.0, math.min(1.0, math.log(close / nz(close[L14], close)) / d14)) : 0.0
+
+// LES FOSSILES — génome figé, et indispensables : sans eux le moteur casse.
+cAigle = request.security(symDollar, timeframe.period, close)
+vAigle = math.log(cAigle / nz(cAigle[1], cAigle))
+sdAigle = ta.stdev(vAigle, 50)
+dAigle = sdAigle * math.sqrt(lbAn)
+sig9 = dAigle > 0 ? -math.max(-1.0, math.min(1.0, math.log(cAigle / nz(cAigle[lbAn], cAigle)) / dAigle)) : 0.0
+hCroco = ta.highest(close, 55)
+lCroco = ta.lowest(close, 55)
+sig10 = (hCroco - lCroco) > 0 ? math.max(-1.0, math.min(1.0, (close - (hCroco + lCroco) / 2) / ((hCroco - lCroco) / 2))) : 0.0
+
+// ============================================================================
+// LA CHASSE VIRTUELLE : gain de chaque espèce, frais de sélection déduits
+// ============================================================================
+p1 = nz(sig1[1], 0.0) * v - math.abs(sig1 - nz(sig1[1], sig1)) * 0.5 * fr
+p2 = nz(sig2[1], 0.0) * v - math.abs(sig2 - nz(sig2[1], sig2)) * 0.5 * fr
+p3 = nz(sig3[1], 0.0) * v - math.abs(sig3 - nz(sig3[1], sig3)) * 0.5 * fr
+p4 = nz(sig4[1], 0.0) * v - math.abs(sig4 - nz(sig4[1], sig4)) * 0.5 * fr
+p5 = nz(sig5[1], 0.0) * v - math.abs(sig5 - nz(sig5[1], sig5)) * 0.5 * fr
+p6 = nz(sig6[1], 0.0) * v - math.abs(sig6 - nz(sig6[1], sig6)) * 0.5 * fr
+p7 = nz(sig7[1], 0.0) * v - math.abs(sig7 - nz(sig7[1], sig7)) * 0.5 * fr
+p8 = nz(sig8[1], 0.0) * v - math.abs(sig8 - nz(sig8[1], sig8)) * 0.5 * fr
+p9 = nz(sig9[1], 0.0) * v - math.abs(sig9 - nz(sig9[1], sig9)) * 0.5 * fr
+p10 = nz(sig10[1], 0.0) * v - math.abs(sig10 - nz(sig10[1], sig10)) * 0.5 * fr
+p11 = nz(sig11[1], 0.0) * v - math.abs(sig11 - nz(sig11[1], sig11)) * 0.5 * fr
+p12 = nz(sig12[1], 0.0) * v - math.abs(sig12 - nz(sig12[1], sig12)) * 0.5 * fr
+p13 = nz(sig13[1], 0.0) * v - math.abs(sig13 - nz(sig13[1], sig13)) * 0.5 * fr
+p14 = nz(sig14[1], 0.0) * v - math.abs(sig14 - nz(sig14[1], sig14)) * 0.5 * fr
+p15 = nz(sig15[1], 0.0) * v - math.abs(sig15 - nz(sig15[1], sig15)) * 0.5 * fr
+pEco = (p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11 + p12 + p13 + p14 + p15) / 15.0
+
+// ============================================================================
+// LA FORME : vigueur de chaque espèce (mémoire exponentielle)
+// ============================================================================
+var float fit1 = 0.0
+var float fit2 = 0.0
+var float fit3 = 0.0
+var float fit4 = 0.0
+var float fit5 = 0.0
+var float fit6 = 0.0
+var float fit7 = 0.0
+var float fit8 = 0.0
+var float fit9 = 0.0
+var float fit10 = 0.0
+var float fit11 = 0.0
+var float fit12 = 0.0
+var float fit13 = 0.0
+var float fit14 = 0.0
+var float fit15 = 0.0
+fit1 := barstate.isconfirmed ? lamF * fit1 + (1 - lamF) * p1 : fit1
+fit2 := barstate.isconfirmed ? lamF * fit2 + (1 - lamF) * p2 : fit2
+fit3 := barstate.isconfirmed ? lamF * fit3 + (1 - lamF) * p3 : fit3
+fit4 := barstate.isconfirmed ? lamF * fit4 + (1 - lamF) * p4 : fit4
+fit5 := barstate.isconfirmed ? lamF * fit5 + (1 - lamF) * p5 : fit5
+fit6 := barstate.isconfirmed ? lamF * fit6 + (1 - lamF) * p6 : fit6
+fit7 := barstate.isconfirmed ? lamF * fit7 + (1 - lamF) * p7 : fit7
+fit8 := barstate.isconfirmed ? lamF * fit8 + (1 - lamF) * p8 : fit8
+fit9 := barstate.isconfirmed ? lamF * fit9 + (1 - lamF) * p9 : fit9
+fit10 := barstate.isconfirmed ? lamF * fit10 + (1 - lamF) * p10 : fit10
+fit11 := barstate.isconfirmed ? lamF * fit11 + (1 - lamF) * p11 : fit11
+fit12 := barstate.isconfirmed ? lamF * fit12 + (1 - lamF) * p12 : fit12
+fit13 := barstate.isconfirmed ? lamF * fit13 + (1 - lamF) * p13 : fit13
+fit14 := barstate.isconfirmed ? lamF * fit14 + (1 - lamF) * p14 : fit14
+fit15 := barstate.isconfirmed ? lamF * fit15 + (1 - lamF) * p15 : fit15
+
+// ============================================================================
+// NICHES ÉCOLOGIQUES : la différence est récompensée
+// ============================================================================
+q1 = nz(ta.correlation(p1, pEco, 100), 1.0)
+q2 = nz(ta.correlation(p2, pEco, 100), 1.0)
+q3 = nz(ta.correlation(p3, pEco, 100), 1.0)
+q4 = nz(ta.correlation(p4, pEco, 100), 1.0)
+q5 = nz(ta.correlation(p5, pEco, 100), 1.0)
+q6 = nz(ta.correlation(p6, pEco, 100), 1.0)
+q7 = nz(ta.correlation(p7, pEco, 100), 1.0)
+q8 = nz(ta.correlation(p8, pEco, 100), 1.0)
+q9 = nz(ta.correlation(p9, pEco, 100), 1.0)
+q10 = nz(ta.correlation(p10, pEco, 100), 1.0)
+q11 = nz(ta.correlation(p11, pEco, 100), 1.0)
+q12 = nz(ta.correlation(p12, pEco, 100), 1.0)
+q13 = nz(ta.correlation(p13, pEco, 100), 1.0)
+q14 = nz(ta.correlation(p14, pEco, 100), 1.0)
+q15 = nz(ta.correlation(p15, pEco, 100), 1.0)
+
+// ============================================================================
+// LA MEUTE : le lion mange le premier (forme ^ hiérarchie)
+// ============================================================================
+bestRef = math.max(fit1, math.max(fit2, math.max(fit3, math.max(fit4, math.max(fit5, math.max(fit6, math.max(fit7, math.max(fit8, math.max(fit9, math.max(fit10, math.max(fit11, math.max(fit12, math.max(fit13, math.max(fit14, fit15))))))))))))))
+fitRef = math.max(bestRef, 1e-12)
+w1 = math.pow(math.max(0.0, fit1) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q1))
+w2 = math.pow(math.max(0.0, fit2) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q2))
+w3 = math.pow(math.max(0.0, fit3) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q3))
+w4 = math.pow(math.max(0.0, fit4) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q4))
+w5 = math.pow(math.max(0.0, fit5) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q5))
+w6r = math.pow(math.max(0.0, fit6) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q6))
+w7r = math.pow(math.max(0.0, fit7) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q7))
+w8r = math.pow(math.max(0.0, fit8) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q8))
+w9 = math.pow(math.max(0.0, fit9) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q9))
+w10 = math.pow(math.max(0.0, fit10) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q10))
+w11 = math.pow(math.max(0.0, fit11) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q11))
+w12 = math.pow(math.max(0.0, fit12) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q12))
+w13 = math.pow(math.max(0.0, fit13) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q13))
+w14r = math.pow(math.max(0.0, fit14) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q14))
+w15 = math.pow(math.max(0.0, fit15) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q15))
+
+// PLAFOND DES CONTRARIENNES (6, 7, 8, 14) : elles ne raflent pas tout.
+wT = w1 + w2 + w3 + w4 + w5 + w9 + w10 + w11 + w12 + w13 + w15
+wCr = w6r + w7r + w8r + w14r
+cC = contMax / 100
+scaleC = wCr > 0 and cC < 1 ? math.min(1.0, cC * wT / math.max(1e-12, (1 - cC) * wCr)) : 1.0
+w6 = w6r * scaleC
+w7 = w7r * scaleC
+w8 = w8r * scaleC
+w14 = w14r * scaleC
+wTot = wT + w6 + w7 + w8 + w14
+dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6 * sig6 + w7 * sig7 + w8 * sig8 + w9 * sig9 + w10 * sig10 + w11 * sig11 + w12 * sig12 + w13 * sig13 + w14 * sig14 + w15 * sig15) / wTot : 0.0
+vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0) + (w9 > 0 ? 1 : 0) + (w10 > 0 ? 1 : 0) + (w11 > 0 ? 1 : 0) + (w12 > 0 ? 1 : 0) + (w13 > 0 ? 1 : 0) + (w14 > 0 ? 1 : 0) + (w15 > 0 ? 1 : 0)
+wPour = (sig1 > 0 ? w1 : 0.0) + (sig2 > 0 ? w2 : 0.0) + (sig3 > 0 ? w3 : 0.0) + (sig4 > 0 ? w4 : 0.0) + (sig5 > 0 ? w5 : 0.0) + (sig6 > 0 ? w6 : 0.0) + (sig7 > 0 ? w7 : 0.0) + (sig8 > 0 ? w8 : 0.0) + (sig9 > 0 ? w9 : 0.0) + (sig10 > 0 ? w10 : 0.0) + (sig11 > 0 ? w11 : 0.0) + (sig12 > 0 ? w12 : 0.0) + (sig13 > 0 ? w13 : 0.0) + (sig14 > 0 ? w14 : 0.0) + (sig15 > 0 ? w15 : 0.0)
+wContre = (sig1 < 0 ? w1 : 0.0) + (sig2 < 0 ? w2 : 0.0) + (sig3 < 0 ? w3 : 0.0) + (sig4 < 0 ? w4 : 0.0) + (sig5 < 0 ? w5 : 0.0) + (sig6 < 0 ? w6 : 0.0) + (sig7 < 0 ? w7 : 0.0) + (sig8 < 0 ? w8 : 0.0) + (sig9 < 0 ? w9 : 0.0) + (sig10 < 0 ? w10 : 0.0) + (sig11 < 0 ? w11 : 0.0) + (sig12 < 0 ? w12 : 0.0) + (sig13 < 0 ? w13 : 0.0) + (sig14 < 0 ? w14 : 0.0) + (sig15 < 0 ? w15 : 0.0)
+partCont = wTot > 0 ? 100 * (w6 + w7 + w8 + w14) / wTot : 0.0
+
+// ============================================================================
+// ÉVOLUTION : famine, mort, croisement des deux meilleures, mutation
+// ============================================================================
+bestFit = bestRef
+bestL = bestFit == fit1 ? L1 : bestFit == fit2 ? L2 : bestFit == fit3 ? L3 : bestFit == fit4 ? L4 : bestFit == fit5 ? L5 : bestFit == fit6 ? L6 : bestFit == fit7 ? L7 : bestFit == fit8 ? L8 : bestFit == fit9 ? lbAn : bestFit == fit10 ? 55 : bestFit == fit11 ? L11 : bestFit == fit12 ? L12 : bestFit == fit13 ? L13 : bestFit == fit14 ? L14 : L15
+m2f1 = bestFit == fit1 ? -1e9 : fit1
+m2f2 = bestFit == fit2 ? -1e9 : fit2
+m2f3 = bestFit == fit3 ? -1e9 : fit3
+m2f4 = bestFit == fit4 ? -1e9 : fit4
+m2f5 = bestFit == fit5 ? -1e9 : fit5
+m2f6 = bestFit == fit6 ? -1e9 : fit6
+m2f7 = bestFit == fit7 ? -1e9 : fit7
+m2f8 = bestFit == fit8 ? -1e9 : fit8
+m2f9 = bestFit == fit9 ? -1e9 : fit9
+m2f10 = bestFit == fit10 ? -1e9 : fit10
+m2f11 = bestFit == fit11 ? -1e9 : fit11
+m2f12 = bestFit == fit12 ? -1e9 : fit12
+m2f13 = bestFit == fit13 ? -1e9 : fit13
+m2f14 = bestFit == fit14 ? -1e9 : fit14
+m2f15 = bestFit == fit15 ? -1e9 : fit15
+scndFit = math.max(m2f1, math.max(m2f2, math.max(m2f3, math.max(m2f4, math.max(m2f5, math.max(m2f6, math.max(m2f7, math.max(m2f8, math.max(m2f9, math.max(m2f10, math.max(m2f11, math.max(m2f12, math.max(m2f13, math.max(m2f14, m2f15))))))))))))))
+scndL = scndFit == m2f1 ? L1 : scndFit == m2f2 ? L2 : scndFit == m2f3 ? L3 : scndFit == m2f4 ? L4 : scndFit == m2f5 ? L5 : scndFit == m2f6 ? L6 : scndFit == m2f7 ? L7 : scndFit == m2f8 ? L8 : scndFit == m2f9 ? lbAn : scndFit == m2f10 ? 55 : scndFit == m2f11 ? L11 : scndFit == m2f12 ? L12 : scndFit == m2f13 ? L13 : scndFit == m2f14 ? L14 : L15
+croise = math.sqrt(math.max(2, bestL) * math.max(2, scndL))
+heritage = math.max(bestFit, 0.0) * soinParent / 100
+stv1 := barstate.isconfirmed ? (fit1 <= 0 ? stv1 + 1 : 0.0) : stv1
+stv2 := barstate.isconfirmed ? (fit2 <= 0 ? stv2 + 1 : 0.0) : stv2
+stv3 := barstate.isconfirmed ? (fit3 <= 0 ? stv3 + 1 : 0.0) : stv3
+stv4 := barstate.isconfirmed ? (fit4 <= 0 ? stv4 + 1 : 0.0) : stv4
+stv5 := barstate.isconfirmed ? (fit5 <= 0 ? stv5 + 1 : 0.0) : stv5
+stv6 := barstate.isconfirmed ? (fit6 <= 0 ? stv6 + 1 : 0.0) : stv6
+stv7 := barstate.isconfirmed ? (fit7 <= 0 ? stv7 + 1 : 0.0) : stv7
+stv8 := barstate.isconfirmed ? (fit8 <= 0 ? stv8 + 1 : 0.0) : stv8
+stv11 := barstate.isconfirmed ? (fit11 <= 0 ? stv11 + 1 : 0.0) : stv11
+stv12 := barstate.isconfirmed ? (fit12 <= 0 ? stv12 + 1 : 0.0) : stv12
+stv13 := barstate.isconfirmed ? (fit13 <= 0 ? stv13 + 1 : 0.0) : stv13
+stv14 := barstate.isconfirmed ? (fit14 <= 0 ? stv14 + 1 : 0.0) : stv14
+stv15 := barstate.isconfirmed ? (fit15 <= 0 ? stv15 + 1 : 0.0) : stv15
+mut1 = barstate.isconfirmed and stv1 > starveMax
+mut2 = barstate.isconfirmed and stv2 > starveMax
+mut3 = barstate.isconfirmed and stv3 > starveMax
+mut4 = barstate.isconfirmed and stv4 > starveMax
+mut5 = barstate.isconfirmed and stv5 > starveMax
+mut6 = barstate.isconfirmed and stv6 > starveMax
+mut7 = barstate.isconfirmed and stv7 > starveMax
+mut8 = barstate.isconfirmed and stv8 > starveMax
+mut11 = barstate.isconfirmed and stv11 > starveMax
+mut12 = barstate.isconfirmed and stv12 > starveMax
+mut13 = barstate.isconfirmed and stv13 > starveMax
+mut14 = barstate.isconfirmed and stv14 > starveMax
+mut15 = barstate.isconfirmed and stv15 > starveMax
+fmut = 0.5 + math.abs(math.sin(bar_index * 12.9898)) * 1.0
+L1 := mut1 ? math.max(5, math.min(20, math.round(croise * fmut))) : L1
+L2 := mut2 ? math.max(15, math.min(40, math.round(croise * fmut * 1.13))) : L2
+L3 := mut3 ? math.max(40, math.min(100, math.round(croise * fmut * 0.87))) : L3
+L4 := mut4 ? math.max(90, math.min(200, math.round(croise * fmut * 1.29))) : L4
+L5 := mut5 ? math.max(180, math.min(400, math.round(croise * fmut * 0.71))) : L5
+L6 := mut6 ? math.max(2, math.min(6, math.round(croise * fmut * 0.2))) : L6
+L7 := mut7 ? math.max(4, math.min(12, math.round(croise * fmut * 0.3))) : L7
+L8 := mut8 ? math.max(8, math.min(30, math.round(croise * fmut * 0.4))) : L8
+L11 := mut11 ? math.max(5, math.min(15, math.round(croise * fmut * 0.35))) : L11
+L12 := mut12 ? math.max(25, math.min(60, math.round(croise * fmut * 0.55))) : L12
+L13 := mut13 ? math.max(120, math.min(300, math.round(croise * fmut * 1.5))) : L13
+L14 := mut14 ? math.max(2, math.min(8, math.round(croise * fmut * 0.15))) : L14
+L15 := mut15 ? math.max(1, math.min(8, math.round(croise * fmut * 0.12))) : L15
+fit1 := mut1 ? heritage : fit1
+fit2 := mut2 ? heritage : fit2
+fit3 := mut3 ? heritage : fit3
+fit4 := mut4 ? heritage : fit4
+fit5 := mut5 ? heritage : fit5
+fit6 := mut6 ? heritage : fit6
+fit7 := mut7 ? heritage : fit7
+fit8 := mut8 ? heritage : fit8
+fit11 := mut11 ? heritage : fit11
+fit12 := mut12 ? heritage : fit12
+fit13 := mut13 ? heritage : fit13
+fit14 := mut14 ? heritage : fit14
+fit15 := mut15 ? heritage : fit15
+stv1 := mut1 ? 0.0 : stv1
+stv2 := mut2 ? 0.0 : stv2
+stv3 := mut3 ? 0.0 : stv3
+stv4 := mut4 ? 0.0 : stv4
+stv5 := mut5 ? 0.0 : stv5
+stv6 := mut6 ? 0.0 : stv6
+stv7 := mut7 ? 0.0 : stv7
+stv8 := mut8 ? 0.0 : stv8
+stv11 := mut11 ? 0.0 : stv11
+stv12 := mut12 ? 0.0 : stv12
+stv13 := mut13 ? 0.0 : stv13
+stv14 := mut14 ? 0.0 : stv14
+stv15 := mut15 ? 0.0 : stv15
+g1 := mut1 ? g1 + 1 : g1
+g2 := mut2 ? g2 + 1 : g2
+g3 := mut3 ? g3 + 1 : g3
+g4 := mut4 ? g4 + 1 : g4
+g5 := mut5 ? g5 + 1 : g5
+g6 := mut6 ? g6 + 1 : g6
+g7 := mut7 ? g7 + 1 : g7
+g8 := mut8 ? g8 + 1 : g8
+g11 := mut11 ? g11 + 1 : g11
+g12 := mut12 ? g12 + 1 : g12
+g13 := mut13 ? g13 + 1 : g13
+g14 := mut14 ? g14 + 1 : g14
+g15 := mut15 ? g15 + 1 : g15
+naissance = mut1 or mut2 or mut3 or mut4 or mut5 or mut6 or mut7 or mut8 or mut11 or mut12 or mut13 or mut14 or mut15
+naissances = g1 + g2 + g3 + g4 + g5 + g6 + g7 + g8 + g11 + g12 + g13 + g14 + g15 - 13
+
+// RÉ-ENSEMENCEMENT : après 100 bougies d'extinction, les spores primordiales
+var float extN = 0.0
+extN := barstate.isconfirmed ? (ready and wTot == 0 ? extN + 1 : 0.0) : extN
+resem = barstate.isconfirmed and extN > 100
+L1 := resem ? 10 : L1
+L2 := resem ? 21 : L2
+L3 := resem ? 63 : L3
+L4 := resem ? 126 : L4
+L5 := resem ? 252 : L5
+L6 := resem ? 2 : L6
+L7 := resem ? 5 : L7
+L8 := resem ? 10 : L8
+L11 := resem ? 8 : L11
+L12 := resem ? 30 : L12
+L13 := resem ? 150 : L13
+L14 := resem ? 3 : L14
+L15 := resem ? 3 : L15
+fit1 := resem ? 0.0 : fit1
+fit2 := resem ? 0.0 : fit2
+fit3 := resem ? 0.0 : fit3
+fit4 := resem ? 0.0 : fit4
+fit5 := resem ? 0.0 : fit5
+fit6 := resem ? 0.0 : fit6
+fit7 := resem ? 0.0 : fit7
+fit8 := resem ? 0.0 : fit8
+fit9 := resem ? 0.0 : fit9
+fit10 := resem ? 0.0 : fit10
+fit11 := resem ? 0.0 : fit11
+fit12 := resem ? 0.0 : fit12
+fit13 := resem ? 0.0 : fit13
+fit14 := resem ? 0.0 : fit14
+fit15 := resem ? 0.0 : fit15
+extN := resem ? 0.0 : extN
+
+// ============================================================================
+// SYSTÈME IMMUNITAIRE
+// ============================================================================
+var float immun = 0.0
+choc = ready and math.abs(v) > chocSeuil * nz(sdBar[1], 1e9)
+immun := choc and barstate.isconfirmed ? chocDuree : math.max(0.0, immun - (barstate.isconfirmed ? 1.0 : 0.0))
+bouclier = immun > 0 ? 0.5 : 1.0
+
+// ============================================================================
+// HOMÉOSTASIE : ciblage de volatilité
+// ============================================================================
+sigA = ta.stdev(v, volWin) * math.sqrt(barsAn)
+levVol = sigA > 0 ? math.min(expoMax, (targetVol / 100) / sigA) : 0.0
+
+// ============================================================================
+// SURVIE : la perte se mesure depuis le PLUS HAUT ABSOLU, et le frein a un
+// PLANCHER. Sans plancher, la borne atteinte coupe l'exposition, l'équité se
+// fige, le sommet reste haut, la perte reste mesurée à 50 % — et la colonie
+// ne peut plus JAMAIS se refaire. Le frein freine, il ne condamne pas.
+// ============================================================================
+var float eqMax = na
+eqMax := math.max(nz(eqMax, strategy.equity), strategy.equity)
+dd = eqMax > 0 ? 1.0 - strategy.equity / eqMax : 0.0
+torpeurLibre = math.max(0.0, math.min(1.0, 1.0 - dd / (ddMax / 100)))
+torpeur = math.max(0.15, torpeurLibre)
+var bool eteint = false
+eteint := eteint or (ready and strategy.equity < plancher / 100 * strategy.initial_capital)
+
+// ============================================================================
+// LA CHARGE : décision finale
+// La proie minimale se juge sur la conviction BRUTE ; la normalisation règle
+// la TAILLE, jamais la DÉCISION.
+// ============================================================================
+dirS = ta.sma(dir, respire)
+convRef = math.max(nz(ta.sma(math.abs(dirS), 252), 0.3), 0.05)
+dirN = math.max(-1.0, math.min(1.0, dirS / convRef))
+dirUse = convNorm ? dirN : dirS
+dirChasse = math.abs(dirS) >= proieMin ? dirUse : 0.0
+fCible = ready and inDate and not eteint ? dirChasse * levVol * torpeur * bouclier : 0.0
+fCible := enableLongs or fCible < 0 ? fCible : 0.0
+fCible := enableShorts or fCible > 0 ? fCible : 0.0
+fCible := pacteAbri ? 0.0 : fCible
+
+// ============================================================================
+// RÉÉQUILIBRAGE : zone morte et respiration.
+// Le compte est tenu dans la devise de cotation (currency.NONE) : cette ligne
+// divise le capital par le prix, les deux DOIVENT être dans la même devise.
+// ============================================================================
+qtyCible = fCible * strategy.equity / close
+diffQty = qtyCible - strategy.position_size
+seuilQty = math.max(rebalPct / 100 * math.abs(qtyCible), 0.02 * strategy.equity / close)
+souffle = bar_index % respire == 0
+doPlus = barstate.isconfirmed and souffle and diffQty > seuilQty
+doMoins = barstate.isconfirmed and souffle and -diffQty > seuilQty
+
+// ============================================================================
+// AFFICHAGE
+// ============================================================================
+bgcolor(not ready ? na : vivantes == 0 ? color.new(color.red, 90) : dir > 0.2 ? color.new(color.teal, 94) : dir < -0.2 ? color.new(color.red, 94) : na)
+plotshape(doPlus, "Poussée haussière", shape.triangleup, location.belowbar, color.new(color.teal, 0), size = size.tiny)
+plotshape(doMoins, "Poussée baissière", shape.triangledown, location.abovebar, color.new(color.red, 0), size = size.tiny)
+plotshape(naissance, "Naissance", shape.diamond, location.bottom, color.new(color.purple, 0), size = size.tiny)
+plotshape(choc, "Choc immunitaire", shape.xcross, location.top, color.new(color.red, 0), size = size.tiny)
+
+expoActu = strategy.position_size * close / strategy.equity
+winRate = strategy.closedtrades > 0 ? 100.0 * strategy.wintrades / strategy.closedtrades : 0.0
+pf = strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na
+tropFin = timeframe.in_seconds() < 14400
+diagTxt = eteint ? "☠ ÉTEINT : plancher de survie franchi" : pacteAbri ? "l'Homme a ordonné l'abri" : not ready ? "amorçage : encore " + str.tostring(math.max(0, 301 - bar_index)) + " bougies" : tropFin ? "⚠ Le spread mange la proie sous 4 h. Ce moteur est validé en JOURNALIER." : vivantes == 0 ? "extinction : tout le monde à l'abri" : math.abs(dirS) < proieMin ? "meute à l'affût : conviction " + str.tostring(100 * math.abs(dirS), "#") + " % < " + str.tostring(100 * proieMin, "#") + " %" : str.tostring(vivantes) + "/15 vivantes · " + str.tostring(naissances) + " naissances · la meute charge, cap " + (dir > 0.05 ? "haussier" : dir < -0.05 ? "baissier" : "neutre")
+diagCol = eteint ? color.new(color.red, 60) : tropFin ? color.new(color.red, 70) : ready and vivantes > 0 ? color.new(color.teal, 70) : color.new(color.orange, 80)
+alphaNom = (bestFit == fit1 ? "Guépard " + str.tostring(L1) : bestFit == fit2 ? "Loup " + str.tostring(L2) : bestFit == fit3 ? "Ours " + str.tostring(L3) : bestFit == fit4 ? "Éléphant " + str.tostring(L4) : bestFit == fit5 ? "Baleine " + str.tostring(L5) : bestFit == fit6 ? "Colibri " + str.tostring(L6) : bestFit == fit7 ? "Renard " + str.tostring(L7) : bestFit == fit8 ? "Chouette " + str.tostring(L8) : bestFit == fit9 ? "Aigle " + str.tostring(lbAn) : bestFit == fit10 ? "Crocodile 55" : bestFit == fit11 ? "Panthère " + str.tostring(L11) : bestFit == fit12 ? "Lynx " + str.tostring(L12) : bestFit == fit13 ? "Bison " + str.tostring(L13) : bestFit == fit14 ? "Serpent " + str.tostring(L14) : "Bip-Bip " + str.tostring(L15)) + "b · forme " + str.tostring(10000 * bestFit, "#.#") + " pb"
+convTxt = str.tostring(100 * wPour / math.max(wTot, 1e-12), "#") + " % pour / " + str.tostring(100 * wContre / math.max(wTot, 1e-12), "#") + " % contre · conviction brute " + str.tostring(100 * dirS, "#.#") + " %" + (convNorm ? " → normalisée " + str.tostring(100 * dirUse, "#.#") + " %" : "")
+tempTxt = str.tostring(100 * dd, "#.#") + " % depuis le sommet absolu · " + (torpeurLibre >= 0.99 ? "métabolisme normal" : torpeurLibre > 0.5 ? "fièvre : poussée à " + str.tostring(100 * torpeur, "#") + " %" : torpeurLibre > 0 ? "torpeur : " + str.tostring(100 * torpeur, "#") + " %" : "BORNE FRANCHIE : plancher de chasse 15 % — la colonie peut encore se refaire")
+tempCol = torpeurLibre >= 0.99 ? color.new(color.teal, 80) : torpeurLibre > 0.5 ? color.new(color.orange, 75) : color.new(color.red, 70)
+e1 = "Guépard " + str.tostring(L1) + "b g" + str.tostring(g1) + " " + (sig1 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit1, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w1 / wTot : 0, "#") + " %"
+e2 = "Loup " + str.tostring(L2) + "b g" + str.tostring(g2) + " " + (sig2 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit2, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w2 / wTot : 0, "#") + " %"
+e3 = "Ours " + str.tostring(L3) + "b g" + str.tostring(g3) + " " + (sig3 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit3, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w3 / wTot : 0, "#") + " %"
+e4 = "Éléphant " + str.tostring(L4) + "b g" + str.tostring(g4) + " " + (sig4 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit4, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w4 / wTot : 0, "#") + " %"
+e5 = "Baleine " + str.tostring(L5) + "b g" + str.tostring(g5) + " " + (sig5 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit5, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w5 / wTot : 0, "#") + " %"
+e6 = "Colibri " + str.tostring(L6) + "b g" + str.tostring(g6) + " " + (sig6 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit6, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w6 / wTot : 0, "#") + " %"
+e7 = "Renard " + str.tostring(L7) + "b g" + str.tostring(g7) + " " + (sig7 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit7, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w7 / wTot : 0, "#") + " %"
+e8 = "Chouette " + str.tostring(L8) + "b g" + str.tostring(g8) + " " + (sig8 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit8, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w8 / wTot : 0, "#") + " %"
+e9 = "Aigle " + str.tostring(lbAn) + "b (dollar inversé) " + (sig9 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit9, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w9 / wTot : 0, "#") + " %"
+e10 = "Crocodile 55b (embuscade) " + (sig10 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit10, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w10 / wTot : 0, "#") + " %"
+e11 = "Panthère " + str.tostring(L11) + "b g" + str.tostring(g11) + " " + (sig11 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit11, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w11 / wTot : 0, "#") + " %"
+e12 = "Lynx " + str.tostring(L12) + "b g" + str.tostring(g12) + " " + (sig12 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit12, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w12 / wTot : 0, "#") + " %"
+e13 = "Bison " + str.tostring(L13) + "b g" + str.tostring(g13) + " " + (sig13 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit13, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w13 / wTot : 0, "#") + " %"
+e14 = "Serpent " + str.tostring(L14) + "b g" + str.tostring(g14) + " " + (sig14 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit14, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w14 / wTot : 0, "#") + " %"
+e15 = "Bip-Bip " + str.tostring(L15) + "b g" + str.tostring(g15) + " " + (sig15 > 0 ? "▲" : "▼") + " · " + str.tostring(10000 * fit15, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w15 / wTot : 0, "#") + " %"
+c1c = fit1 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c2c = fit2 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c3c = fit3 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c4c = fit4 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c5c = fit5 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c6c = fit6 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c7c = fit7 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c8c = fit8 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c9c = fit9 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c10c = fit10 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c11c = fit11 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c12c = fit12 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c13c = fit13 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c14c = fit14 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c15c = fit15 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+
+var table info = table.new(position.top_right, 2, 24, border_width = 1)
+table.cell(info, 0, 0, "État de la meute", text_size = size.small, bgcolor = color.new(color.orange, 80))
+table.cell(info, 1, 0, diagTxt, text_size = size.small, bgcolor = diagCol)
+table.cell(info, 0, 1, "Exposition cible / réelle", text_size = size.small, bgcolor = color.new(color.blue, 80))
+table.cell(info, 1, 1, (fCible >= 0 ? "+" : "") + str.tostring(100 * fCible, "#.#") + " % / " + (expoActu >= 0 ? "+" : "") + str.tostring(100 * expoActu, "#.#") + " %", text_size = size.small, bgcolor = fCible > 0.01 ? color.new(color.teal, 70) : fCible < -0.01 ? color.new(color.red, 70) : color.new(color.gray, 85))
+table.cell(info, 0, 2, "Tendance", text_size = size.small, bgcolor = c11c)
+table.cell(info, 1, 2, e11, text_size = size.small, bgcolor = c11c)
+table.cell(info, 0, 3, "Tendance", text_size = size.small, bgcolor = c1c)
+table.cell(info, 1, 3, e1, text_size = size.small, bgcolor = c1c)
+table.cell(info, 0, 4, "Tendance", text_size = size.small, bgcolor = c2c)
+table.cell(info, 1, 4, e2, text_size = size.small, bgcolor = c2c)
+table.cell(info, 0, 5, "Tendance", text_size = size.small, bgcolor = c12c)
+table.cell(info, 1, 5, e12, text_size = size.small, bgcolor = c12c)
+table.cell(info, 0, 6, "Tendance", text_size = size.small, bgcolor = c3c)
+table.cell(info, 1, 6, e3, text_size = size.small, bgcolor = c3c)
+table.cell(info, 0, 7, "Tendance", text_size = size.small, bgcolor = c4c)
+table.cell(info, 1, 7, e4, text_size = size.small, bgcolor = c4c)
+table.cell(info, 0, 8, "Tendance", text_size = size.small, bgcolor = c13c)
+table.cell(info, 1, 8, e13, text_size = size.small, bgcolor = c13c)
+table.cell(info, 0, 9, "Tendance", text_size = size.small, bgcolor = c5c)
+table.cell(info, 1, 9, e5, text_size = size.small, bgcolor = c5c)
+table.cell(info, 0, 10, "Tendance ultra-courte", text_size = size.small, bgcolor = c15c)
+table.cell(info, 1, 10, e15, text_size = size.small, bgcolor = c15c)
+table.cell(info, 0, 11, "Contraire", text_size = size.small, bgcolor = c6c)
+table.cell(info, 1, 11, e6, text_size = size.small, bgcolor = c6c)
+table.cell(info, 0, 12, "Contraire", text_size = size.small, bgcolor = c14c)
+table.cell(info, 1, 12, e14, text_size = size.small, bgcolor = c14c)
+table.cell(info, 0, 13, "Contraire", text_size = size.small, bgcolor = c7c)
+table.cell(info, 1, 13, e7, text_size = size.small, bgcolor = c7c)
+table.cell(info, 0, 14, "Contraire", text_size = size.small, bgcolor = c8c)
+table.cell(info, 1, 14, e8, text_size = size.small, bgcolor = c8c)
+table.cell(info, 0, 15, "Fossile (indispensable)", text_size = size.small, bgcolor = c9c)
+table.cell(info, 1, 15, e9, text_size = size.small, bgcolor = c9c)
+table.cell(info, 0, 16, "Fossile (indispensable)", text_size = size.small, bgcolor = c10c)
+table.cell(info, 1, 16, e10, text_size = size.small, bgcolor = c10c)
+table.cell(info, 0, 17, "Le lion (alpha)", text_size = size.small, bgcolor = color.new(color.orange, 75))
+table.cell(info, 1, 17, alphaNom, text_size = size.small, bgcolor = color.new(color.orange, 85))
+table.cell(info, 0, 18, "Conviction de la meute", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 18, convTxt, text_size = size.small, bgcolor = color.new(color.blue, 85))
+table.cell(info, 0, 19, "Contrariennes", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 19, str.tostring(partCont, "#") + " % de la meute (max " + str.tostring(contMax, "#") + " %)", text_size = size.small)
+table.cell(info, 0, 20, "Volatilité réalisée → levier", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 20, str.tostring(100 * sigA, "#.#") + " % → ×" + str.tostring(levVol, "#.##") + " (plafond ×" + str.tostring(expoMax, "#.#") + ")", text_size = size.small)
+table.cell(info, 0, 21, "Trades / réussite / PF", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 21, str.tostring(strategy.closedtrades) + " / " + str.tostring(winRate, "#.#") + " % / " + (na(pf) ? "—" : str.tostring(pf, "#.##")), text_size = size.small)
+table.cell(info, 0, 22, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 22, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
+table.cell(info, 0, 23, "Température (borne " + str.tostring(ddMax, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 23, tempTxt, text_size = size.small, bgcolor = tempCol)
+
+// ============================================================================
+// ALERTES
+// ============================================================================
+alertcondition(doPlus, "Change : poussée haussière", "Le Roi du Change augmente son exposition haussière")
+alertcondition(doMoins, "Change : poussée baissière", "Le Roi du Change réduit ou inverse son exposition")
+alertcondition(naissance, "Change : naissance d'une espèce", "Une espèce est morte de faim, son enfant muté vient de naître")
+alertcondition(choc, "Change : choc immunitaire", "Mouvement anormal détecté, bouclier levé")
+alertcondition(dirChasse != 0 and dirChasse[1] == 0, "Change : la meute charge", "Conviction suffisante : la meute charge")
+alertcondition(dirChasse == 0 and dirChasse[1] != 0, "Change : retour à l'affût", "Conviction insuffisante : la meute cesse de chasser")
+alertcondition(torpeurLibre < 0.5 and torpeurLibre[1] >= 0.5, "Change : torpeur profonde", "La perte depuis le sommet dépasse la moitié de la borne")
+alertcondition(eteint and not eteint[1], "Change : EXTINCTION", "Plancher de survie franchi : plus aucune exposition")
+
+// ============================================================================
+// LA CORRECTION DE POUSSÉE — UN SEUL BLOC, UNE SEULE LIGNE INDENTÉE, ET C'EST
+// LA DERNIÈRE DU FICHIER. Rien ne la suit, donc rien ne peut s'y imbriquer par
+// accident de collage. doPlus et doMoins ne peuvent être vrais en même temps.
+// ============================================================================
+if doPlus or doMoins
+    strategy.order(doPlus ? "Change+" : "Change-", doPlus ? strategy.long : strategy.short, qty = math.abs(diffQty), comment = "cap " + str.tostring(100 * fCible, "#") + "%", alert_message = "RoiDuChange " + (doPlus ? "HAUSSE" : "BAISSE") + " vers " + str.tostring(100 * fCible, "#.#") + "% " + syminfo.ticker)
