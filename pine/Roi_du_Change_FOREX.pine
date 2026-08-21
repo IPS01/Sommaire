@@ -91,6 +91,15 @@ pacteAbri = input.bool(false, "ORDRE SOUVERAIN : toute la colonie à l'abri", gr
 starveMax = input.int(150, "Famine mortelle (bougies en forme négative)", minval = 30, maxval = 1000, group = "Évolution")
 soinParent = input.float(25.0, "Soin parental (% de la vigueur héritée)", minval = 0.0, maxval = 100.0, step = 5.0, group = "Évolution")
 
+bouOn = input.bool(false, "LA BOUSSOLE : armer la force relative des huit devises", group = "La boussole (force des devises)", tooltip = "Elle construit la force de chaque monnaie contre le panier des huit, les classe, et donne à la meute l'écart de rang entre les deux monnaies de VOTRE paire — détectées automatiquement. Mesure honnête du banc, sur les deux moitiés hors échantillon : elle ne casse jamais la meute (7 réglages testés sur 7 tiennent), mais son apport n'est pas fiable — +2 006 à 15 bougies, +308 à 20, -3 836 à 50. La médiane est légèrement négative. Elle est donc DÉSARMÉE par défaut : armez-la pour expérimenter, pas parce qu'un chiffre vous a plu.")
+bouLook = input.int(20, "Boussole : fenêtre de mesure de la force", minval = 5, maxval = 250, group = "La boussole (force des devises)")
+symEU = input.symbol("OANDA:EURUSD", "EUR/USD", group = "La boussole (force des devises)")
+symGU = input.symbol("OANDA:GBPUSD", "GBP/USD", group = "La boussole (force des devises)")
+symAU = input.symbol("OANDA:AUDUSD", "AUD/USD", group = "La boussole (force des devises)")
+symNU = input.symbol("OANDA:NZDUSD", "NZD/USD", group = "La boussole (force des devises)")
+symUJ = input.symbol("OANDA:USDJPY", "USD/JPY", group = "La boussole (force des devises)")
+symUC = input.symbol("OANDA:USDCHF", "USD/CHF", group = "La boussole (force des devises)")
+symUD = input.symbol("OANDA:USDCAD", "USD/CAD", group = "La boussole (force des devises)")
 symDollar = input.symbol("TVC:DXY", "L'Aigle : indice dollar", group = "Le regard extérieur", tooltip = "INDISPENSABLE. Le banc a retiré les fossiles : le moteur casse (-1 144 sur la première moitié). L'Aigle lit l'indice dollar, une information que la paire seule ne contient pas. Sur une paire sans USD, mettez l'indice de la devise dominante.")
 
 startDate = input.time(timestamp("1 Jan 2016 00:00 +0000"), "Début", group = "Période de backtest")
@@ -197,6 +206,64 @@ lCroco = ta.lowest(close, 55)
 sig10 = (hCroco - lCroco) > 0 ? math.max(-1.0, math.min(1.0, (close - (hCroco + lCroco) / 2) / ((hCroco - lCroco) / 2))) : 0.0
 
 // ============================================================================
+// LA BOUSSOLE : force relative des huit devises, paire détectée toute seule
+// Chaque monnaie est valorisée contre l'USD, on prend son rendement sur
+// bouLook bougies, on retire la moyenne du panier — il reste sa force PROPRE.
+// Le classement se fait sans boucle : le rang d'une monnaie, c'est le nombre
+// de monnaies plus fortes qu'elle. Puis on lit le rang des deux monnaies de
+// la paire affichée, via syminfo : rien à régler à la main.
+// ============================================================================
+cEU = request.security(symEU, timeframe.period, close)
+cGU = request.security(symGU, timeframe.period, close)
+cAU = request.security(symAU, timeframe.period, close)
+cNU = request.security(symNU, timeframe.period, close)
+cUJ = request.security(symUJ, timeframe.period, close)
+cUC = request.security(symUC, timeframe.period, close)
+cUD = request.security(symUD, timeframe.period, close)
+vEUR = nz(cEU, 1.0)
+vGBP = nz(cGU, 1.0)
+vAUD = nz(cAU, 1.0)
+vNZD = nz(cNU, 1.0)
+vJPY = 1.0 / math.max(nz(cUJ, 1.0), 1e-9)
+vCHF = 1.0 / math.max(nz(cUC, 1.0), 1e-9)
+vCAD = 1.0 / math.max(nz(cUD, 1.0), 1e-9)
+rEUR = math.log(vEUR / nz(vEUR[bouLook], vEUR))
+rGBP = math.log(vGBP / nz(vGBP[bouLook], vGBP))
+rAUD = math.log(vAUD / nz(vAUD[bouLook], vAUD))
+rNZD = math.log(vNZD / nz(vNZD[bouLook], vNZD))
+rJPY = math.log(vJPY / nz(vJPY[bouLook], vJPY))
+rCHF = math.log(vCHF / nz(vCHF[bouLook], vCHF))
+rCAD = math.log(vCAD / nz(vCAD[bouLook], vCAD))
+rUSD = 0.0
+moyPanier = (rEUR + rGBP + rAUD + rNZD + rJPY + rCHF + rCAD + rUSD) / 8.0
+fEUR = rEUR - moyPanier
+fGBP = rGBP - moyPanier
+fAUD = rAUD - moyPanier
+fNZD = rNZD - moyPanier
+fJPY = rJPY - moyPanier
+fCHF = rCHF - moyPanier
+fCAD = rCAD - moyPanier
+fUSD = rUSD - moyPanier
+// rang = combien de monnaies sont PLUS FORTES (0 = la plus forte de toutes)
+kEUR = (fGBP > fEUR ? 1 : 0) + (fAUD > fEUR ? 1 : 0) + (fNZD > fEUR ? 1 : 0) + (fJPY > fEUR ? 1 : 0) + (fCHF > fEUR ? 1 : 0) + (fCAD > fEUR ? 1 : 0) + (fUSD > fEUR ? 1 : 0)
+kGBP = (fEUR > fGBP ? 1 : 0) + (fAUD > fGBP ? 1 : 0) + (fNZD > fGBP ? 1 : 0) + (fJPY > fGBP ? 1 : 0) + (fCHF > fGBP ? 1 : 0) + (fCAD > fGBP ? 1 : 0) + (fUSD > fGBP ? 1 : 0)
+kAUD = (fEUR > fAUD ? 1 : 0) + (fGBP > fAUD ? 1 : 0) + (fNZD > fAUD ? 1 : 0) + (fJPY > fAUD ? 1 : 0) + (fCHF > fAUD ? 1 : 0) + (fCAD > fAUD ? 1 : 0) + (fUSD > fAUD ? 1 : 0)
+kNZD = (fEUR > fNZD ? 1 : 0) + (fGBP > fNZD ? 1 : 0) + (fAUD > fNZD ? 1 : 0) + (fJPY > fNZD ? 1 : 0) + (fCHF > fNZD ? 1 : 0) + (fCAD > fNZD ? 1 : 0) + (fUSD > fNZD ? 1 : 0)
+kJPY = (fEUR > fJPY ? 1 : 0) + (fGBP > fJPY ? 1 : 0) + (fAUD > fJPY ? 1 : 0) + (fNZD > fJPY ? 1 : 0) + (fCHF > fJPY ? 1 : 0) + (fCAD > fJPY ? 1 : 0) + (fUSD > fJPY ? 1 : 0)
+kCHF = (fEUR > fCHF ? 1 : 0) + (fGBP > fCHF ? 1 : 0) + (fAUD > fCHF ? 1 : 0) + (fNZD > fCHF ? 1 : 0) + (fJPY > fCHF ? 1 : 0) + (fCAD > fCHF ? 1 : 0) + (fUSD > fCHF ? 1 : 0)
+kCAD = (fEUR > fCAD ? 1 : 0) + (fGBP > fCAD ? 1 : 0) + (fAUD > fCAD ? 1 : 0) + (fNZD > fCAD ? 1 : 0) + (fJPY > fCAD ? 1 : 0) + (fCHF > fCAD ? 1 : 0) + (fUSD > fCAD ? 1 : 0)
+kUSD = (fEUR > fUSD ? 1 : 0) + (fGBP > fUSD ? 1 : 0) + (fAUD > fUSD ? 1 : 0) + (fNZD > fUSD ? 1 : 0) + (fJPY > fUSD ? 1 : 0) + (fCHF > fUSD ? 1 : 0) + (fCAD > fUSD ? 1 : 0)
+// DETECTION AUTOMATIQUE DE LA PAIRE : syminfo donne la monnaie de base et la
+// monnaie de cotation du graphique affiche. Une monnaie inconnue du panier
+// prend le rang median (3,5), ce qui la rend neutre.
+devBase = str.upper(syminfo.basecurrency)
+devQuote = str.upper(syminfo.currency)
+kBase = devBase == "EUR" ? kEUR : devBase == "GBP" ? kGBP : devBase == "AUD" ? kAUD : devBase == "NZD" ? kNZD : devBase == "JPY" ? kJPY : devBase == "CHF" ? kCHF : devBase == "CAD" ? kCAD : devBase == "USD" ? kUSD : 3.5
+kQuote = devQuote == "EUR" ? kEUR : devQuote == "GBP" ? kGBP : devQuote == "AUD" ? kAUD : devQuote == "NZD" ? kNZD : devQuote == "JPY" ? kJPY : devQuote == "CHF" ? kCHF : devQuote == "CAD" ? kCAD : devQuote == "USD" ? kUSD : 3.5
+bouConnue = bouOn and kBase != 3.5 and kQuote != 3.5
+sig16 = bouConnue ? (kQuote - kBase) / 7.0 : 0.0
+
+// ============================================================================
 // LA CHASSE VIRTUELLE : gain de chaque espèce, frais de sélection déduits
 // ============================================================================
 p1 = nz(sig1[1], 0.0) * v - math.abs(sig1 - nz(sig1[1], sig1)) * 0.5 * fr
@@ -214,7 +281,10 @@ p12 = nz(sig12[1], 0.0) * v - math.abs(sig12 - nz(sig12[1], sig12)) * 0.5 * fr
 p13 = nz(sig13[1], 0.0) * v - math.abs(sig13 - nz(sig13[1], sig13)) * 0.5 * fr
 p14 = nz(sig14[1], 0.0) * v - math.abs(sig14 - nz(sig14[1], sig14)) * 0.5 * fr
 p15 = nz(sig15[1], 0.0) * v - math.abs(sig15 - nz(sig15[1], sig15)) * 0.5 * fr
-pEco = (p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11 + p12 + p13 + p14 + p15) / 15.0
+p16 = nz(sig16[1], 0.0) * v - math.abs(sig16 - nz(sig16[1], sig16)) * 0.5 * fr
+// Desarmee, la Boussole n'existe pas : le moteur redevient rigoureusement
+// celui des quinze especes validees.
+pEco = (p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11 + p12 + p13 + p14 + p15 + (bouConnue ? p16 : 0.0)) / (bouConnue ? 16.0 : 15.0)
 
 // ============================================================================
 // LA FORME : vigueur de chaque espèce (mémoire exponentielle)
@@ -249,6 +319,8 @@ fit12 := barstate.isconfirmed ? lamF * fit12 + (1 - lamF) * p12 : fit12
 fit13 := barstate.isconfirmed ? lamF * fit13 + (1 - lamF) * p13 : fit13
 fit14 := barstate.isconfirmed ? lamF * fit14 + (1 - lamF) * p14 : fit14
 fit15 := barstate.isconfirmed ? lamF * fit15 + (1 - lamF) * p15 : fit15
+var float fit16 = 0.0
+fit16 := barstate.isconfirmed ? lamF * fit16 + (1 - lamF) * p16 : fit16
 
 // ============================================================================
 // NICHES ÉCOLOGIQUES : la différence est récompensée
@@ -268,11 +340,12 @@ q12 = nz(ta.correlation(p12, pEco, 100), 1.0)
 q13 = nz(ta.correlation(p13, pEco, 100), 1.0)
 q14 = nz(ta.correlation(p14, pEco, 100), 1.0)
 q15 = nz(ta.correlation(p15, pEco, 100), 1.0)
+q16 = nz(ta.correlation(p16, pEco, 100), 1.0)
 
 // ============================================================================
 // LA MEUTE : le lion mange le premier (forme ^ hiérarchie)
 // ============================================================================
-bestRef = math.max(fit1, math.max(fit2, math.max(fit3, math.max(fit4, math.max(fit5, math.max(fit6, math.max(fit7, math.max(fit8, math.max(fit9, math.max(fit10, math.max(fit11, math.max(fit12, math.max(fit13, math.max(fit14, fit15))))))))))))))
+bestRef = math.max(fit1, math.max(fit2, math.max(fit3, math.max(fit4, math.max(fit5, math.max(fit6, math.max(fit7, math.max(fit8, math.max(fit9, math.max(fit10, math.max(fit11, math.max(fit12, math.max(fit13, math.max(fit14, math.max(fit15, (bouConnue ? fit16 : -1e9))))))))))))))))
 fitRef = math.max(bestRef, 1e-12)
 w1 = math.pow(math.max(0.0, fit1) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q1))
 w2 = math.pow(math.max(0.0, fit2) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q2))
@@ -289,9 +362,10 @@ w12 = math.pow(math.max(0.0, fit12) / fitRef, hierarchie) * (1.0 + divBonus * (1
 w13 = math.pow(math.max(0.0, fit13) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q13))
 w14r = math.pow(math.max(0.0, fit14) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q14))
 w15 = math.pow(math.max(0.0, fit15) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q15))
+w16 = bouConnue ? math.pow(math.max(0.0, fit16) / fitRef, hierarchie) * (1.0 + divBonus * (1.0 - q16)) : 0.0
 
 // PLAFOND DES CONTRARIENNES (6, 7, 8, 14) : elles ne raflent pas tout.
-wT = w1 + w2 + w3 + w4 + w5 + w9 + w10 + w11 + w12 + w13 + w15
+wT = w1 + w2 + w3 + w4 + w5 + w9 + w10 + w11 + w12 + w13 + w15 + w16
 wCr = w6r + w7r + w8r + w14r
 cC = contMax / 100
 scaleC = wCr > 0 and cC < 1 ? math.min(1.0, cC * wT / math.max(1e-12, (1 - cC) * wCr)) : 1.0
@@ -300,17 +374,17 @@ w7 = w7r * scaleC
 w8 = w8r * scaleC
 w14 = w14r * scaleC
 wTot = wT + w6 + w7 + w8 + w14
-dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6 * sig6 + w7 * sig7 + w8 * sig8 + w9 * sig9 + w10 * sig10 + w11 * sig11 + w12 * sig12 + w13 * sig13 + w14 * sig14 + w15 * sig15) / wTot : 0.0
-vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0) + (w9 > 0 ? 1 : 0) + (w10 > 0 ? 1 : 0) + (w11 > 0 ? 1 : 0) + (w12 > 0 ? 1 : 0) + (w13 > 0 ? 1 : 0) + (w14 > 0 ? 1 : 0) + (w15 > 0 ? 1 : 0)
-wPour = (sig1 > 0 ? w1 : 0.0) + (sig2 > 0 ? w2 : 0.0) + (sig3 > 0 ? w3 : 0.0) + (sig4 > 0 ? w4 : 0.0) + (sig5 > 0 ? w5 : 0.0) + (sig6 > 0 ? w6 : 0.0) + (sig7 > 0 ? w7 : 0.0) + (sig8 > 0 ? w8 : 0.0) + (sig9 > 0 ? w9 : 0.0) + (sig10 > 0 ? w10 : 0.0) + (sig11 > 0 ? w11 : 0.0) + (sig12 > 0 ? w12 : 0.0) + (sig13 > 0 ? w13 : 0.0) + (sig14 > 0 ? w14 : 0.0) + (sig15 > 0 ? w15 : 0.0)
-wContre = (sig1 < 0 ? w1 : 0.0) + (sig2 < 0 ? w2 : 0.0) + (sig3 < 0 ? w3 : 0.0) + (sig4 < 0 ? w4 : 0.0) + (sig5 < 0 ? w5 : 0.0) + (sig6 < 0 ? w6 : 0.0) + (sig7 < 0 ? w7 : 0.0) + (sig8 < 0 ? w8 : 0.0) + (sig9 < 0 ? w9 : 0.0) + (sig10 < 0 ? w10 : 0.0) + (sig11 < 0 ? w11 : 0.0) + (sig12 < 0 ? w12 : 0.0) + (sig13 < 0 ? w13 : 0.0) + (sig14 < 0 ? w14 : 0.0) + (sig15 < 0 ? w15 : 0.0)
+dir = wTot > 0 ? (w1 * sig1 + w2 * sig2 + w3 * sig3 + w4 * sig4 + w5 * sig5 + w6 * sig6 + w7 * sig7 + w8 * sig8 + w9 * sig9 + w10 * sig10 + w11 * sig11 + w12 * sig12 + w13 * sig13 + w14 * sig14 + w15 * sig15 + w16 * sig16) / wTot : 0.0
+vivantes = (w1 > 0 ? 1 : 0) + (w2 > 0 ? 1 : 0) + (w3 > 0 ? 1 : 0) + (w4 > 0 ? 1 : 0) + (w5 > 0 ? 1 : 0) + (w6 > 0 ? 1 : 0) + (w7 > 0 ? 1 : 0) + (w8 > 0 ? 1 : 0) + (w9 > 0 ? 1 : 0) + (w10 > 0 ? 1 : 0) + (w11 > 0 ? 1 : 0) + (w12 > 0 ? 1 : 0) + (w13 > 0 ? 1 : 0) + (w14 > 0 ? 1 : 0) + (w15 > 0 ? 1 : 0) + (w16 > 0 ? 1 : 0)
+wPour = (sig1 > 0 ? w1 : 0.0) + (sig2 > 0 ? w2 : 0.0) + (sig3 > 0 ? w3 : 0.0) + (sig4 > 0 ? w4 : 0.0) + (sig5 > 0 ? w5 : 0.0) + (sig6 > 0 ? w6 : 0.0) + (sig7 > 0 ? w7 : 0.0) + (sig8 > 0 ? w8 : 0.0) + (sig9 > 0 ? w9 : 0.0) + (sig10 > 0 ? w10 : 0.0) + (sig11 > 0 ? w11 : 0.0) + (sig12 > 0 ? w12 : 0.0) + (sig13 > 0 ? w13 : 0.0) + (sig14 > 0 ? w14 : 0.0) + (sig15 > 0 ? w15 : 0.0) + (sig16 > 0 ? w16 : 0.0)
+wContre = (sig1 < 0 ? w1 : 0.0) + (sig2 < 0 ? w2 : 0.0) + (sig3 < 0 ? w3 : 0.0) + (sig4 < 0 ? w4 : 0.0) + (sig5 < 0 ? w5 : 0.0) + (sig6 < 0 ? w6 : 0.0) + (sig7 < 0 ? w7 : 0.0) + (sig8 < 0 ? w8 : 0.0) + (sig9 < 0 ? w9 : 0.0) + (sig10 < 0 ? w10 : 0.0) + (sig11 < 0 ? w11 : 0.0) + (sig12 < 0 ? w12 : 0.0) + (sig13 < 0 ? w13 : 0.0) + (sig14 < 0 ? w14 : 0.0) + (sig15 < 0 ? w15 : 0.0) + (sig16 < 0 ? w16 : 0.0)
 partCont = wTot > 0 ? 100 * (w6 + w7 + w8 + w14) / wTot : 0.0
 
 // ============================================================================
 // ÉVOLUTION : famine, mort, croisement des deux meilleures, mutation
 // ============================================================================
 bestFit = bestRef
-bestL = bestFit == fit1 ? L1 : bestFit == fit2 ? L2 : bestFit == fit3 ? L3 : bestFit == fit4 ? L4 : bestFit == fit5 ? L5 : bestFit == fit6 ? L6 : bestFit == fit7 ? L7 : bestFit == fit8 ? L8 : bestFit == fit9 ? lbAn : bestFit == fit10 ? 55 : bestFit == fit11 ? L11 : bestFit == fit12 ? L12 : bestFit == fit13 ? L13 : bestFit == fit14 ? L14 : L15
+bestL = bestFit == fit1 ? L1 : bestFit == fit2 ? L2 : bestFit == fit3 ? L3 : bestFit == fit4 ? L4 : bestFit == fit5 ? L5 : bestFit == fit6 ? L6 : bestFit == fit7 ? L7 : bestFit == fit8 ? L8 : bestFit == fit9 ? lbAn : bestFit == fit10 ? 55 : bestFit == fit11 ? L11 : bestFit == fit12 ? L12 : bestFit == fit13 ? L13 : bestFit == fit14 ? L14 : bestFit == fit15 ? L15 : bouLook
 m2f1 = bestFit == fit1 ? -1e9 : fit1
 m2f2 = bestFit == fit2 ? -1e9 : fit2
 m2f3 = bestFit == fit3 ? -1e9 : fit3
@@ -550,8 +624,10 @@ c12c = fit12 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c13c = fit13 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c14c = fit14 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
 c15c = fit15 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+c16c = not bouConnue ? color.new(color.gray, 94) : fit16 > 0 ? color.new(color.teal, 80) : color.new(color.gray, 88)
+e16 = not bouOn ? "désarmée" : not bouConnue ? "paire hors panier (" + devBase + "/" + devQuote + ") — neutralisée" : devBase + " rang " + str.tostring(kBase + 1, "#") + "/8 · " + devQuote + " rang " + str.tostring(kQuote + 1, "#") + "/8 " + (sig16 > 0 ? "▲" : sig16 < 0 ? "▼" : "—") + " · " + str.tostring(10000 * fit16, "#.#") + " pb · " + str.tostring(wTot > 0 ? 100 * w16 / wTot : 0, "#") + " %"
 
-var table info = table.new(position.top_right, 2, 24, border_width = 1)
+var table info = table.new(position.top_right, 2, 25, border_width = 1)
 table.cell(info, 0, 0, "État de la meute", text_size = size.small, bgcolor = color.new(color.orange, 80))
 table.cell(info, 1, 0, diagTxt, text_size = size.small, bgcolor = diagCol)
 table.cell(info, 0, 1, "Exposition cible / réelle", text_size = size.small, bgcolor = color.new(color.blue, 80))
@@ -586,20 +662,22 @@ table.cell(info, 0, 15, "Fossile (indispensable)", text_size = size.small, bgcol
 table.cell(info, 1, 15, e9, text_size = size.small, bgcolor = c9c)
 table.cell(info, 0, 16, "Fossile (indispensable)", text_size = size.small, bgcolor = c10c)
 table.cell(info, 1, 16, e10, text_size = size.small, bgcolor = c10c)
-table.cell(info, 0, 17, "Le lion (alpha)", text_size = size.small, bgcolor = color.new(color.orange, 75))
-table.cell(info, 1, 17, alphaNom, text_size = size.small, bgcolor = color.new(color.orange, 85))
-table.cell(info, 0, 18, "Conviction de la meute", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 18, convTxt, text_size = size.small, bgcolor = color.new(color.blue, 85))
-table.cell(info, 0, 19, "Contrariennes", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 19, str.tostring(partCont, "#") + " % de la meute (max " + str.tostring(contMax, "#") + " %)", text_size = size.small)
-table.cell(info, 0, 20, "Volatilité réalisée → levier", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 20, str.tostring(100 * sigA, "#.#") + " % → ×" + str.tostring(levVol, "#.##") + " (plafond ×" + str.tostring(expoMax, "#.#") + ")", text_size = size.small)
-table.cell(info, 0, 21, "Trades / réussite / PF", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 21, str.tostring(strategy.closedtrades) + " / " + str.tostring(winRate, "#.#") + " % / " + (na(pf) ? "—" : str.tostring(pf, "#.##")), text_size = size.small)
-table.cell(info, 0, 22, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 22, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
-table.cell(info, 0, 23, "Température (borne " + str.tostring(ddMax, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
-table.cell(info, 1, 23, tempTxt, text_size = size.small, bgcolor = tempCol)
+table.cell(info, 0, 17, "Boussole (force des devises)", text_size = size.small, bgcolor = c16c)
+table.cell(info, 1, 17, e16, text_size = size.small, bgcolor = c16c)
+table.cell(info, 0, 18, "Le lion (alpha)", text_size = size.small, bgcolor = color.new(color.orange, 75))
+table.cell(info, 1, 18, alphaNom, text_size = size.small, bgcolor = color.new(color.orange, 85))
+table.cell(info, 0, 19, "Conviction de la meute", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 19, convTxt, text_size = size.small, bgcolor = color.new(color.blue, 85))
+table.cell(info, 0, 20, "Contrariennes", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 20, str.tostring(partCont, "#") + " % de la meute (max " + str.tostring(contMax, "#") + " %)", text_size = size.small)
+table.cell(info, 0, 21, "Volatilité réalisée → levier", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 21, str.tostring(100 * sigA, "#.#") + " % → ×" + str.tostring(levVol, "#.##") + " (plafond ×" + str.tostring(expoMax, "#.#") + ")", text_size = size.small)
+table.cell(info, 0, 22, "Trades / réussite / PF", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 22, str.tostring(strategy.closedtrades) + " / " + str.tostring(winRate, "#.#") + " % / " + (na(pf) ? "—" : str.tostring(pf, "#.##")), text_size = size.small)
+table.cell(info, 0, 23, "Profit net", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 23, str.tostring(strategy.netprofit, "#.##"), text_size = size.small)
+table.cell(info, 0, 24, "Température (borne " + str.tostring(ddMax, "#") + " %)", text_size = size.small, bgcolor = color.new(color.gray, 85))
+table.cell(info, 1, 24, tempTxt, text_size = size.small, bgcolor = tempCol)
 
 // ============================================================================
 // ALERTES
