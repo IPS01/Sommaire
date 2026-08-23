@@ -202,6 +202,7 @@ input int    InpMaxFenetre      = 400;     // C6 : plafond de la fenetre longue 
 input int    InpRefreshSavanes  = 20;      // C7 : rejauger les savanes toutes les N bougies
 input bool   InpTracer          = true;    // Journaliser pourquoi le moteur attend
 input int    InpTracerToutesLesN = 200;   // D7 : journal de decision toutes les N bougies
+input int    InpAmorcage        = 300;     // Amorcage : bougies vues avant la premiere chasse
 input bool   InpChercherPartout = false;   // D5 : fouiller TOUT le catalogue du courtier
 input bool   InpSavanesActives  = true;    // D6 : surveiller les savanes (couper si le test rame)
 
@@ -821,7 +822,15 @@ int OnInit()
    Print("Unite de temps : ", EnumToString(Period()),
          " | fenetre longue : ", lbInit, " bougies (plafond ", InpMaxFenetre, ")");
    Print("Historique exige avant la premiere decision : ", besInit, " bougies.");
-   Print("Amorcage : la meute ne chasse qu'apres 300 bougies vues.");
+   const int amInit = MathMax(0, InpAmorcage);
+   Print("Amorcage (D8) : la meute ne chasse qu'apres ", amInit,
+         " bougies vues DEPUIS LE DEBUT DU TEST.");
+   Print("   -> les ", amInit, " premieres bougies de votre periode testee ne",
+         " produiront AUCUN ordre. C'est normal, la meute se rechauffe.");
+   Print("   -> en ", EnumToString(Period()), " cela represente environ ",
+         DoubleToString(amInit / MathMax(1.0, (double)BarresParAn()), 2), " an(s).");
+   Print("   -> DEMARREZ DONC LE TEST AU MOINS AUSSI TOT AVANT la periode que",
+         " vous voulez reellement mesurer, sinon le test parait vide.");
    const int barsDispo = Bars(_Symbol, Period());
    if(barsDispo > 0 && barsDispo < besInit)
       Print("ATTENTION : seulement ", barsDispo, " bougies disponibles. ",
@@ -885,18 +894,47 @@ void TraiterBougie()
                  "\nBougies vues depuis le lancement : " + IntegerToString(g_barIndex));
       return;
      }
+   // D9 : ces deux sorties etaient MUETTES. Un courtier qui livre les cloture
+   // mais pas les hautes/basses (indices synthetiques, CFD exotiques) tuait
+   // l'expert sans un mot. Elles parlent maintenant comme D3.
    if(CopyHigh(_Symbol, Period(), 0, 60, hi) < 60)
+     {
+      g_attente = "EN ATTENTE : les HAUTES manquent sur 60 bougies chez ce courtier";
+      if(InpTracer && (g_barIndex % 200 == 1))
+         Print(g_attente);
+      if(InpAfficherTableau)
+         Comment("=== LE ROI DE LA SAVANE G9 ===\n" + g_attente);
       return;
+     }
    if(CopyLow(_Symbol, Period(), 0, 60, lo) < 60)
+     {
+      g_attente = "EN ATTENTE : les BASSES manquent sur 60 bougies chez ce courtier";
+      if(InpTracer && (g_barIndex % 200 == 1))
+         Print(g_attente);
+      if(InpAfficherTableau)
+         Comment("=== LE ROI DE LA SAVANE G9 ===\n" + g_attente);
       return;
+     }
    if(CopyOpen(_Symbol, Period(), 0, 60, op) < 60)
+     {
+      g_attente = "EN ATTENTE : les OUVERTURES manquent sur 60 bougies chez ce courtier";
+      if(InpTracer && (g_barIndex % 200 == 1))
+         Print(g_attente);
+      if(InpAfficherTableau)
+         Comment("=== LE ROI DE LA SAVANE G9 ===\n" + g_attente);
       return;
+     }
    g_attente = "";
 
    //--- indice 1 = derniere bougie CLOTUREE (indice 0 = bougie en cours)
    const double close0 = cl[1];
    if(close0 <= 0.0)
+     {
+      g_attente = "EN ATTENTE : cloture nulle sur la derniere bougie fermee";
+      if(InpTracer && (g_barIndex % 200 == 1))
+         Print(g_attente);
       return;
+     }
 
    //=================================================================
    // LE TERRAIN DE CHASSE : MESURES DE BASE
@@ -914,7 +952,14 @@ void TraiterBougie()
 
    const double lamF  = MathPow(0.5, 1.0 / MathMax(1, InpFitMem));
    const double fr    = InpFrais / 100.0;
-   const bool   ready = (g_barIndex > 300) && (Bars(_Symbol, Period()) > besoin);
+   // D8 : EN PINE, bar_index compte depuis la PREMIERE bougie du graphique ;
+   // la meute y est donc deja chaude bien avant la periode mesuree. En MT5,
+   // g_barIndex compte depuis le DEBUT DU TEST : les 300 premieres bougies du
+   // backtest etaient mortes sans le dire. Sur du quotidien cela fait quatorze
+   // mois de test muets — et un test d'un an ne produisait RIEN. Le seuil est
+   // desormais un parametre, et OnInit annonce le nombre de bougies perdues.
+   const int    amorcage = MathMax(0, InpAmorcage);
+   const bool   ready = (g_barIndex > amorcage) && (Bars(_Symbol, Period()) > besoin);
 
    //=================================================================
    // L'INSTINCT GRADUE : conviction = mouvement / bruit, bornee a +/-1
@@ -1453,7 +1498,7 @@ void TraiterBougie()
      {
       string frein = "";
       if(!ready)
-         frein = StringFormat("AMORCAGE : %d bougies vues sur 301 requises", g_barIndex);
+         frein = StringFormat("AMORCAGE : %d bougies vues sur %d requises", g_barIndex, amorcage + 1);
       else if(g_eteint)
          frein = "ETEINT : plancher de survie franchi";
       else if(InpPacteAbri)
@@ -1603,7 +1648,19 @@ void AjusterPosition(const double diffLots, const double fCible)
       return;
    const double vol = NormaliserLots(MathAbs(reste));
    if(vol <= 0.0)
+     {
+      // D10 : SORTIE MUETTE, ET TUEUSE SUR PETIT COMPTE. Quand le lot vise
+      // est sous le minimum du courtier (NVDA a 180 $ avec 10 000 € et peu
+      // de levier), l'expert renoncait a CHAQUE ordre sans un mot : il avait
+      // l'air mort alors qu'il decidait correctement. Il le dit maintenant.
+      const double vMin = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+      if(InpTracer && (g_barIndex % 200 == 1))
+         Print("Roi : lot vise ", DoubleToString(MathAbs(reste), 4),
+               " sous le minimum du courtier (", DoubleToString(vMin, 2),
+               ") — AUCUN ORDRE POSSIBLE. Augmentez le capital, la volatilite",
+               " cible, ou le levier maximal.");
       return;
+     }
    if(!VerifierMarge(reste > 0.0, vol))
      {
       Print("Roi : marge insuffisante pour ", DoubleToString(vol, 2), " lots — ordre abandonne");
