@@ -276,6 +276,7 @@ string g_savCls[NSAV];     // famille : FOREX, METAL, INDICE, ACTION...
 string g_symAigle = "";    // source exterieure de l'Aigle (indice dollar)
 int    g_savOk = 0;        // combien de savanes ont ete trouvees
 string g_attente = "";     // pourquoi le moteur patiente, s'il patiente
+int    g_muettes = 0;      // D11 : especes privees de terrain cette bougie
 double g_capital0 = 0.0;   // solde au demarrage, fige une fois pour toutes
 
 // --- valeurs affichees
@@ -816,12 +817,17 @@ int OnInit()
    g_lastBar = 0;
    g_barIndex = 0;
 
-   const int lbInit = BarresParAn();
-   const int besInit = MathMax(lbInit, 400) + 60;
+   const int lbInit  = BarresParAn();
+   const int besIdeal = MathMax(lbInit, 400) + 60;
+   const int besInit  = MathMax(MathMax(lbInit + 2, InpVolWin + 2),
+                                MathMax(102, InpWEnt + 5)) + 8;
    Print("=== ROI DE LA SAVANE G9 ===");
    Print("Unite de temps : ", EnumToString(Period()),
          " | fenetre longue : ", lbInit, " bougies (plafond ", InpMaxFenetre, ")");
-   Print("Historique exige avant la premiere decision : ", besInit, " bougies.");
+   Print("Historique VITAL avant la premiere decision : ", besInit, " bougies.");
+   Print("Historique IDEAL (pour que l'Elephant vive aussi) : ", besIdeal, " bougies.");
+   Print("   -> entre les deux, la meute chasse quand meme (D11) : les especes",
+         " a longue memoire se taisent, s'affament, et mutent vers du plus court.");
    const int amInit = MathMax(0, InpAmorcage);
    Print("Amorcage (D8) : la meute ne chasse qu'apres ", amInit,
          " bougies vues DEPUIS LE DEBUT DU TEST.");
@@ -833,8 +839,15 @@ int OnInit()
          " vous voulez reellement mesurer, sinon le test parait vide.");
    const int barsDispo = Bars(_Symbol, Period());
    if(barsDispo > 0 && barsDispo < besInit)
-      Print("ATTENTION : seulement ", barsDispo, " bougies disponibles. ",
-            "Allongez la periode testee, ou baissez le plafond de fenetre (C6).");
+      Print("BLOQUANT : seulement ", barsDispo, " bougies chez ce courtier, il en",
+            " faut ", besInit, " de vitales. Passez a une unite de temps plus",
+            " fine (le Weekly demande des annees d'historique), ou choisissez un",
+            " symbole que votre courtier couvre en profondeur.");
+   else
+      if(barsDispo > 0 && barsDispo < besIdeal)
+         Print("Historique partiel : ", barsDispo, " bougies sur ", besIdeal,
+               " ideales. La meute chassera, mais ses especes a longue memoire",
+               " resteront muettes tant que le terrain manque (D11).");
    return(INIT_SUCCEEDED);
   }
 
@@ -870,8 +883,23 @@ void TraiterBougie()
    const int lbAn  = BarresParAn();
    const double annuF = FacteurAnnualisation();
 
-   //--- il faut assez d'histoire pour la plus longue espece
-   const int besoin = MathMax(lbAn, 400) + 60;
+   // D11 : L'EXPERT REFUSAIT DE VIVRE FAUTE DE TERRAIN POUR UNE SEULE ESPECE.
+   // L'Elephant peut muter jusqu'a 400 bougies de memoire (bmax), donc
+   // j'exigeais 460 bougies d'un bloc AVANT la premiere ligne du moteur. Sur
+   // du Weekly cela fait NEUF ANS d'historique : aucun courtier CFD ne les a
+   // sur NVDA. Resultat, la meute entiere mourait parce qu'un seul animal
+   // n'avait pas son territoire. C'est absurde : dans la nature, l'espece qui
+   // ne trouve pas son terrain ne mange pas, elle ne tue pas les quinze
+   // autres. Desormais on prend TOUT ce que le courtier donne, on n'exige que
+   // le vital, et chaque espece trop gourmande reste muette et s'affame — donc
+   // mute vers une memoire plus courte, ce qui est exactement le comportement
+   // darwinien voulu.
+   const int besoinIdeal = MathMax(lbAn, 400) + 60;
+   // le vrai plancher, mesure index par index : v100 lit cl[101], l'entropie
+   // cl[InpWEnt+3], la volatilite cl[InpVolWin+1], le momentum cl[1+lbAn]
+   const int besoinVital = MathMax(MathMax(lbAn + 2, InpVolWin + 2),
+                                   MathMax(102, InpWEnt + 5)) + 8;
+   const int besoin      = besoinVital;
    double cl[], hi[], lo[], op[];
    ArraySetAsSeries(cl, true);
    ArraySetAsSeries(hi, true);
@@ -882,11 +910,13 @@ void TraiterBougie()
    // TraiterBougie() rendait la main a la premiere ligne, a chaque bougie,
    // en silence — l'expert avait l'air de "charger puis s'arreter". On dit
    // desormais exactement ce qui manque, et le tableau l'affiche aussi.
-   const int dispo = CopyClose(_Symbol, Period(), 0, besoin, cl);
-   if(dispo < besoin)
+   int dispo = CopyClose(_Symbol, Period(), 0, besoinIdeal, cl);
+   if(dispo < besoinIdeal && dispo < besoinVital)
+      dispo = CopyClose(_Symbol, Period(), 0, besoinVital, cl);
+   if(dispo < besoinVital)
      {
-      g_attente = StringFormat("EN ATTENTE D'HISTORIQUE : %d bougies sur %d requises (%s)",
-                               MathMax(0, dispo), besoin, EnumToString(Period()));
+      g_attente = StringFormat("EN ATTENTE D'HISTORIQUE : %d bougies sur %d VITALES (%s)",
+                               MathMax(0, dispo), besoinVital, EnumToString(Period()));
       if(InpTracer && (g_barIndex % 200 == 1))
          Print(g_attente, " — reduisez le plafond de fenetre (C6) ou allongez la periode testee");
       if(InpAfficherTableau)
@@ -925,6 +955,7 @@ void TraiterBougie()
       return;
      }
    g_attente = "";
+   g_muettes = 0;
 
    //--- indice 1 = derniere bougie CLOTUREE (indice 0 = bougie en cours)
    const double close0 = cl[1];
@@ -975,8 +1006,11 @@ void TraiterBougie()
       const int lb = MathMax(1, L[e]);
       const double d = sdBar * MathSqrt((double)lb);
       double s = 0.0;
-      if(d > 0.0 && cl[1 + lb] > 0.0)
+      // D11 : pas de terrain assez profond -> l'animal se tait et s'affame
+      if(1 + lb < dispo && d > 0.0 && cl[1 + lb] > 0.0)
          s = Clamp(MathLog(cl[1] / cl[1 + lb]) / d);
+      else
+         g_muettes++;
       // 6, 7, 8 sont contrariennes : elles inversent le signe
       SIGV[e] = (e >= 6 && e <= 8) ? -s : s;
      }
@@ -1037,8 +1071,10 @@ void TraiterBougie()
       const int lb = MathMax(1, L[e]);
       const double d = sdBar * MathSqrt((double)lb);
       double s = 0.0;
-      if(d > 0.0 && cl[1 + lb] > 0.0)
+      if(1 + lb < dispo && d > 0.0 && cl[1 + lb] > 0.0)   // D11
          s = Clamp(MathLog(cl[1] / cl[1 + lb]) / d);
+      else
+         g_muettes++;
       SIGV[e] = (e == 15) ? -s : s;     // le Serpent est contrarien
      }
 
@@ -1479,7 +1515,7 @@ void TraiterBougie()
       const double ref = MathMax(g_eqHist[InpMiroirWin], 1e-9);
       retPresent = equity / ref - 1.0;
      }
-   const double nFen = MathMax(1.0, ((double)g_barIndex - 300.0) / (double)InpMiroirWin);
+   const double nFen = MathMax(1.0, ((double)g_barIndex - (double)amorcage) / (double)InpMiroirWin);
    const double base0 = MathMax(capital0, 1e-9);
    const double retRythme = MathPow(MathMax(equity / base0, 1e-9), 1.0 / nFen) - 1.0;
    const bool decroche = ready && (HistoryTradesCount() > 10)
@@ -1525,6 +1561,8 @@ void TraiterBougie()
       Print("   savane : score ", DoubleToString(scoreLocal, 2), " / seuil ",
             DoubleToString(InpSavaneMin, 2), " | entropie ", DoubleToString(ent, 3),
             " / max ", DoubleToString(InpEntMax, 3), " -> ", (savaneOk ? "PROPICE" : "STERILE"));
+      Print("   terrain: ", dispo, " bougies lues | ", g_muettes,
+            " espece(s) privee(s) de memoire (D11)");
       Print("   meute  : ", vivantes, "/16 vivantes | conviction ", DoubleToString(dirS, 3),
             " / proie ", DoubleToString(InpProieMin, 2),
             " | contrariennes ", DoubleToString(wTot > 0 ? 100.0 * wContraTot / wTot : 0.0, 0), " %");
