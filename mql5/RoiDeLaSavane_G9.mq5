@@ -198,6 +198,9 @@ input int    InpMiroirWin       = 126;     // Le miroir : fenetre du present (bo
 input group "=== Corrections du portage ==="
 input bool   InpCorrigerAnnu    = true;    // C1 : annualiser en bougies de bourse
 input bool   InpCorrigerFenetre = true;    // C2 : fenetre d'un an selon l'unite de temps
+input int    InpMaxFenetre      = 400;     // C6 : plafond de la fenetre longue (bougies)
+input int    InpRefreshSavanes  = 20;      // C7 : rejauger les savanes toutes les N bougies
+input bool   InpTracer          = true;    // Journaliser pourquoi le moteur attend
 
 input group "=== Execution ==="
 input long   InpMagic           = 909090;  // Numero magique
@@ -268,6 +271,8 @@ string g_savDem[NSAV];     // ce qui etait demande, pour le rapport
 string g_savCls[NSAV];     // famille : FOREX, METAL, INDICE, ACTION...
 string g_symAigle = "";    // source exterieure de l'Aigle (indice dollar)
 int    g_savOk = 0;        // combien de savanes ont ete trouvees
+string g_attente = "";     // pourquoi le moteur patiente, s'il patiente
+double g_capital0 = 0.0;   // solde au demarrage, fige une fois pour toutes
 
 // --- valeurs affichees
 string g_savBest = "";
@@ -521,9 +526,15 @@ int BarresParAn()
    const int sec = PeriodSeconds(tf);
    if(sec <= 0)
       return(252);
-   // 252 seances de bourse par an, chacune de 24 h sur le forex
+   // C6 : UNE ANNEE REELLE EXPLOSE EN INTRADAY, ET C'EST CE QUI BLOQUAIT
+   // TOUT. Sur M15, une annee fait 24 192 bougies : le moteur en exigeait
+   // 24 252 avant d'executer sa premiere ligne, et 485 040 pour les vingt
+   // savanes. Faute de quoi il sortait a la premiere ligne, sans un mot.
+   // On plafonne donc la fenetre. Au-dela du plafond, elle ne mesure plus
+   // "un an" mais "la tendance longue disponible" — ce que faisait deja le
+   // Pine d'origine avec ses 252 bougies fixes, quelle que soit l'unite.
    const int n = (int)MathRound(252.0 * 86400.0 / sec);
-   return(MathMax(2, n));
+   return(MathMax(2, MathMin(MathMax(60, InpMaxFenetre), n)));
   }
 
 //+------------------------------------------------------------------+
@@ -735,12 +746,22 @@ int OnInit()
 
    ArrayInitialize(g_eqHist, 0.0);
    g_eqHistN = 0;
-   g_eqPeak  = AccountInfoDouble(ACCOUNT_EQUITY);
+   g_eqPeak   = AccountInfoDouble(ACCOUNT_EQUITY);
+   g_capital0 = AccountInfoDouble(ACCOUNT_BALANCE);   // D4 : fige une fois
    g_lastBar = 0;
    g_barIndex = 0;
 
-   Print("Roi de la Savane G9 — initialise. Barres par an : ", BarresParAn(),
-         " | annualisation : ", DoubleToString(FacteurAnnualisation(), 1));
+   const int lbInit = BarresParAn();
+   const int besInit = MathMax(lbInit, 400) + 60;
+   Print("=== ROI DE LA SAVANE G9 ===");
+   Print("Unite de temps : ", EnumToString(Period()),
+         " | fenetre longue : ", lbInit, " bougies (plafond ", InpMaxFenetre, ")");
+   Print("Historique exige avant la premiere decision : ", besInit, " bougies.");
+   Print("Amorcage : la meute ne chasse qu'apres 300 bougies vues.");
+   const int barsDispo = Bars(_Symbol, Period());
+   if(barsDispo > 0 && barsDispo < besInit)
+      Print("ATTENTION : seulement ", barsDispo, " bougies disponibles. ",
+            "Allongez la periode testee, ou baissez le plafond de fenetre (C6).");
    return(INIT_SUCCEEDED);
   }
 
@@ -783,14 +804,30 @@ void TraiterBougie()
    ArraySetAsSeries(hi, true);
    ArraySetAsSeries(lo, true);
    ArraySetAsSeries(op, true);
-   if(CopyClose(_Symbol, Period(), 0, besoin, cl) < besoin)
+
+   // D3 : LE MOTEUR SORTAIT ICI SANS UN MOT. Quand l'historique manquait,
+   // TraiterBougie() rendait la main a la premiere ligne, a chaque bougie,
+   // en silence — l'expert avait l'air de "charger puis s'arreter". On dit
+   // desormais exactement ce qui manque, et le tableau l'affiche aussi.
+   const int dispo = CopyClose(_Symbol, Period(), 0, besoin, cl);
+   if(dispo < besoin)
+     {
+      g_attente = StringFormat("EN ATTENTE D'HISTORIQUE : %d bougies sur %d requises (%s)",
+                               MathMax(0, dispo), besoin, EnumToString(Period()));
+      if(InpTracer && (g_barIndex % 200 == 1))
+         Print(g_attente, " — reduisez le plafond de fenetre (C6) ou allongez la periode testee");
+      if(InpAfficherTableau)
+         Comment("=== LE ROI DE LA SAVANE G9 ===\n" + g_attente +
+                 "\nBougies vues depuis le lancement : " + IntegerToString(g_barIndex));
       return;
+     }
    if(CopyHigh(_Symbol, Period(), 0, 60, hi) < 60)
       return;
    if(CopyLow(_Symbol, Period(), 0, 60, lo) < 60)
       return;
    if(CopyOpen(_Symbol, Period(), 0, 60, op) < 60)
       return;
+   g_attente = "";
 
    //--- indice 1 = derniere bougie CLOTUREE (indice 0 = bougie en cours)
    const double close0 = cl[1];
@@ -1133,7 +1170,11 @@ void TraiterBougie()
    const double torpeurLibre = MathMax(0.0, MathMin(1.0, 1.0 - dd / (InpDdMax / 100.0)));
    const double torpeur = MathMax(InpTorpeurMin / 100.0, torpeurLibre);
 
-   if(ready && equity < InpPlancher / 100.0 * AccountInfoDouble(ACCOUNT_BALANCE))
+   // D4 : le plancher se comparait au solde COURANT, qui bouge avec les
+   // gains et les pertes — le seuil d'extinction se deplacait donc avec le
+   // compte au lieu de rester fixe. On le compare au solde de depart, fige
+   // au demarrage, ce qui est le sens de "capital initial" en Pine.
+   if(ready && equity < InpPlancher / 100.0 * g_capital0)
       g_eteint = true;
 
    //=================================================================
@@ -1172,11 +1213,35 @@ void TraiterBougie()
 
    //=================================================================
    // LES VINGT SAVANES : le roi scrute les territoires voisins
+   //
+   // C7 : on ne les rejauge PAS a chaque bougie. Vingt CopyClose de
+   // plusieurs milliers de barres, repetes des milliers de fois, faisaient
+   // ramer le testeur au point de le croire fige. Un territoire ne change
+   // pas de nature en une bougie : toutes les InpRefreshSavanes suffisent.
    //=================================================================
+   static double s_sommeVolCache = 0.0;
+   static int    s_nVolCache = 0;
+   const int refresh = MathMax(1, InpRefreshSavanes);
+   const bool rejauger = (g_barIndex % refresh == 0) || (g_scSav[1] == 0.0 && g_barIndex < 5);
    double scBest = -1e9;
+   double sommeVol = s_sommeVolCache;
+   int    nVol = s_nVolCache;
+   if(!rejauger)
+     {
+      // on reutilise les scores precedents et on se contente de reelire
+      // le meilleur territoire
+      for(int i = 1; i < NSAV; i++)
+         if(StringLen(g_sav[i]) > 0 && g_voSav[i] > 0.0 && g_scSav[i] > scBest)
+           {
+            scBest = g_scSav[i];
+            g_savBest = g_sav[i];
+           }
+     }
+   else
+   {
    g_savBest = "aucune savane disponible";
-   double sommeVol = 0.0;
-   int    nVol = 0;
+   sommeVol = 0.0;
+   nVol = 0;
    for(int i = 1; i < NSAV; i++)
      {
       double mo = 0.0, vo = 0.0;
@@ -1200,6 +1265,9 @@ void TraiterBougie()
          g_scSav[i] = 0.0;
         }
      }
+   s_sommeVolCache = sommeVol;
+   s_nVolCache = nVol;
+   }
 
    //=================================================================
    // L'ESSAIM : les insectes sentinelles. Ils ne chassent jamais.
@@ -1294,7 +1362,7 @@ void TraiterBougie()
    g_eqHist[0] = equity;
    if(g_eqHistN < EQMAX)
       g_eqHistN++;
-   const double capital0 = AccountInfoDouble(ACCOUNT_BALANCE) - GetProfitFerme();
+   const double capital0 = g_capital0;
    double retPresent = 0.0;
    if(g_eqHistN > InpMiroirWin && InpMiroirWin < EQMAX)
      {
