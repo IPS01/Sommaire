@@ -201,6 +201,8 @@ input bool   InpCorrigerFenetre = true;    // C2 : fenetre d'un an selon l'unite
 input int    InpMaxFenetre      = 400;     // C6 : plafond de la fenetre longue (bougies)
 input int    InpRefreshSavanes  = 20;      // C7 : rejauger les savanes toutes les N bougies
 input bool   InpTracer          = true;    // Journaliser pourquoi le moteur attend
+input bool   InpChercherPartout = false;   // D5 : fouiller TOUT le catalogue du courtier
+input bool   InpSavanesActives  = true;    // D6 : surveiller les savanes (couper si le test rame)
 
 input group "=== Execution ==="
 input long   InpMagic           = 909090;  // Numero magique
@@ -357,71 +359,110 @@ string ClasseInstrument(const ENUM_INST inst)
   }
 
 //+------------------------------------------------------------------+
-//| Un symbole est-il utilisable ? Il doit exister chez le courtier  |
-//| ET ne pas etre desactive a la negociation.                       |
+//| LE CATALOGUE DU COURTIER, LU UNE SEULE FOIS                      |
+//|                                                                  |
+//| D5 : la version precedente relisait SymbolName() pour chacun des |
+//| 12 577 symboles, pour chacune des 6 racines, de chacune des 20   |
+//| savanes, sur 2 passes — trois millions de lectures et autant     |
+//| d'allocations de chaine, dans OnInit. Pire encore : elle appelait|
+//| SymbolSelect() pendant la recherche, et CHAQUE appel ajoute le   |
+//| symbole a la Surveillance du Marche, ce qui declenche une        |
+//| synchronisation d'historique. La recherche en declenchait des    |
+//| dizaines, et le testeur restait bloque sur                       |
+//| "history synchronization started".                               |
+//|                                                                  |
+//| Desormais : le catalogue est lu UNE fois, mis en majuscules UNE  |
+//| fois, et plus aucun SymbolSelect n'a lieu pendant la recherche.  |
+//| Seul le gagnant final est selectionne.                           |
+//+------------------------------------------------------------------+
+string g_catNom[];      // nom d'origine
+string g_catMaj[];      // le meme en majuscules, pour comparer sans allouer
+int    g_catN = 0;
+
+void ChargerCatalogue()
+  {
+   const bool partout = InpChercherPartout;
+   const int total = SymbolsTotal(partout ? false : true);
+   ArrayResize(g_catNom, total);
+   ArrayResize(g_catMaj, total);
+   g_catN = 0;
+   for(int i = 0; i < total; i++)
+     {
+      const string nom = SymbolName(i, partout ? false : true);
+      if(StringLen(nom) == 0)
+         continue;
+      g_catNom[g_catN] = nom;
+      g_catMaj[g_catN] = StringToUpper2(nom);
+      g_catN++;
+     }
+   ArrayResize(g_catNom, g_catN);
+   ArrayResize(g_catMaj, g_catN);
+   Print("Catalogue lu : ", g_catN, " symboles",
+         (partout ? " (tout le courtier)" : " (Surveillance du Marche seulement)"));
+  }
+
+//+------------------------------------------------------------------+
+//| Un symbole est-il utilisable ? On ne l'AJOUTE pas au marche ici : |
+//| on verifie seulement qu'il existe et qu'il a un prix.             |
 //+------------------------------------------------------------------+
 bool SymboleUtilisable(const string sym)
   {
    if(StringLen(sym) == 0)
       return(false);
-   if(!SymbolSelect(sym, true))
+   double pt = 0.0;
+   if(!SymbolInfoDouble(sym, SYMBOL_POINT, pt))
       return(false);
-   // Une savane sert a OBSERVER : elle n'a pas besoin d'etre negociable
-   // pour informer le roi. On exige seulement qu'elle EXISTE et qu'elle
-   // ait un prix, sinon elle ne renverrait que des zeros.
-   return(SymbolInfoDouble(sym, SYMBOL_POINT) > 0.0);
+   return(pt > 0.0);
   }
 
 //+------------------------------------------------------------------+
-//| Cherche, parmi les symboles REELLEMENT offerts par le courtier,  |
-//| celui qui correspond a l'une des racines demandees.              |
-//| Trois passes, de la plus stricte a la plus large :               |
+//| Cherche dans le catalogue deja charge. Aucune entree/sortie.     |
 //|   1. le nom exact                                                |
 //|   2. un nom qui COMMENCE par la racine (XAUUSD.raw, NVDA.US)     |
 //|   3. un nom qui CONTIENT la racine (#NVDA, GOLDmicro)            |
-//| A egalite, on prend le nom le plus court : c'est presque toujours|
+//| A egalite, le nom le plus court gagne : c'est presque toujours   |
 //| le contrat principal plutot qu'une variante exotique.            |
 //+------------------------------------------------------------------+
 string TrouverSymbole(const string &racines[])
   {
    const int nr = ArraySize(racines);
-   if(nr == 0)
+   if(nr == 0 || g_catN == 0)
       return("");
 
-   //--- passe 1 : nom exact
-   for(int k = 0; k < nr; k++)
-      if(SymboleUtilisable(racines[k]))
-         return(racines[k]);
-
-   //--- passes 2 et 3 : on parcourt le catalogue du courtier
-   const int total = SymbolsTotal(false);
-   for(int passe = 0; passe < 2; passe++)
+   string exact = "", debut = "", dedans = "";
+   for(int i = 0; i < g_catN; i++)
      {
+      const string maj = g_catMaj[i];
+      const int lm = StringLen(maj);
       for(int k = 0; k < nr; k++)
         {
          const string rac = racines[k];
-         const int lrac = StringLen(rac);
-         if(lrac == 0)
+         if(StringLen(rac) == 0)
             continue;
-         string meilleur = "";
-         for(int i = 0; i < total; i++)
+         const int pos = StringFind(maj, rac);
+         if(pos < 0)
+            continue;
+         if(maj == rac)
            {
-            const string nom = SymbolName(i, false);
-            const string haut = StringToUpper2(nom);
-            bool ok = false;
-            if(passe == 0)
-               ok = (StringFind(haut, rac) == 0);
-            else
-               ok = (StringFind(haut, rac) >= 0);
-            if(!ok)
-               continue;
-            if(meilleur == "" || StringLen(nom) < StringLen(meilleur))
-               meilleur = nom;
+            if(exact == "" || StringLen(g_catNom[i]) < StringLen(exact))
+               exact = g_catNom[i];
            }
-         if(meilleur != "" && SymboleUtilisable(meilleur))
-            return(meilleur);
+         else if(pos == 0)
+           {
+            if(debut == "" || StringLen(g_catNom[i]) < StringLen(debut))
+               debut = g_catNom[i];
+           }
+         else
+           {
+            if(dedans == "" || StringLen(g_catNom[i]) < StringLen(dedans))
+               dedans = g_catNom[i];
+           }
+         break;                 // une racine trouvee suffit pour ce symbole
         }
      }
+   if(exact  != "") return(exact);
+   if(debut  != "") return(debut);
+   if(dedans != "") return(dedans);
    return("");
   }
 
@@ -434,19 +475,30 @@ string ResoudreInstrument(const ENUM_INST inst, const string manuel)
       return("");
    if(inst == I_CHART)
       return(_Symbol);
+   string trouve = "";
    if(inst == I_MANUEL)
      {
       if(StringLen(manuel) == 0)
          return("");
       if(SymboleUtilisable(manuel))
-         return(manuel);
-      string un[1];
-      un[0] = StringToUpper2(manuel);
-      return(TrouverSymbole(un));
+         trouve = manuel;
+      else
+        {
+         string un[1];
+         un[0] = StringToUpper2(manuel);
+         trouve = TrouverSymbole(un);
+        }
      }
-   string rac[];
-   RacinesInstrument(inst, rac);
-   return(TrouverSymbole(rac));
+   else
+     {
+      string rac[];
+      RacinesInstrument(inst, rac);
+      trouve = TrouverSymbole(rac);
+     }
+   // Le SEUL SymbolSelect de toute la resolution : sur le gagnant, une fois.
+   if(StringLen(trouve) > 0 && !SymbolSelect(trouve, true))
+      return("");
+   return(trouve);
   }
 
 //+------------------------------------------------------------------+
@@ -705,6 +757,9 @@ int OnInit()
 
    g_savOk = 0;
    string trouvees = "", perdues = "";
+   const uint tDebut = GetTickCount();
+   if(InpSavanesActives)
+      ChargerCatalogue();
    for(int i = 1; i < NSAV; i++)
      {
       g_savCls[i] = ClasseInstrument(inst[i]);
@@ -713,8 +768,11 @@ int OnInit()
       g_scSav[i]  = 0.0;
       g_moSav[i]  = 0.0;
       g_voSav[i]  = 0.0;
-      if(inst[i] == I_OFF)
+      if(inst[i] == I_OFF || !InpSavanesActives)
+        {
+         g_sav[i] = "";
          continue;
+        }
       if(StringLen(g_sav[i]) > 0)
         {
          g_savOk++;
@@ -728,7 +786,7 @@ int OnInit()
 
    // --- L'AIGLE : sa source exterieure. Sans elle il se tait, mais la
    //     colonie continue de chasser avec les quinze autres especes.
-   g_symAigle = ResoudreInstrument(InpInstAigle, InpManAigle);
+   g_symAigle = InpSavanesActives ? ResoudreInstrument(InpInstAigle, InpManAigle) : "";
 
    Print("=== LES SAVANES SURVEILLEES ===");
    if(StringLen(trouvees) > 0)
@@ -739,7 +797,12 @@ int OnInit()
       Print(perdues);
      }
    Print("Savanes actives : ", g_savOk, "/20 | Aigle : ",
-         (StringLen(g_symAigle) > 0 ? g_symAigle : "AUCUNE SOURCE — l'Aigle se taira"));
+         (StringLen(g_symAigle) > 0 ? g_symAigle : "AUCUNE SOURCE — l'Aigle se taira"),
+         " | resolution en ", (GetTickCount() - tDebut), " ms");
+   if(!InpSavanesActives)
+      Print("SAVANES COUPEES (D6) : ni migration, ni abeilles, ni Aigle. ",
+            "La chasse sur le symbole du graphique est INTACTE — c'est le mode ",
+            "a utiliser si le testeur rame sur la synchronisation des historiques.");
    if(g_savOk == 0)
       Print("ATTENTION : aucune savane disponible. La migration et les abeilles ",
             "seront muettes. La chasse sur le symbole du graphique reste normale.");
@@ -1222,7 +1285,8 @@ void TraiterBougie()
    static double s_sommeVolCache = 0.0;
    static int    s_nVolCache = 0;
    const int refresh = MathMax(1, InpRefreshSavanes);
-   const bool rejauger = (g_barIndex % refresh == 0) || (g_scSav[1] == 0.0 && g_barIndex < 5);
+   const bool rejauger = InpSavanesActives
+                         && ((g_barIndex % refresh == 0) || (g_scSav[1] == 0.0 && g_barIndex < 5));
    double scBest = -1e9;
    double sommeVol = s_sommeVolCache;
    int    nVol = s_nVolCache;
