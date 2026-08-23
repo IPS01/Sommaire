@@ -45,6 +45,57 @@
 #include <Trade\PositionInfo.mqh>
 
 //+------------------------------------------------------------------+
+//| LE CATALOGUE DES TERRAINS                                        |
+//|                                                                  |
+//| Chaque savane se choisit dans une liste deroulante, classee par  |
+//| famille. Le nom exact varie d'un courtier a l'autre — l'or est   |
+//| XAUUSD ici, GOLD ailleurs ; NVIDIA est NVDA, #NVDA ou NVDA.US.   |
+//| L'expert cherche donc le symbole REELLEMENT disponible chez      |
+//| votre courtier et affiche, au demarrage, ce qu'il a trouve et    |
+//| ce qu'il n'a pas trouve. Une savane introuvable est simplement   |
+//| ignoree : elle ne fausse ni le classement ni la ruche.           |
+//+------------------------------------------------------------------+
+enum ENUM_INST
+  {
+   I_OFF      = 0,   // --- desactivee ---
+   I_CHART,          // AUTO      le symbole du graphique
+   I_EURUSD,         // FOREX     EUR / USD
+   I_GBPUSD,         // FOREX     GBP / USD
+   I_USDJPY,         // FOREX     USD / JPY
+   I_AUDUSD,         // FOREX     AUD / USD
+   I_NZDUSD,         // FOREX     NZD / USD
+   I_USDCAD,         // FOREX     USD / CAD
+   I_USDCHF,         // FOREX     USD / CHF
+   I_EURJPY,         // FOREX     EUR / JPY
+   I_EURGBP,         // FOREX     EUR / GBP
+   I_GBPJPY,         // FOREX     GBP / JPY
+   I_XAUUSD,         // METAL     Or
+   I_XAGUSD,         // METAL     Argent
+   I_XPTUSD,         // METAL     Platine
+   I_XPDUSD,         // METAL     Palladium
+   I_US500,          // INDICE    S&P 500
+   I_NAS100,         // INDICE    Nasdaq 100
+   I_US30,           // INDICE    Dow Jones
+   I_GER40,          // INDICE    DAX 40
+   I_UK100,          // INDICE    FTSE 100
+   I_JP225,          // INDICE    Nikkei 225
+   I_DXY,            // INDICE    Dollar (DXY) — lu par l'Aigle
+   I_NVDA,           // ACTION    NVIDIA
+   I_AAPL,           // ACTION    Apple
+   I_MSFT,           // ACTION    Microsoft
+   I_TSLA,           // ACTION    Tesla
+   I_AMZN,           // ACTION    Amazon
+   I_GOOGL,          // ACTION    Alphabet
+   I_META,           // ACTION    Meta
+   I_USOIL,          // ENERGIE   Petrole WTI
+   I_UKOIL,          // ENERGIE   Petrole Brent
+   I_NGAS,           // ENERGIE   Gaz naturel
+   I_BTCUSD,         // CRYPTO    Bitcoin
+   I_ETHUSD,         // CRYPTO    Ethereum
+   I_MANUEL          // MANUEL    (nom saisi dans le champ correspondant)
+  };
+
+//+------------------------------------------------------------------+
 //| PARAMETRES                                                       |
 //+------------------------------------------------------------------+
 input group "=== Direction ==="
@@ -67,27 +118,51 @@ input double InpSavaneMin       = 0.8;     // Savane propice a partir d'un score
 input int    InpWEnt            = 96;      // Fenetre d'entropie de Shannon (bougies)
 input double InpEntMax          = 0.995;   // Entropie maximale toleree (1 = desactivee)
 
-input group "=== Les vingt savanes (migration) ==="
-input string InpSym1  = "XAUUSD";   // Savane 1 (or)
-input string InpSym2  = "XAGUSD";   // Savane 2 (argent)
-input string InpSym3  = "USOIL";    // Savane 3 (petrole)
-input string InpSym4  = "EURUSD";   // Savane 4 (euro-dollar)
-input string InpSym5  = "GBPUSD";   // Savane 5 (livre-dollar)
-input string InpSym6  = "USDJPY";   // Savane 6 (dollar-yen)
-input string InpSym7  = "SPX500";   // Savane 7 (S&P 500)
-input string InpSym8  = "NAS100";   // Savane 8 (Nasdaq 100)
-input string InpSym9  = "BTCUSD";   // Savane 9 (bitcoin)
-input string InpSym10 = "USDX";     // Savane 10 (indice dollar) — lu aussi par l'Aigle
-input string InpSym11 = "AUDUSD";   // Savane 11 (dollar australien)
-input string InpSym12 = "NZDUSD";   // Savane 12 (dollar neo-zelandais)
-input string InpSym13 = "USDCAD";   // Savane 13 (dollar canadien)
-input string InpSym14 = "USDCHF";   // Savane 14 (franc suisse)
-input string InpSym15 = "EURJPY";   // Savane 15 (euro-yen)
-input string InpSym16 = "XPTUSD";   // Savane 16 (platine)
-input string InpSym17 = "XPDUSD";   // Savane 17 (palladium)
-input string InpSym18 = "ETHUSD";   // Savane 18 (ethereum)
-input string InpSym19 = "UKOIL";    // Savane 19 (brent)
-input string InpSym20 = "EURGBP";   // Savane 20 (euro-livre)
+input group "=== Les vingt savanes : QUI SURVEILLER ==="
+input ENUM_INST InpInst1  = I_NVDA;    // Savane 1
+input string    InpMan1   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst2  = I_XAUUSD;  // Savane 2
+input string    InpMan2   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst3  = I_EURUSD;  // Savane 3
+input string    InpMan3   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst4  = I_XAGUSD;  // Savane 4
+input string    InpMan4   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst5  = I_GBPUSD;  // Savane 5
+input string    InpMan5   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst6  = I_USDJPY;  // Savane 6
+input string    InpMan6   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst7  = I_US500;   // Savane 7
+input string    InpMan7   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst8  = I_NAS100;  // Savane 8
+input string    InpMan8   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst9  = I_BTCUSD;  // Savane 9
+input string    InpMan9   = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst10 = I_USOIL;   // Savane 10
+input string    InpMan10  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst11 = I_AUDUSD;  // Savane 11
+input string    InpMan11  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst12 = I_NZDUSD;  // Savane 12
+input string    InpMan12  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst13 = I_USDCAD;  // Savane 13
+input string    InpMan13  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst14 = I_USDCHF;  // Savane 14
+input string    InpMan14  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst15 = I_EURJPY;  // Savane 15
+input string    InpMan15  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst16 = I_XPTUSD;  // Savane 16
+input string    InpMan16  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst17 = I_AAPL;    // Savane 17
+input string    InpMan17  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst18 = I_ETHUSD;  // Savane 18
+input string    InpMan18  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst19 = I_UKOIL;   // Savane 19
+input string    InpMan19  = "";        //   ... si MANUEL : nom exact
+input ENUM_INST InpInst20 = I_EURGBP;  // Savane 20
+input string    InpMan20  = "";        //   ... si MANUEL : nom exact
+
+input group "=== L'Aigle : sa source exterieure ==="
+input ENUM_INST InpInstAigle = I_DXY;  // L'Aigle lit cet indice
+input string    InpManAigle  = "";     //   ... si MANUEL : nom exact
 
 input group "=== Evolution (croisement + mutation) ==="
 input int    InpStarveMax       = 150;     // Famine mortelle (bougies en forme negative)
@@ -187,14 +262,187 @@ double g_prevSig16      = 0.0;
 double g_eqHist[EQMAX];
 int    g_eqHistN = 0;
 
-// --- symboles des savanes
-string g_sav[NSAV];
+// --- symboles des savanes, resolus au demarrage vers les noms du courtier
+string g_sav[NSAV];        // nom REEL chez le courtier ("" si introuvable)
+string g_savDem[NSAV];     // ce qui etait demande, pour le rapport
+string g_savCls[NSAV];     // famille : FOREX, METAL, INDICE, ACTION...
+string g_symAigle = "";    // source exterieure de l'Aigle (indice dollar)
+int    g_savOk = 0;        // combien de savanes ont ete trouvees
 
 // --- valeurs affichees
 string g_savBest = "";
 double g_scSav[NSAV];
 double g_moSav[NSAV];
 double g_voSav[NSAV];
+
+//+------------------------------------------------------------------+
+//| Majuscules — StringToUpper modifie sur place, on veut une copie  |
+//+------------------------------------------------------------------+
+string StringToUpper2(const string src)
+  {
+   string t = src;
+   StringToUpper(t);
+   return(t);
+  }
+
+//+------------------------------------------------------------------+
+//| Les noms possibles d'un instrument, du plus precis au plus large |
+//| Un courtier ecrit "XAUUSD", un autre "GOLD", un troisieme        |
+//| "XAUUSD.raw" ou "GOLDmicro". On donne donc plusieurs pistes et   |
+//| on prend la premiere qui existe reellement.                      |
+//+------------------------------------------------------------------+
+void RacinesInstrument(const ENUM_INST inst, string &r[])
+  {
+   ArrayResize(r, 0);
+   string tmp[];
+   switch(inst)
+     {
+      case I_EURUSD: ArrayResize(tmp,1); tmp[0]="EURUSD"; break;
+      case I_GBPUSD: ArrayResize(tmp,1); tmp[0]="GBPUSD"; break;
+      case I_USDJPY: ArrayResize(tmp,1); tmp[0]="USDJPY"; break;
+      case I_AUDUSD: ArrayResize(tmp,1); tmp[0]="AUDUSD"; break;
+      case I_NZDUSD: ArrayResize(tmp,1); tmp[0]="NZDUSD"; break;
+      case I_USDCAD: ArrayResize(tmp,1); tmp[0]="USDCAD"; break;
+      case I_USDCHF: ArrayResize(tmp,1); tmp[0]="USDCHF"; break;
+      case I_EURJPY: ArrayResize(tmp,1); tmp[0]="EURJPY"; break;
+      case I_EURGBP: ArrayResize(tmp,1); tmp[0]="EURGBP"; break;
+      case I_GBPJPY: ArrayResize(tmp,1); tmp[0]="GBPJPY"; break;
+      case I_XAUUSD: ArrayResize(tmp,4); tmp[0]="XAUUSD"; tmp[1]="GOLD"; tmp[2]="XAU"; tmp[3]="OR"; break;
+      case I_XAGUSD: ArrayResize(tmp,3); tmp[0]="XAGUSD"; tmp[1]="SILVER"; tmp[2]="XAG"; break;
+      case I_XPTUSD: ArrayResize(tmp,3); tmp[0]="XPTUSD"; tmp[1]="PLATINUM"; tmp[2]="XPT"; break;
+      case I_XPDUSD: ArrayResize(tmp,3); tmp[0]="XPDUSD"; tmp[1]="PALLADIUM"; tmp[2]="XPD"; break;
+      case I_US500:  ArrayResize(tmp,6); tmp[0]="US500"; tmp[1]="SPX500"; tmp[2]="SP500"; tmp[3]="SPX"; tmp[4]="S&P500"; tmp[5]="USA500"; break;
+      case I_NAS100: ArrayResize(tmp,6); tmp[0]="NAS100"; tmp[1]="NDX100"; tmp[2]="USTEC"; tmp[3]="NASDAQ"; tmp[4]="NDX"; tmp[5]="USA100"; break;
+      case I_US30:   ArrayResize(tmp,5); tmp[0]="US30"; tmp[1]="DJ30"; tmp[2]="DOW"; tmp[3]="WS30"; tmp[4]="USA30"; break;
+      case I_GER40:  ArrayResize(tmp,5); tmp[0]="GER40"; tmp[1]="DAX40"; tmp[2]="DE40"; tmp[3]="GER30"; tmp[4]="DAX"; break;
+      case I_UK100:  ArrayResize(tmp,3); tmp[0]="UK100"; tmp[1]="FTSE100"; tmp[2]="FTSE"; break;
+      case I_JP225:  ArrayResize(tmp,3); tmp[0]="JP225"; tmp[1]="NIKKEI"; tmp[2]="JPN225"; break;
+      case I_DXY:    ArrayResize(tmp,5); tmp[0]="USDX"; tmp[1]="DXY"; tmp[2]="USDOLLAR"; tmp[3]="USDIDX"; tmp[4]="DOLLAR"; break;
+      case I_NVDA:   ArrayResize(tmp,3); tmp[0]="NVDA"; tmp[1]="NVIDIA"; tmp[2]="#NVDA"; break;
+      case I_AAPL:   ArrayResize(tmp,3); tmp[0]="AAPL"; tmp[1]="APPLE"; tmp[2]="#AAPL"; break;
+      case I_MSFT:   ArrayResize(tmp,3); tmp[0]="MSFT"; tmp[1]="MICROSOFT"; tmp[2]="#MSFT"; break;
+      case I_TSLA:   ArrayResize(tmp,3); tmp[0]="TSLA"; tmp[1]="TESLA"; tmp[2]="#TSLA"; break;
+      case I_AMZN:   ArrayResize(tmp,3); tmp[0]="AMZN"; tmp[1]="AMAZON"; tmp[2]="#AMZN"; break;
+      case I_GOOGL:  ArrayResize(tmp,4); tmp[0]="GOOGL"; tmp[1]="GOOG"; tmp[2]="ALPHABET"; tmp[3]="#GOOGL"; break;
+      case I_META:   ArrayResize(tmp,4); tmp[0]="META"; tmp[1]="FB"; tmp[2]="FACEBOOK"; tmp[3]="#META"; break;
+      case I_USOIL:  ArrayResize(tmp,5); tmp[0]="USOIL"; tmp[1]="WTI"; tmp[2]="XTIUSD"; tmp[3]="CRUDE"; tmp[4]="OIL"; break;
+      case I_UKOIL:  ArrayResize(tmp,4); tmp[0]="UKOIL"; tmp[1]="BRENT"; tmp[2]="XBRUSD"; tmp[3]="UKOUSD"; break;
+      case I_NGAS:   ArrayResize(tmp,4); tmp[0]="NGAS"; tmp[1]="NATGAS"; tmp[2]="XNGUSD"; tmp[3]="GAS"; break;
+      case I_BTCUSD: ArrayResize(tmp,3); tmp[0]="BTCUSD"; tmp[1]="BITCOIN"; tmp[2]="BTC"; break;
+      case I_ETHUSD: ArrayResize(tmp,3); tmp[0]="ETHUSD"; tmp[1]="ETHEREUM"; tmp[2]="ETH"; break;
+      default: return;
+     }
+   ArrayCopy(r, tmp);
+  }
+
+//+------------------------------------------------------------------+
+//| La famille de l'instrument, pour l'affichage du tableau          |
+//+------------------------------------------------------------------+
+string ClasseInstrument(const ENUM_INST inst)
+  {
+   if(inst >= I_EURUSD && inst <= I_GBPJPY)  return("FOREX");
+   if(inst >= I_XAUUSD && inst <= I_XPDUSD)  return("METAL");
+   if(inst >= I_US500  && inst <= I_DXY)     return("INDICE");
+   if(inst >= I_NVDA   && inst <= I_META)    return("ACTION");
+   if(inst >= I_USOIL  && inst <= I_NGAS)    return("ENERGIE");
+   if(inst >= I_BTCUSD && inst <= I_ETHUSD)  return("CRYPTO");
+   if(inst == I_CHART)                       return("GRAPHIQUE");
+   if(inst == I_MANUEL)                      return("MANUEL");
+   return("-");
+  }
+
+//+------------------------------------------------------------------+
+//| Un symbole est-il utilisable ? Il doit exister chez le courtier  |
+//| ET ne pas etre desactive a la negociation.                       |
+//+------------------------------------------------------------------+
+bool SymboleUtilisable(const string sym)
+  {
+   if(StringLen(sym) == 0)
+      return(false);
+   if(!SymbolSelect(sym, true))
+      return(false);
+   // Une savane sert a OBSERVER : elle n'a pas besoin d'etre negociable
+   // pour informer le roi. On exige seulement qu'elle EXISTE et qu'elle
+   // ait un prix, sinon elle ne renverrait que des zeros.
+   return(SymbolInfoDouble(sym, SYMBOL_POINT) > 0.0);
+  }
+
+//+------------------------------------------------------------------+
+//| Cherche, parmi les symboles REELLEMENT offerts par le courtier,  |
+//| celui qui correspond a l'une des racines demandees.              |
+//| Trois passes, de la plus stricte a la plus large :               |
+//|   1. le nom exact                                                |
+//|   2. un nom qui COMMENCE par la racine (XAUUSD.raw, NVDA.US)     |
+//|   3. un nom qui CONTIENT la racine (#NVDA, GOLDmicro)            |
+//| A egalite, on prend le nom le plus court : c'est presque toujours|
+//| le contrat principal plutot qu'une variante exotique.            |
+//+------------------------------------------------------------------+
+string TrouverSymbole(const string &racines[])
+  {
+   const int nr = ArraySize(racines);
+   if(nr == 0)
+      return("");
+
+   //--- passe 1 : nom exact
+   for(int k = 0; k < nr; k++)
+      if(SymboleUtilisable(racines[k]))
+         return(racines[k]);
+
+   //--- passes 2 et 3 : on parcourt le catalogue du courtier
+   const int total = SymbolsTotal(false);
+   for(int passe = 0; passe < 2; passe++)
+     {
+      for(int k = 0; k < nr; k++)
+        {
+         const string rac = racines[k];
+         const int lrac = StringLen(rac);
+         if(lrac == 0)
+            continue;
+         string meilleur = "";
+         for(int i = 0; i < total; i++)
+           {
+            const string nom = SymbolName(i, false);
+            const string haut = StringToUpper2(nom);
+            bool ok = false;
+            if(passe == 0)
+               ok = (StringFind(haut, rac) == 0);
+            else
+               ok = (StringFind(haut, rac) >= 0);
+            if(!ok)
+               continue;
+            if(meilleur == "" || StringLen(nom) < StringLen(meilleur))
+               meilleur = nom;
+           }
+         if(meilleur != "" && SymboleUtilisable(meilleur))
+            return(meilleur);
+        }
+     }
+   return("");
+  }
+
+//+------------------------------------------------------------------+
+//| Du choix de la liste deroulante vers le nom reel du courtier     |
+//+------------------------------------------------------------------+
+string ResoudreInstrument(const ENUM_INST inst, const string manuel)
+  {
+   if(inst == I_OFF)
+      return("");
+   if(inst == I_CHART)
+      return(_Symbol);
+   if(inst == I_MANUEL)
+     {
+      if(StringLen(manuel) == 0)
+         return("");
+      if(SymboleUtilisable(manuel))
+         return(manuel);
+      string un[1];
+      un[0] = StringToUpper2(manuel);
+      return(TrouverSymbole(un));
+     }
+   string rac[];
+   RacinesInstrument(inst, rac);
+   return(TrouverSymbole(rac));
+  }
 
 //+------------------------------------------------------------------+
 //| Ecart-type de POPULATION (identique a ta.stdev de Pine)          |
@@ -430,20 +678,60 @@ int OnInit()
       g_pEcoHist[k] = 0.0;
    g_histN = 0;
 
-   // --- les vingt savanes
-   g_sav[1] = InpSym1;   g_sav[2] = InpSym2;   g_sav[3] = InpSym3;   g_sav[4] = InpSym4;
-   g_sav[5] = InpSym5;   g_sav[6] = InpSym6;   g_sav[7] = InpSym7;   g_sav[8] = InpSym8;
-   g_sav[9] = InpSym9;   g_sav[10] = InpSym10; g_sav[11] = InpSym11; g_sav[12] = InpSym12;
-   g_sav[13] = InpSym13; g_sav[14] = InpSym14; g_sav[15] = InpSym15; g_sav[16] = InpSym16;
-   g_sav[17] = InpSym17; g_sav[18] = InpSym18; g_sav[19] = InpSym19; g_sav[20] = InpSym20;
+   // --- LES VINGT SAVANES : du catalogue vers les noms reels du courtier
+   ENUM_INST inst[NSAV];
+   string    man[NSAV];
+   inst[1]=InpInst1;   man[1]=InpMan1;    inst[2]=InpInst2;   man[2]=InpMan2;
+   inst[3]=InpInst3;   man[3]=InpMan3;    inst[4]=InpInst4;   man[4]=InpMan4;
+   inst[5]=InpInst5;   man[5]=InpMan5;    inst[6]=InpInst6;   man[6]=InpMan6;
+   inst[7]=InpInst7;   man[7]=InpMan7;    inst[8]=InpInst8;   man[8]=InpMan8;
+   inst[9]=InpInst9;   man[9]=InpMan9;    inst[10]=InpInst10; man[10]=InpMan10;
+   inst[11]=InpInst11; man[11]=InpMan11;  inst[12]=InpInst12; man[12]=InpMan12;
+   inst[13]=InpInst13; man[13]=InpMan13;  inst[14]=InpInst14; man[14]=InpMan14;
+   inst[15]=InpInst15; man[15]=InpMan15;  inst[16]=InpInst16; man[16]=InpMan16;
+   inst[17]=InpInst17; man[17]=InpMan17;  inst[18]=InpInst18; man[18]=InpMan18;
+   inst[19]=InpInst19; man[19]=InpMan19;  inst[20]=InpInst20; man[20]=InpMan20;
+
+   g_savOk = 0;
+   string trouvees = "", perdues = "";
    for(int i = 1; i < NSAV; i++)
      {
+      g_savCls[i] = ClasseInstrument(inst[i]);
+      g_savDem[i] = (inst[i] == I_MANUEL) ? man[i] : EnumToString(inst[i]);
+      g_sav[i]    = ResoudreInstrument(inst[i], man[i]);
+      g_scSav[i]  = 0.0;
+      g_moSav[i]  = 0.0;
+      g_voSav[i]  = 0.0;
+      if(inst[i] == I_OFF)
+         continue;
       if(StringLen(g_sav[i]) > 0)
-         SymbolSelect(g_sav[i], true);
-      g_scSav[i] = 0.0;
-      g_moSav[i] = 0.0;
-      g_voSav[i] = 0.0;
+        {
+         g_savOk++;
+         trouvees += StringFormat("   S%-2d %-8s %-14s -> %s\n",
+                                  i, g_savCls[i], g_savDem[i], g_sav[i]);
+        }
+      else
+         perdues += StringFormat("   S%-2d %-8s %-14s -> INTROUVABLE chez ce courtier\n",
+                                 i, g_savCls[i], g_savDem[i]);
      }
+
+   // --- L'AIGLE : sa source exterieure. Sans elle il se tait, mais la
+   //     colonie continue de chasser avec les quinze autres especes.
+   g_symAigle = ResoudreInstrument(InpInstAigle, InpManAigle);
+
+   Print("=== LES SAVANES SURVEILLEES ===");
+   if(StringLen(trouvees) > 0)
+      Print(trouvees);
+   if(StringLen(perdues) > 0)
+     {
+      Print("--- introuvables (simplement ignorees, elles ne faussent rien) ---");
+      Print(perdues);
+     }
+   Print("Savanes actives : ", g_savOk, "/20 | Aigle : ",
+         (StringLen(g_symAigle) > 0 ? g_symAigle : "AUCUNE SOURCE — l'Aigle se taira"));
+   if(g_savOk == 0)
+      Print("ATTENTION : aucune savane disponible. La migration et les abeilles ",
+            "seront muettes. La chasse sur le symbole du graphique reste normale.");
 
    ArrayInitialize(g_eqHist, 0.0);
    g_eqHistN = 0;
@@ -552,8 +840,8 @@ void TraiterBougie()
       double sa = 0.0;
       double ad[];
       ArraySetAsSeries(ad, true);
-      if(StringLen(g_sav[10]) > 0 && SymbolSelect(g_sav[10], true) &&
-         CopyClose(g_sav[10], Period(), 0, lbAn + 60, ad) >= lbAn + 60)
+      if(StringLen(g_symAigle) > 0 && SymbolSelect(g_symAigle, true) &&
+         CopyClose(g_symAigle, Period(), 0, lbAn + 60, ad) >= lbAn + 60)
         {
          double va[50];
          bool ok = true;
@@ -1339,7 +1627,7 @@ void AfficherTableau(const bool ready, const bool savaneOk, const int vivantes,
                      (abeillesAlerte ? "tempete" : "calmes"), (InpAbeillesOn ? "" : " (obs.)"),
                      (solTraitre ? "traitre" : "sain"), g_anticorps,
                      (InpImmAcqOn ? " (armes)" : " (obs.)"));
-   t += "--- Les vingt savanes (tendance / bruit -> score) ---\n";
+   t += StringFormat("--- Les savanes surveillees : %d actives sur 20 (tendance / bruit -> score) ---\n", g_savOk);
    for(int i = 1; i < NSAV; i++)
      {
       if(StringLen(g_sav[i]) == 0)
@@ -1353,11 +1641,13 @@ void AfficherTableau(const bool ready, const bool savaneOk, const int vivantes,
          etat = "maigre";
       else
          etat = "desert";
-      t += StringFormat("  %-10s %+5.0f %% / bruit %4.0f %% -> %5.2f  %s\n",
-                        g_sav[i], 100.0 * g_moSav[i], 100.0 * g_voSav[i],
+      t += StringFormat("  S%-2d %-7s %-12s %+5.0f %% / bruit %4.0f %% -> %5.2f  %s\n",
+                        i, g_savCls[i], g_sav[i],
+                        100.0 * g_moSav[i], 100.0 * g_voSav[i],
                         g_scSav[i], etat);
      }
    t += "Migration conseillee : " + g_savBest + "\n";
+   t += "L'Aigle observe : " + (StringLen(g_symAigle) > 0 ? g_symAigle : "aucune source — il se tait") + "\n";
    Comment(t);
   }
 //+------------------------------------------------------------------+
