@@ -106,15 +106,15 @@ input group "=== Selection naturelle ==="
 input int    InpFitMem          = 63;      // Memoire de la forme (demi-vie, bougies)
 input double InpFrais           = 0.1;     // Frais par unite d'exposition retournee (%)
 input double InpDivBonus        = 0.5;     // Bonus de niche (recompense de la difference)
-input double InpContMax         = 50.0;    // Part maximale des contrariennes (%)
+input double InpContMax         = 80.0;    // Part maximale des contrariennes (%)
 input bool   InpRespectFond     = true;    // Ne jamais chasser contre la tendance de fond
 
 input group "=== La meute (le lion) ==="
-input double InpHierarchie      = 2.0;     // Part du lion (hierarchie de la meute)
-input double InpProieMin        = 0.2;     // Proie minimale (conviction requise)
+input double InpHierarchie      = 4.0;     // Part du lion (hierarchie de la meute)
+input double InpProieMin        = 0.35;     // Proie minimale (conviction requise)
 
 input group "=== La savane locale (le territoire) ==="
-input double InpSavaneMin       = 0.8;     // Savane propice a partir d'un score de
+input double InpSavaneMin       = 0.99;     // Savane propice a partir d'un score de
 input int    InpWEnt            = 96;      // Fenetre d'entropie de Shannon (bougies)
 input double InpEntMax          = 0.995;   // Entropie maximale toleree (1 = desactivee)
 
@@ -169,21 +169,21 @@ input int    InpStarveMax       = 150;     // Famine mortelle (bougies en forme 
 input double InpSoinParent      = 25.0;    // Soin parental (% de vigueur heritee)
 
 input group "=== Homeostasie ==="
-input double InpTargetVol       = 25.0;    // Volatilite cible du portefeuille (% par an)
+input double InpTargetVol       = 100.0;    // Volatilite cible du portefeuille (% par an)
 input int    InpVolWin          = 63;      // Fenetre de mesure de volatilite (bougies)
-input double InpExpoMax         = 5.0;     // Exposition maximale (x capital)
+input double InpExpoMax         = 10.0;     // Exposition maximale (x capital)
 input double InpRebalPct        = 25.0;    // Zone morte de reequilibrage (% d'ecart)
 input int    InpRespire         = 5;       // Respiration : reequilibrage toutes les X bougies
 
 input group "=== Regulation thermique (survie) ==="
-input double InpDdMax           = 30.0;    // Borne mortelle : perte max depuis le sommet (%)
+input double InpDdMax           = 50.0;    // Borne mortelle : perte max depuis le sommet (%)
 input int    InpGuerJours       = 500;     // Guerison : demi-vie de la memoire du sommet (jours)
 input double InpTorpeurMin      = 15.0;    // C4 : plancher de chasse en torpeur (%)
 input double InpPlancher        = 50.0;    // Plancher de survie : extinction sous (% capital initial)
 
 input group "=== Systeme immunitaire ==="
 input double InpChocSeuil       = 4.0;     // Choc immunitaire (mouvement en ecarts-types)
-input int    InpChocDuree       = 10;      // Convalescence apres choc (bougies)
+input int    InpChocDuree       = 1;      // Convalescence apres choc (bougies)
 
 input group "=== L'Homme (le souverain) ==="
 input bool   InpPacteAbri       = false;   // ORDRE SOUVERAIN : toute la colonie a l'abri
