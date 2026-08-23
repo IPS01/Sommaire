@@ -201,6 +201,7 @@ input bool   InpCorrigerFenetre = true;    // C2 : fenetre d'un an selon l'unite
 input int    InpMaxFenetre      = 400;     // C6 : plafond de la fenetre longue (bougies)
 input int    InpRefreshSavanes  = 20;      // C7 : rejauger les savanes toutes les N bougies
 input bool   InpTracer          = true;    // Journaliser pourquoi le moteur attend
+input int    InpTracerToutesLesN = 200;   // D7 : journal de decision toutes les N bougies
 input bool   InpChercherPartout = false;   // D5 : fouiller TOUT le catalogue du courtier
 input bool   InpSavanesActives  = true;    // D6 : surveiller les savanes (couper si le test rame)
 
@@ -1438,6 +1439,56 @@ void TraiterBougie()
    const double retRythme = MathPow(MathMax(equity / base0, 1e-9), 1.0 / nFen) - 1.0;
    const bool decroche = ready && (HistoryTradesCount() > 10)
                          && (retPresent < retRythme - 0.10);
+
+   //=================================================================
+   // D7 : LE JOURNAL DE DECISION
+   //
+   // Un expert qui ne trade pas et qui se tait est indebogable. Toutes
+   // les InpTracerToutesLesN bougies, on ecrit la chaine complete des
+   // conditions avec la valeur qui bloque, s'il y en a une. C'est la
+   // seule facon de savoir si le moteur est casse ou s'il refuse
+   // simplement de chasser sur un terrain qu'il juge sterile.
+   //=================================================================
+   if(InpTracer && InpTracerToutesLesN > 0 && (g_barIndex % InpTracerToutesLesN == 0))
+     {
+      string frein = "";
+      if(!ready)
+         frein = StringFormat("AMORCAGE : %d bougies vues sur 301 requises", g_barIndex);
+      else if(g_eteint)
+         frein = "ETEINT : plancher de survie franchi";
+      else if(InpPacteAbri)
+         frein = "ORDRE SOUVERAIN : abri demande dans les parametres";
+      else if(!savaneOk)
+         frein = StringFormat("SAVANE STERILE : score %.2f < seuil %.2f%s",
+                              scoreLocal, InpSavaneMin,
+                              (!ordreOk ? StringFormat(" ET entropie %.3f > %.3f", ent, InpEntMax) : ""));
+      else if(MathAbs(dirS) < InpProieMin)
+         frein = StringFormat("PROIE TROP MAIGRE : conviction %.3f < %.3f",
+                              MathAbs(dirS), InpProieMin);
+      else if(InpRespectFond && dirChasse * fond < 0.0)
+         frein = StringFormat("FILTRE DE FOND : la meute veut %s mais la tendance longue est %s",
+                              (dirChasse > 0 ? "acheter" : "vendre"),
+                              (fond > 0 ? "haussiere" : "baissiere"));
+      else if(levVol <= 0.0)
+         frein = "LEVIER NUL : volatilite mesuree a zero";
+      else if(vivantes == 0)
+         frein = "EXTINCTION : aucune espece ne se nourrit";
+      else if(MathAbs(fCible) < 0.001)
+         frein = "EXPOSITION CIBLE QUASI NULLE apres tous les multiplicateurs";
+
+      Print("--- bougie ", g_barIndex, " | ", TimeToString(iTime(_Symbol, Period(), 1)), " ---");
+      Print("   savane : score ", DoubleToString(scoreLocal, 2), " / seuil ",
+            DoubleToString(InpSavaneMin, 2), " | entropie ", DoubleToString(ent, 3),
+            " / max ", DoubleToString(InpEntMax, 3), " -> ", (savaneOk ? "PROPICE" : "STERILE"));
+      Print("   meute  : ", vivantes, "/16 vivantes | conviction ", DoubleToString(dirS, 3),
+            " / proie ", DoubleToString(InpProieMin, 2),
+            " | contrariennes ", DoubleToString(wTot > 0 ? 100.0 * wContraTot / wTot : 0.0, 0), " %");
+      Print("   taille : volatilite ", DoubleToString(100.0 * sigA, 1), " %/an -> levier x",
+            DoubleToString(levVol, 2), " | torpeur ", DoubleToString(torpeur, 2),
+            " | bouclier ", DoubleToString(bouclier, 2));
+      Print("   CIBLE  : ", DoubleToString(100.0 * fCible, 1), " % du capital",
+            (StringLen(frein) > 0 ? "   <<< BLOQUE PAR : " + frein : "   (la meute charge)"));
+     }
 
    //=================================================================
    // REEQUILIBRAGE AVEC ZONE MORTE ET RESPIRATION
