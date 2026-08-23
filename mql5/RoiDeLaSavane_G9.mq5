@@ -277,6 +277,7 @@ string g_symAigle = "";    // source exterieure de l'Aigle (indice dollar)
 int    g_savOk = 0;        // combien de savanes ont ete trouvees
 string g_attente = "";     // pourquoi le moteur patiente, s'il patiente
 int    g_muettes = 0;      // D11 : especes privees de terrain cette bougie
+int    g_barsTotal = 0;    // D12 : bougies totales du graphique, tous historiques confondus
 double g_capital0 = 0.0;   // solde au demarrage, fige une fois pour toutes
 
 // --- valeurs affichees
@@ -816,6 +817,7 @@ int OnInit()
    g_capital0 = AccountInfoDouble(ACCOUNT_BALANCE);   // D4 : fige une fois
    g_lastBar = 0;
    g_barIndex = 0;
+   g_barsTotal = Bars(_Symbol, Period());
 
    const int lbInit  = BarresParAn();
    const int besIdeal = MathMax(lbInit, 400) + 60;
@@ -828,9 +830,14 @@ int OnInit()
    Print("Historique IDEAL (pour que l'Elephant vive aussi) : ", besIdeal, " bougies.");
    Print("   -> entre les deux, la meute chasse quand meme (D11) : les especes",
          " a longue memoire se taisent, s'affament, et mutent vers du plus court.");
-   const int amInit = MathMax(0, InpAmorcage);
-   Print("Amorcage (D8) : la meute ne chasse qu'apres ", amInit,
-         " bougies vues DEPUIS LE DEBUT DU TEST.");
+   const int amInit = MathMax(0, MathMin(InpAmorcage,
+                                         MathMax(20, MathMax(1, Bars(_Symbol, Period())) / 3)));
+   Print("Amorcage (D8/D12) : la meute ne chasse qu'apres ", amInit,
+         " bougies vues DEPUIS LE DEBUT DU TEST",
+         (amInit < InpAmorcage
+          ? StringFormat(" — replie depuis %d, faute d'histoire (%d bougies au total)",
+                         InpAmorcage, Bars(_Symbol, Period()))
+          : ""), ".");
    Print("   -> les ", amInit, " premieres bougies de votre periode testee ne",
          " produiront AUCUN ordre. C'est normal, la meute se rechauffe.");
    Print("   -> en ", EnumToString(Period()), " cela represente environ ",
@@ -880,7 +887,7 @@ void OnTick()
 //+------------------------------------------------------------------+
 void TraiterBougie()
   {
-   const int lbAn  = BarresParAn();
+   const int lbAnBrut = BarresParAn();
    const double annuF = FacteurAnnualisation();
 
    // D11 : L'EXPERT REFUSAIT DE VIVRE FAUTE DE TERRAIN POUR UNE SEULE ESPECE.
@@ -894,11 +901,12 @@ void TraiterBougie()
    // le vital, et chaque espece trop gourmande reste muette et s'affame — donc
    // mute vers une memoire plus courte, ce qui est exactement le comportement
    // darwinien voulu.
-   const int besoinIdeal = MathMax(lbAn, 400) + 60;
+   const int besoinIdeal = MathMax(lbAnBrut, 400) + 60;
    // le vrai plancher, mesure index par index : v100 lit cl[101], l'entropie
    // cl[InpWEnt+3], la volatilite cl[InpVolWin+1], le momentum cl[1+lbAn]
-   const int besoinVital = MathMax(MathMax(lbAn + 2, InpVolWin + 2),
-                                   MathMax(102, InpWEnt + 5)) + 8;
+   // D12 : le vital ne depend plus des fenetres reglees — elles se replient.
+   // Il ne reste que le plancher physique du moteur : 60 bougies.
+   const int besoinVital = 60;
    const int besoin      = besoinVital;
    double cl[], hi[], lo[], op[];
    ArraySetAsSeries(cl, true);
@@ -913,12 +921,13 @@ void TraiterBougie()
    int dispo = CopyClose(_Symbol, Period(), 0, besoinIdeal, cl);
    if(dispo < besoinIdeal && dispo < besoinVital)
       dispo = CopyClose(_Symbol, Period(), 0, besoinVital, cl);
+   const int nOHLC = MathMax(20, MathMin(60, dispo));
    if(dispo < besoinVital)
      {
       g_attente = StringFormat("EN ATTENTE D'HISTORIQUE : %d bougies sur %d VITALES (%s)",
                                MathMax(0, dispo), besoinVital, EnumToString(Period()));
       if(InpTracer && (g_barIndex % 200 == 1))
-         Print(g_attente, " — reduisez le plafond de fenetre (C6) ou allongez la periode testee");
+         Print(g_attente, " — ce courtier ne detient pas meme le minimum vital du moteur");
       if(InpAfficherTableau)
          Comment("=== LE ROI DE LA SAVANE G9 ===\n" + g_attente +
                  "\nBougies vues depuis le lancement : " + IntegerToString(g_barIndex));
@@ -927,27 +936,27 @@ void TraiterBougie()
    // D9 : ces deux sorties etaient MUETTES. Un courtier qui livre les cloture
    // mais pas les hautes/basses (indices synthetiques, CFD exotiques) tuait
    // l'expert sans un mot. Elles parlent maintenant comme D3.
-   if(CopyHigh(_Symbol, Period(), 0, 60, hi) < 60)
+   if(CopyHigh(_Symbol, Period(), 0, nOHLC, hi) < nOHLC)
      {
-      g_attente = "EN ATTENTE : les HAUTES manquent sur 60 bougies chez ce courtier";
+      g_attente = StringFormat("EN ATTENTE : les HAUTES manquent sur %d bougies chez ce courtier", nOHLC);
       if(InpTracer && (g_barIndex % 200 == 1))
          Print(g_attente);
       if(InpAfficherTableau)
          Comment("=== LE ROI DE LA SAVANE G9 ===\n" + g_attente);
       return;
      }
-   if(CopyLow(_Symbol, Period(), 0, 60, lo) < 60)
+   if(CopyLow(_Symbol, Period(), 0, nOHLC, lo) < nOHLC)
      {
-      g_attente = "EN ATTENTE : les BASSES manquent sur 60 bougies chez ce courtier";
+      g_attente = StringFormat("EN ATTENTE : les BASSES manquent sur %d bougies chez ce courtier", nOHLC);
       if(InpTracer && (g_barIndex % 200 == 1))
          Print(g_attente);
       if(InpAfficherTableau)
          Comment("=== LE ROI DE LA SAVANE G9 ===\n" + g_attente);
       return;
      }
-   if(CopyOpen(_Symbol, Period(), 0, 60, op) < 60)
+   if(CopyOpen(_Symbol, Period(), 0, nOHLC, op) < nOHLC)
      {
-      g_attente = "EN ATTENTE : les OUVERTURES manquent sur 60 bougies chez ce courtier";
+      g_attente = StringFormat("EN ATTENTE : les OUVERTURES manquent sur %d bougies chez ce courtier", nOHLC);
       if(InpTracer && (g_barIndex % 200 == 1))
          Print(g_attente);
       if(InpAfficherTableau)
@@ -956,6 +965,21 @@ void TraiterBougie()
      }
    g_attente = "";
    g_muettes = 0;
+
+   // D12 : TOUTES LES FENETRES SE REPLIENT SUR L'HISTOIRE REELLEMENT FOURNIE.
+   // Un courtier qui ne detient que 105 bougies hebdomadaires ne doit pas
+   // rendre le moteur muet : chaque mesure se contente de ce qu'elle a, et
+   // le journal dit laquelle a ete raccourcie. Une fenetre repliee mesure
+   // moins bien — ce n'est pas gratuit — mais elle mesure.
+   const int lbAn    = MathMax(4,  MathMin(lbAnBrut,   dispo - 4));
+   const int nV      = MathMax(8,  MathMin(50,         dispo - 4));
+   const int volWinE = MathMax(8,  MathMin(InpVolWin,  dispo - 3));
+   const int wEntE   = MathMax(16, MathMin(InpWEnt,    dispo - 6));
+   const int nLong   = MathMax(16, MathMin(100,        dispo - 3));
+   const int nCroco  = MathMax(8,  MathMin(55,         dispo - 2));
+   const int nHyene  = MathMax(5,  MathMin(20,         dispo - 2));
+   const int nVaut   = MathMax(8,  MathMin(40,         dispo - 2));
+   const int nMech   = MathMax(8,  MathMin(50,         nOHLC - 2));
 
    //--- indice 1 = derniere bougie CLOTUREE (indice 0 = bougie en cours)
    const double close0 = cl[1];
@@ -970,16 +994,18 @@ void TraiterBougie()
    //=================================================================
    // LE TERRAIN DE CHASSE : MESURES DE BASE
    //=================================================================
-   double v[50];
-   for(int i = 0; i < 50; i++)
+   double v[];
+   ArrayResize(v, nV);
+   for(int i = 0; i < nV; i++)
       v[i] = MathLog(cl[1 + i] / cl[2 + i]);
    const double vNow  = v[0];
-   const double sdBar = StdevPop(v, 50);
+   const double sdBar = StdevPop(v, nV);
 
-   double vPrev[50];
-   for(int i = 0; i < 50; i++)
+   double vPrev[];
+   ArrayResize(vPrev, nV);
+   for(int i = 0; i < nV; i++)
       vPrev[i] = MathLog(cl[2 + i] / cl[3 + i]);
-   const double sdBarPrev = StdevPop(vPrev, 50);
+   const double sdBarPrev = StdevPop(vPrev, nV);
 
    const double lamF  = MathPow(0.5, 1.0 / MathMax(1, InpFitMem));
    const double fr    = InpFrais / 100.0;
@@ -989,7 +1015,13 @@ void TraiterBougie()
    // backtest etaient mortes sans le dire. Sur du quotidien cela fait quatorze
    // mois de test muets — et un test d'un an ne produisait RIEN. Le seuil est
    // desormais un parametre, et OnInit annonce le nombre de bougies perdues.
-   const int    amorcage = MathMax(0, InpAmorcage);
+   // D12 : sur un graphique court, un amorcage de 300 bougies ne peut JAMAIS
+   // etre atteint — le test est mort d'avance. On le replie au tiers de
+   // l'histoire disponible, et seulement dans ce cas : sur un graphique long
+   // (NVDA en journalier, des milliers de bougies) le reglage reste intact.
+   g_barsTotal = MathMax(g_barsTotal, Bars(_Symbol, Period()));
+   const int    amorcage = MathMax(0, MathMin(InpAmorcage,
+                                              MathMax(20, g_barsTotal / 3)));
    const bool   ready = (g_barIndex > amorcage) && (Bars(_Symbol, Period()) > besoin);
 
    //=================================================================
@@ -1045,7 +1077,7 @@ void TraiterBougie()
    // --- LE CROCODILE (10) : embuscade dans le canal des 55 bougies
    {
       double hC = cl[1], lC = cl[1];
-      for(int i = 1; i <= 55; i++)
+      for(int i = 1; i <= nCroco; i++)
         {
          hC = MathMax(hC, cl[i]);
          lC = MathMin(lC, cl[i]);
@@ -1056,10 +1088,10 @@ void TraiterBougie()
    // --- LA HYENE (11) : charognard sur capitulation a 20 bougies
    {
       double hH = cl[1];
-      for(int i = 1; i <= 20; i++)
+      for(int i = 1; i <= nHyene; i++)
          hH = MathMax(hH, cl[i]);
       const double chuteH = (sdBar > 0.0 && hH > 0.0)
-                            ? MathLog(cl[1] / hH) / (sdBar * MathSqrt(20.0)) : 0.0;
+                            ? MathLog(cl[1] / hH) / (sdBar * MathSqrt((double)nHyene)) : 0.0;
       SIGV[11] = Clamp((-chuteH - 1.5) / 1.5, 0.0, 1.0);
    }
 
@@ -1081,10 +1113,10 @@ void TraiterBougie()
    // --- LE VAUTOUR (16) : les grands charniers a 40 bougies
    {
       double hV = cl[1];
-      for(int i = 1; i <= 40; i++)
+      for(int i = 1; i <= nVaut; i++)
          hV = MathMax(hV, cl[i]);
       const double chuteV = (sdBar > 0.0 && hV > 0.0)
-                            ? MathLog(cl[1] / hV) / (sdBar * MathSqrt(40.0)) : 0.0;
+                            ? MathLog(cl[1] / hV) / (sdBar * MathSqrt((double)nVaut)) : 0.0;
       SIGV[16] = Clamp((-chuteV - 2.5) / 2.0, 0.0, 1.0);
    }
 
@@ -1209,7 +1241,7 @@ void TraiterBougie()
    int LFIXE[NESP];
    for(int i = 1; i <= 16; i++)
       LFIXE[i] = L[i];
-   LFIXE[9] = lbAn;   LFIXE[10] = 55;   LFIXE[11] = 20;   LFIXE[16] = 40;
+   LFIXE[9] = lbAn;   LFIXE[10] = nCroco; LFIXE[11] = nHyene; LFIXE[16] = nVaut;
 
    double scndFit = -1e9;
    int    scndE   = bestE;
@@ -1290,10 +1322,10 @@ void TraiterBougie()
    // HOMEOSTASIE : ciblage de volatilite
    //=================================================================
    double vv[];
-   ArrayResize(vv, InpVolWin);
-   for(int i = 0; i < InpVolWin; i++)
+   ArrayResize(vv, volWinE);
+   for(int i = 0; i < volWinE; i++)
       vv[i] = MathLog(cl[1 + i] / cl[2 + i]);
-   const double sigA   = StdevPop(vv, InpVolWin) * MathSqrt(annuF);
+   const double sigA   = StdevPop(vv, volWinE) * MathSqrt(annuF);
    const double levVol = (sigA > 0.0) ? MathMin(InpExpoMax, (InpTargetVol / 100.0) / sigA) : 0.0;
 
    //=================================================================
@@ -1331,7 +1363,7 @@ void TraiterBougie()
    // --- entropie de Shannon sur les motifs de trois bougies
    int cnt[8];
    ArrayInitialize(cnt, 0);
-   for(int i = 0; i < InpWEnt; i++)
+   for(int i = 0; i < wEntE; i++)
      {
       const int b0 = (cl[1 + i] > cl[2 + i]) ? 1 : 0;
       const int b1 = (cl[2 + i] > cl[3 + i]) ? 2 : 0;
@@ -1418,13 +1450,14 @@ void TraiterBougie()
    //=================================================================
    // L'ESSAIM : les insectes sentinelles. Ils ne chassent jamais.
    //=================================================================
-   double v10[10], v100[100];
+   double v10[10], v100[];
+   ArrayResize(v100, nLong);
    for(int i = 0; i < 10; i++)
       v10[i] = MathLog(cl[1 + i] / cl[2 + i]);
-   for(int i = 0; i < 100; i++)
+   for(int i = 0; i < nLong; i++)
       v100[i] = MathLog(cl[1 + i] / cl[2 + i]);
    const double sdCourt = StdevPop(v10, 10);
-   const double sdLong  = StdevPop(v100, 100);
+   const double sdLong  = StdevPop(v100, nLong);
    const double orage   = (sdLong > 0.0) ? sdCourt / sdLong : 1.0;
    const bool fourmisAlerte = ready && (orage > 1.5);
 
@@ -1442,12 +1475,12 @@ void TraiterBougie()
                                && (ruche > 1.4 * rucheMoy);
 
    double meches = 0.0;
-   for(int i = 1; i <= 50; i++)
+   for(int i = 1; i <= nMech; i++)
      {
       const double amp = MathMax(hi[i] - lo[i], SymbolInfoDouble(_Symbol, SYMBOL_POINT));
       meches += (hi[i] - lo[i] - MathAbs(cl[i] - op[i])) / amp;
      }
-   meches /= 50.0;
+   meches /= (double)nMech;
    const bool solTraitre = (meches > 0.55);
 
    //=================================================================
@@ -1562,7 +1595,9 @@ void TraiterBougie()
             DoubleToString(InpSavaneMin, 2), " | entropie ", DoubleToString(ent, 3),
             " / max ", DoubleToString(InpEntMax, 3), " -> ", (savaneOk ? "PROPICE" : "STERILE"));
       Print("   terrain: ", dispo, " bougies lues | ", g_muettes,
-            " espece(s) privee(s) de memoire (D11)");
+            " espece(s) privee(s) de memoire (D11) | fenetres D12 : an=", lbAn,
+            " vol=", volWinE, " entropie=", wEntE, " long=", nLong,
+            " amorcage=", amorcage);
       Print("   meute  : ", vivantes, "/16 vivantes | conviction ", DoubleToString(dirS, 3),
             " / proie ", DoubleToString(InpProieMin, 2),
             " | contrariennes ", DoubleToString(wTot > 0 ? 100.0 * wContraTot / wTot : 0.0, 0), " %");
